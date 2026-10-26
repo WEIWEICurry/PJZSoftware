@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("本地连接、刷新、名称持久化和备份恢复，页面无出站请求", async ({
+test("本地连接、日常账务、幂等重试和备份恢复，页面无出站请求", async ({
   page,
 }) => {
   const external: string[] = [];
@@ -31,6 +31,103 @@ test("本地连接、刷新、名称持久化和备份恢复，页面无出站�
   await page.getByRole("button", { name: "确认恢复到新目录" }).click();
   await expect(page.getByRole("status")).toContainText("恢复成功");
   await page.screenshot({ path: "test-results/data.png", fullPage: true });
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  await page.getByLabel("账户名称").fill("Synthetic bank");
+  await page.getByLabel("期初余额（元）").fill("1000.00");
+  // The server commits, but the browser loses the response. Retrying must not duplicate.
+  let loseResponse = true;
+  await page.route("**/api/v1/accounts", async (route) => {
+    if (route.request().method() === "POST" && loseResponse) {
+      loseResponse = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("账户已保存");
+  await expect(
+    page.getByRole("heading", { name: "Synthetic bank", exact: true }),
+  ).toHaveCount(1);
+  await page.unroute("**/api/v1/accounts");
+  await page.getByLabel("账户名称").fill("Synthetic cash");
+  await page.getByLabel("账户类型").selectOption("cash");
+  await page.getByLabel("期初余额（元）").fill("0");
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Synthetic cash", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  await page.getByLabel("金额（元）", { exact: true }).fill("30.25");
+  await page.getByLabel("备注", { exact: true }).fill("Synthetic expense");
+  await page.getByRole("button", { name: "保存流水", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("流水已保存");
+  await page
+    .getByRole("combobox", { name: "类型", exact: true })
+    .selectOption("income");
+  await page.getByLabel("金额（元）", { exact: true }).fill("200.00");
+  await page.getByRole("button", { name: "保存流水", exact: true }).click();
+  await expect(
+    page.getByRole("row").filter({ hasText: "¥200.00" }),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "类型", exact: true })
+    .selectOption("transfer");
+  await page.getByLabel("转账本金（元）").fill("100");
+  await page
+    .getByLabel("转入／还款账户")
+    .selectOption({ label: "Synthetic cash" });
+  await page.getByLabel("手续费（元）").fill("1");
+  await page.getByRole("button", { name: "保存流水", exact: true }).click();
+  await expect(
+    page.getByRole("row").filter({ hasText: "手续费 ¥1.00" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect(
+    page.locator(".metric").filter({ hasText: "本月支出" }),
+  ).toContainText("¥31.25");
+  await expect(page.locator(".asset-strip")).toContainText("¥1,168.75");
+  await page.screenshot({
+    path: "test-results/daily-overview.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  const expenseRow = page
+    .getByRole("row")
+    .filter({ hasText: "Synthetic expense" });
+  await expenseRow.getByRole("button", { name: "退款", exact: true }).click();
+  await page.getByLabel("金额（元）", { exact: true }).fill("10");
+  await page.getByRole("button", { name: "保存流水", exact: true }).click();
+  const refundRow = page
+    .getByRole("row")
+    .filter({ hasText: "退款" })
+    .filter({ hasText: "¥10.00" });
+  await expect(refundRow).toBeVisible();
+  await expenseRow.getByRole("button", { name: "修改", exact: true }).click();
+  await page.getByLabel("金额（元）", { exact: true }).fill("40.25");
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(expenseRow).toContainText("¥40.25");
+  await refundRow.getByRole("button", { name: "作废", exact: true }).click();
+  await page.getByRole("button", { name: "确认作废", exact: true }).click();
+  await expect(refundRow).toContainText("已作废");
+  await page.reload();
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect(
+    page.locator(".metric").filter({ hasText: "本月支出" }),
+  ).toContainText("¥41.25");
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  await page.screenshot({ path: "test-results/journal.png", fullPage: true });
+  await page.getByRole("button", { name: "数据管理", exact: true }).click();
+  const businessDownloadEvent = page.waitForEvent("download");
+  await page.getByRole("button", { name: "下载本地备份" }).click();
+  const businessBackup = await (await businessDownloadEvent).path();
+  await page.getByLabel("选择 .pjzbackup 备份").setInputFiles(businessBackup!);
+  await expect(page.getByText("备份验证通过")).toBeVisible();
+  await page.getByRole("button", { name: "确认恢复到新目录" }).click();
+  await expect(page.getByRole("status")).toContainText("恢复成功");
   expect(external).toEqual([]);
   await page.context().clearCookies();
   await page.reload();

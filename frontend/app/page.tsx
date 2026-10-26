@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { DailyOverview, DailyWorkspace } from "../src/daily";
 import { useEffect, useState, type FormEvent } from "react";
 import { connect, request, raw, type Ledger, type Preview } from "../src/api";
 
-type Tab = "overview" | "data" | "plan";
+type Tab = "overview" | "accounts" | "journal" | "data" | "plan";
 const stages = [
-  ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "当前验证"],
-  ["M1", "日常记账", "账户、收入支出、转账与退款", "待开发"],
+  ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
+  ["M1", "日常记账", "账户、收入支出、转账与退款", "当前阶段"],
   ["M2", "历史与报表", "截图汇总导入、预算与分类报表", "待开发"],
   ["M3", "投资资产", "A 股、ETF、基金与手动估值", "待开发"],
 ];
@@ -20,6 +21,7 @@ export default function Home() {
   const [name, setName] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [stopped, setStopped] = useState(false);
+  const [dailyVersion, setDailyVersion] = useState(0);
   useEffect(() => {
     connect()
       .then(() => request<Ledger>("/ledger"))
@@ -40,6 +42,11 @@ export default function Home() {
     } finally {
       setBusy(false);
     }
+  }
+  function navigate(next: Tab) {
+    setTab(next);
+    setNotice("");
+    if (ledger) setError("");
   }
   async function rename(event: FormEvent) {
     event.preventDefault();
@@ -105,13 +112,15 @@ export default function Home() {
           {(
             [
               ["overview", "◫", "总览"],
+              ["accounts", "▣", "账户"],
+              ["journal", "≡", "日常账本"],
               ["data", "▤", "数据管理"],
               ["plan", "◇", "开发计划"],
             ] as const
           ).map(([id, icon, label]) => (
             <button
               key={id}
-              onClick={() => setTab(id)}
+              onClick={() => navigate(id)}
               className={tab === id ? "nav active" : "nav"}
               aria-current={tab === id ? "page" : undefined}
             >
@@ -122,18 +131,22 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>基础验证版 · v0.1.0</small>
+          仅在本机运行<small>日常账本版 · v0.2.0</small>
         </div>
       </aside>
       <div className="workspace">
         <header>
           <span>
             个人空间 <span className="slash">/</span>{" "}
-            {tab === "overview"
-              ? "总览"
-              : tab === "data"
-                ? "数据管理"
-                : "开发计划"}
+            {
+              {
+                overview: "总览",
+                accounts: "账户",
+                journal: "日常账本",
+                data: "数据管理",
+                plan: "开发计划",
+              }[tab]
+            }
           </span>
           <span className="local-tag">
             <span className="status-dot" /> 本地模式
@@ -144,21 +157,29 @@ export default function Home() {
             <div>
               <div className="eyebrow">YOUR LOCAL LEDGER</div>
               <h1>
-                {tab === "overview"
-                  ? "把生活与资产，理清楚。"
-                  : tab === "data"
-                    ? "数据由你保管。"
-                    : "一步一步，建立可靠的账本。"}
+                {
+                  {
+                    overview: "把生活与资产，理清楚。",
+                    accounts: "账户清楚，资金有序。",
+                    journal: "把每一笔日常，记下来。",
+                    data: "数据由你保管。",
+                    plan: "一步一步，建立可靠的账本。",
+                  }[tab]
+                }
               </h1>
               <p>
-                {tab === "overview"
-                  ? "从一个属于自己的本地账本开始。"
-                  : tab === "data"
-                    ? "可验证的备份，让换一台电脑也能继续记录。"
-                    : "先验证数据可靠，再逐步开放记账与投资管理。"}
+                {
+                  {
+                    overview: "从日常收支开始，了解自己的资金变化。",
+                    accounts: "期初余额、账户转账和欠款都单独记录。",
+                    journal: "记录收入支出，保留每次修改的依据。",
+                    data: "可验证的备份，让换一台电脑也能继续记录。",
+                    plan: "先验证数据可靠，再逐步开放记账与投资管理。",
+                  }[tab]
+                }
               </p>
             </div>
-            <span className="phase">M0 · 基础验证</span>
+            <span className="phase">M1 · 日常账本</span>
           </div>
           {error && (
             <div className="alert error" role="alert">
@@ -182,50 +203,11 @@ export default function Home() {
           )}
           {tab === "overview" && (
             <>
-              <section className="hero card">
-                <div className="hero-copy">
-                  <span className="pill">一个新的开始</span>
-                  <h2>{ledger?.name ?? "我的本地账本"}</h2>
-                  <p>
-                    账本的基础已经准备好。
-                    <br />
-                    当前版本验证数据保存与迁移，记账和投资功能将在后续开放。
-                  </p>
-                  <button onClick={() => setTab("data")}>
-                    管理我的数据 <span aria-hidden="true">↗</span>
-                  </button>
-                </div>
-                <div className="hero-art" aria-hidden="true">
-                  <div className="paper back" />
-                  <div className="paper front">
-                    <span>LOCAL / PRIVATE</span>
-                    <div className="art-line long" />
-                    <div className="art-line" />
-                    <div className="art-bars">
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <b>PJZ.</b>
-                  </div>
-                </div>
-              </section>
-              <div className="stat-grid">
-                {[
-                  ["日常记账", "收支有迹可循", "M1 开放"],
-                  ["历史与预算", "看清消费结构", "M2 开放"],
-                  ["投资资产", "持仓、成本与收益", "M3 开放"],
-                ].map(([title, text, stage], i) => (
-                  <section className="card stat" key={title}>
-                    <span className="stat-icon">0{i + 1}</span>
-                    <h3>{title}</h3>
-                    <p>{text}</p>
-                    <span className="muted-label">{stage}</span>
-                  </section>
-                ))}
-              </div>
+              <DailyOverview
+                key={dailyVersion}
+                connected={available}
+                open={navigate}
+              />
               <section className="card details">
                 <div>
                   <span className="section-label">本地账本状态</span>
@@ -251,6 +233,17 @@ export default function Home() {
               </section>
             </>
           )}
+          {(tab === "accounts" || tab === "journal") && (
+            <DailyWorkspace
+              key={tab}
+              mode={tab}
+              available={available}
+              changed={() => {
+                setDailyVersion((value) => value + 1);
+                void request<Ledger>("/ledger").then(setLedger);
+              }}
+            />
+          )}
           {tab === "data" && (
             <div className="data-grid">
               <section className="card panel">
@@ -269,16 +262,14 @@ export default function Home() {
                     保存名称
                   </button>
                 </form>
-                <p className="footnote">
-                  这是基础阶段的持久化验证，不会创建收支记录。
-                </p>
+                <p className="footnote">修改名称不会改变已有账户与流水。</p>
               </section>
               <section className="card panel">
                 <span className="section-label">02 / 备份</span>
                 <h2>保存一份完整副本</h2>
                 <p>
                   使用 SQLite
-                  一致性快照并校验文件内容。当前基础备份包含账本元数据。
+                  一致性快照并校验文件内容。备份包含账户、流水、分类和本地修订记录。
                 </p>
                 <button disabled={!available} onClick={download}>
                   下载本地备份
