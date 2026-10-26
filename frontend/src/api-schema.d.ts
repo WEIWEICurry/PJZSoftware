@@ -39,6 +39,40 @@ export interface paths {
         patch: operations["update_account_api_v1_accounts__identifier__patch"];
         trace?: never;
     };
+    "/api/v1/accounts/{identifier}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Account */
+        post: operations["delete_account_api_v1_accounts__identifier__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/{identifier}/delete-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete Preview */
+        post: operations["delete_preview_api_v1_accounts__identifier__delete_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/backups": {
         parameters: {
             query?: never;
@@ -68,6 +102,23 @@ export interface paths {
         put?: never;
         /** Create Category */
         post: operations["create_category_api_v1_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{identifier}/note-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Note Suggestions */
+        get: operations["note_suggestions_api_v1_categories__identifier__note_suggestions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -353,6 +404,54 @@ export interface components {
             /** Id */
             id: string;
         };
+        /** DeleteConfirmation */
+        DeleteConfirmation: {
+            /** Confirm Name */
+            confirm_name: string;
+            /** Preview Token */
+            preview_token: string;
+        };
+        /** DeleteImpact */
+        DeleteImpact: {
+            /** Account Id */
+            account_id: string;
+            /** After Fen */
+            after_fen: string;
+            /** Before Fen */
+            before_fen: string;
+            /** Name */
+            name: string;
+        };
+        /** DeleteOutput */
+        DeleteOutput: {
+            /** Backup Path */
+            backup_path: string;
+            /** Deleted */
+            deleted: boolean;
+            /** Event Count */
+            event_count: number;
+        };
+        /** DeletePreview */
+        DeletePreview: {
+            /** Account Id */
+            account_id: string;
+            /** Account Name */
+            account_name: string;
+            /** Can Delete */
+            can_delete: boolean;
+            /** Event Count */
+            event_count: number;
+            /** Other Accounts */
+            other_accounts: components["schemas"]["DeleteImpact"][];
+            /** Preview Token */
+            preview_token: string;
+            /** Reason */
+            reason: string | null;
+            /** Refund Count */
+            refund_count: number;
+            /** Transfer Count */
+            transfer_count: number;
+        };
         /** EventChange */
         EventChange: {
             /**
@@ -487,6 +586,13 @@ export interface components {
             schema_version: number;
             /** Stage */
             stage: string;
+        };
+        /** NoteSuggestion */
+        NoteSuggestion: {
+            /** Count */
+            count: number;
+            /** Note */
+            note: string;
         };
         /** RenameInput */
         RenameInput: {
@@ -634,6 +740,74 @@ export interface operations {
             };
         };
     };
+    delete_account_api_v1_accounts__identifier__delete_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeleteConfirmation"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_preview_api_v1_accounts__identifier__delete_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     backup_api_v1_backups_post: {
         parameters: {
             query?: never;
@@ -696,6 +870,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    note_suggestions_api_v1_categories__identifier__note_suggestions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteSuggestion"][];
                 };
             };
             /** @description Validation Error */

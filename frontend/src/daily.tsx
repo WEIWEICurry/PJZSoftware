@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
+import {
+  AccountDeleteDialog,
+  type AccountDeletePreview,
+} from "./account-delete-dialog";
 import type { components } from "./api-schema";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
 
@@ -9,6 +13,7 @@ type Category = components["schemas"]["CategoryOutput"];
 type LedgerEvent = components["schemas"]["EventOutput"];
 type EventPage = components["schemas"]["EventPage"];
 type Summary = components["schemas"]["SummaryOutput"];
+type NoteSuggestion = components["schemas"]["NoteSuggestion"];
 type EventInput = components["schemas"]["EventInput"];
 const accountKinds = {
   cash: "现金",
@@ -116,6 +121,13 @@ export function DailyWorkspace({
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+  const [pendingDelete, setPendingDelete] =
+    useState<AccountDeletePreview | null>(null);
+  const [noteRefresh, setNoteRefresh] = useState(0);
+  const [noteChoices, setNoteChoices] = useState<{
+    category: string;
+    items: NoteSuggestion[];
+  }>({ category: "", items: [] });
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState<EventPage>({ items: [], total: 0 });
   const [month, setMonth] = useState(localDay().slice(0, 7));
@@ -200,6 +212,7 @@ export function DailyWorkspace({
     setNotice("");
     try {
       await operation();
+      setNoteRefresh((value) => value + 1);
       await refreshBase();
       await refreshEvents();
       changed();
@@ -287,6 +300,32 @@ export function DailyWorkspace({
             ? "工资"
             : "餐饮"),
     )?.id ?? choices[0]?.id;
+  const suggestionCategory =
+    draft.kind === "adjustment"
+      ? ""
+      : draft.category_id || defaultCategory || "";
+  useEffect(() => {
+    if (!available || !suggestionCategory) return;
+    let cancelled = false;
+    request<NoteSuggestion[]>(
+      "/categories/" + suggestionCategory + "/note-suggestions",
+    )
+      .then((items) => {
+        if (!cancelled) setNoteChoices({ category: suggestionCategory, items });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setNoteChoices({ category: suggestionCategory, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [available, suggestionCategory, noteRefresh]);
+  const suggestions =
+    suggestionCategory && noteChoices.category === suggestionCategory
+      ? noteChoices.items
+      : [];
+
   async function saveEvent(event: FormEvent) {
     event.preventDefault();
     await act(async () => {
@@ -368,13 +407,32 @@ export function DailyWorkspace({
           >
             {item.archived ? "恢复账户" : "归档账户"}
           </button>
+          {item.archived && (
+            <button
+              type="button"
+              className="text-button danger"
+              disabled={!enabled}
+              onClick={() =>
+                void act(async () => {
+                  setPendingDelete(
+                    await request<AccountDeletePreview>(
+                      "/accounts/" + item.id + "/delete-preview",
+                      "POST",
+                    ),
+                  );
+                })
+              }
+            >
+              彻底删除
+            </button>
+          )}
         </div>
       </section>
     );
   }
   return (
     <div className="daily-workspace">
-      {error && (
+      {error && !pendingDelete && (
         <div className="alert error" role="alert">
           {error}
         </div>
@@ -383,6 +441,39 @@ export function DailyWorkspace({
         <div className="alert success" role="status">
           {notice}
         </div>
+      )}
+      {pendingDelete && (
+        <AccountDeleteDialog
+          key={pendingDelete.preview_token}
+          preview={pendingDelete}
+          busy={busy}
+          error={error}
+          cancel={() => {
+            setPendingDelete(null);
+            setError("");
+          }}
+          confirm={(name) =>
+            void act(async () => {
+              const result = await request<
+                components["schemas"]["DeleteOutput"]
+              >("/accounts/" + pendingDelete.account_id + "/delete", "POST", {
+                preview_token: pendingDelete.preview_token,
+                confirm_name: name,
+              });
+              if (editingAccount?.id === pendingDelete.account_id) {
+                setEditingAccount(null);
+                setAccountName("");
+              }
+              setPendingDelete(null);
+              setNotice(
+                "账户及 " +
+                  result.event_count +
+                  " 条流水已删除。删除前备份：" +
+                  result.backup_path,
+              );
+            })
+          }
+        />
       )}
       {mode === "accounts" ? (
         <>
@@ -650,15 +741,39 @@ export function DailyWorkspace({
                   </select>
                 </label>
               )}
-              <label className="wide-field">
-                {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+              <div className="wide-field note-field">
+                <label htmlFor="transaction-note">
+                  {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+                </label>
                 <input
+                  id="transaction-note"
                   value={draft.note ?? ""}
                   onChange={(e) => setDraft({ ...draft, note: e.target.value })}
                   maxLength={500}
                   required={draft.kind === "adjustment"}
                 />
-              </label>
+                {suggestions.length > 0 && (
+                  <div
+                    className="note-suggestions"
+                    role="group"
+                    aria-label="常用备注"
+                  >
+                    <span>常用备注</span>
+                    {suggestions.map((item) => (
+                      <button
+                        key={item.note}
+                        type="button"
+                        className="note-chip"
+                        title={item.note + "（已使用 " + item.count + " 次）"}
+                        disabled={!enabled}
+                        onClick={() => setDraft({ ...draft, note: item.note })}
+                      >
+                        {item.note}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {draft.kind === "refund" && (
                 <p className="footnote wide-field">
                   {draft.original_event_id

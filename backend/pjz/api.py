@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.daily_api import router
 from pjz.domain import RuleError
@@ -123,7 +124,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.2.1",
+        version="0.3.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -207,10 +208,15 @@ def create_app(
     @app.exception_handler(RuleError)
     async def rule_error(request: Request, error: RuleError) -> JSONResponse:
         code = str(error)
-        status = 409 if code in ("REVISION_CONFLICT", "IDEMPOTENCY_CONFLICT") else 422
+        status = (
+            409
+            if code
+            in ("REVISION_CONFLICT", "IDEMPOTENCY_CONFLICT", "RESOURCE_DELETED", "PREVIEW_EXPIRED")
+            else 422
+        )
         return failure(code, status)
 
-    app.include_router(router(Accounting(store.engine)))
+    app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
 
     @app.get("/health")
     def health() -> dict[str, str]:

@@ -767,13 +767,16 @@ details[open] summary {
   .form-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .entry-grid label.wide-field {
+  .entry-grid label.wide-field,
+  .entry-grid .note-field {
     grid-column: span 3;
   }
-  .entry-grid[data-kind="transfer"] label.wide-field {
+  .entry-grid[data-kind="transfer"] label.wide-field,
+  .entry-grid[data-kind="transfer"] .note-field {
     grid-column: span 1;
   }
-  .entry-grid[data-kind="adjustment"] label.wide-field {
+  .entry-grid[data-kind="adjustment"] label.wide-field,
+  .entry-grid[data-kind="adjustment"] .note-field {
     grid-column: 1/-1;
   }
 }
@@ -794,4 +797,81 @@ details[open] summary {
     white-space: nowrap;
     font-size: 14px;
   }
+}
+
+.note-suggestions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.note-suggestions > span {
+  font-size: 13px;
+  color: var(--muted);
+  margin-right: 3px;
+}
+.note-chip {
+  padding: 5px 10px;
+  max-width: 260px;
+  font-size: 14px;
+  font-weight: 400;
+  background: #edf3ef;
+  color: #315f4c;
+  border: 1px solid #dce6df;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.delete-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px;
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 20px 80px #172a3033;
+}
+.delete-dialog::backdrop {
+  background: #14292166;
+}
+.delete-dialog h2 {
+  font-size: 23px;
+  margin: 0 0 16px;
+  overflow-wrap: anywhere;
+}
+.delete-dialog p {
+  line-height: 1.65;
+}
+.delete-dialog caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 12px;
+}
+.delete-dialog .alert {
+  margin: 16px 0;
+  padding: 12px 16px;
+}
+.delete-name-label {
+  display: block;
+  font-size: 15px;
+}
+.delete-name-label input {
+  margin-top: 8px;
+}
+.delete-backup-note {
+  font-size: 14px;
+  color: var(--muted);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.destructive-button {
+  background: #a6372d;
+  color: #fff;
 }
