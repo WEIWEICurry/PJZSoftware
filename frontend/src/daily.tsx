@@ -115,6 +115,7 @@ export function DailyWorkspace({
   changed: () => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState<EventPage>({ items: [], total: 0 });
   const [month, setMonth] = useState(localDay().slice(0, 7));
@@ -323,6 +324,54 @@ export function DailyWorkspace({
     accounts.find((item) => item.id === id)?.name ?? "—";
   const categoryLabel = (id: string | null) =>
     categories.find((item) => item.id === id)?.name ?? "—";
+  const archivedAccounts = accounts.filter((item) => item.archived);
+  function renderAccount(item: Account) {
+    return (
+      <section
+        className={"card account-card" + (item.archived ? " archived" : "")}
+        key={item.id}
+      >
+        <span className="section-label">
+          {accountKinds[item.kind]} {item.archived ? "· 已归档" : ""}
+        </span>
+        <h2>{item.name}</h2>
+        <strong>{money(item.balance_fen)}</strong>
+        <p>
+          {item.kind === "liability" ? "当前欠款" : "当前余额"} · 期初{" "}
+          {item.opening_date}
+        </p>
+        <div className="row-actions">
+          <button
+            className="text-button"
+            disabled={!enabled}
+            onClick={() => {
+              setEditingAccount(item);
+              setAccountName(item.name);
+            }}
+          >
+            编辑名称
+          </button>
+          <button
+            className="text-button"
+            disabled={!enabled}
+            onClick={() =>
+              void act(async () => {
+                await request("/accounts/" + item.id, "PATCH", {
+                  name: item.name,
+                  archived: !item.archived,
+                  revision: item.revision,
+                });
+                if (!item.archived) setShowArchived(false);
+                setNotice(item.archived ? "账户已恢复。" : "账户已归档。");
+              })
+            }
+          >
+            {item.archived ? "恢复账户" : "归档账户"}
+          </button>
+        </div>
+      </section>
+    );
+  }
   return (
     <div className="daily-workspace">
       {error && (
@@ -338,60 +387,41 @@ export function DailyWorkspace({
       {mode === "accounts" ? (
         <>
           <div className="account-grid">
-            {accounts.map((item) => (
-              <section
-                className={
-                  "card account-card" + (item.archived ? " archived" : "")
-                }
-                key={item.id}
-              >
-                <span className="section-label">
-                  {accountKinds[item.kind]} {item.archived ? "· 已归档" : ""}
-                </span>
-                <h2>{item.name}</h2>
-                <strong>{money(item.balance_fen)}</strong>
-                <p>
-                  {item.kind === "liability" ? "当前欠款" : "当前余额"} · 期初{" "}
-                  {item.opening_date}
-                </p>
-                <div className="row-actions">
-                  <button
-                    className="text-button"
-                    disabled={!enabled}
-                    onClick={() => {
-                      setEditingAccount(item);
-                      setAccountName(item.name);
-                    }}
-                  >
-                    编辑名称
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={!enabled}
-                    onClick={() =>
-                      void act(async () => {
-                        await request("/accounts/" + item.id, "PATCH", {
-                          name: item.name,
-                          archived: !item.archived,
-                          revision: item.revision,
-                        });
-                        setNotice(
-                          item.archived ? "账户已恢复。" : "账户已归档。",
-                        );
-                      })
-                    }
-                  >
-                    {item.archived ? "恢复账户" : "归档账户"}
-                  </button>
-                </div>
-              </section>
-            ))}
+            {accounts.filter((item) => !item.archived).map(renderAccount)}
           </div>
-          {!accounts.length && (
+          {!accounts.some((item) => !item.archived) && (
             <div className="card empty-state">
-              <h2>先添加一个账户</h2>
-              <p>录入今天的实际余额作为期初，之后的收支都会有据可查。</p>
+              <h2>{accounts.length ? "暂无使用中的账户" : "先添加一个账户"}</h2>
+              <p>
+                {accounts.length
+                  ? "可以添加新账户，或展开已归档账户后恢复使用。"
+                  : "录入实际余额作为期初，之后的收支都会有据可查。"}
+              </p>
             </div>
+          )}
+          {archivedAccounts.length > 0 && (
+            <section className="archive-section" aria-label="归档账户管理">
+              <button
+                className="archive-toggle"
+                aria-expanded={showArchived}
+                aria-controls="archived-accounts"
+                onClick={() => setShowArchived(!showArchived)}
+              >
+                <span aria-hidden="true">{showArchived ? "▾" : "▸"}</span>
+                已归档账户（{archivedAccounts.length}）
+                <span className="archive-action">
+                  {showArchived ? "收起" : "展开"}
+                </span>
+              </button>
+              <div id="archived-accounts" hidden={!showArchived}>
+                <p className="footnote">
+                  归档账户不再日常显示，历史流水保留；需要时可以恢复。
+                </p>
+                <div className="account-grid">
+                  {archivedAccounts.map(renderAccount)}
+                </div>
+              </div>
+            </section>
           )}
           <section className="card panel">
             <span className="section-label">账户设置</span>
@@ -494,7 +524,11 @@ export function DailyWorkspace({
                 </button>
               )}
             </div>
-            <form onSubmit={saveEvent} className="form-grid">
+            <form
+              onSubmit={saveEvent}
+              className="form-grid entry-grid"
+              data-kind={draft.kind}
+            >
               <label>
                 类型
                 <select
@@ -647,7 +681,7 @@ export function DailyWorkspace({
                     ? "借还本金与普通转账均不计收支，只有费用计入支出。"
                     : draft.kind === "adjustment"
                       ? "余额校正不计收支，并保留校正原因。"
-                      : "金额按整数分保存，未来日期不作为已发生流水。"}
+                      : "记录已发生的交易；期初和转账本金不计入收支。"}
                 </small>
               </div>
             </form>
