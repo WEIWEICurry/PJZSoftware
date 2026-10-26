@@ -8,11 +8,13 @@ import tempfile
 import threading
 import time
 import urllib.request
+import uuid
 from pathlib import Path
 
 import uvicorn
 from filelock import FileLock, Timeout
 
+from pjz.accounting import Accounting
 from pjz.api import create_app
 from pjz.storage import LedgerStore, inspect_backup
 
@@ -23,11 +25,42 @@ def run() -> None:
         store = LedgerStore(directory)
         original = store.metadata()
         store.rename("Synthetic acceptance ledger", original["revision"])
+        accounting = Accounting(store.engine)
+        account = accounting.create_account(
+            {
+                "name": "Synthetic packaged account",
+                "kind": "bank",
+                "opening_date": "2026-01-01",
+                "opening_fen": "10000",
+            },
+            str(uuid.uuid4()),
+        )
+        expense_category = next(
+            item["id"] for item in accounting.categories() if item["name"] == "餐饮"
+        )
+        accounting.create_event(
+            {
+                "kind": "expense",
+                "effective_date": "2026-01-02",
+                "account_id": account["id"],
+                "amount_fen": "3025",
+                "fee_fen": "0",
+                "category_id": expense_category,
+                "target_account_id": None,
+                "original_event_id": None,
+                "note": "Synthetic packaged expense",
+            },
+            str(uuid.uuid4()),
+        )
+        assert accounting.summary("2026-01-01", "2026-01-31")["assets_fen"] == "6975"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
         restored = LedgerStore(destination)
         assert restored.metadata() == store.metadata(), "Restore mismatch"
+        assert (
+            Accounting(restored.engine).summary("2026-01-01", "2026-01-31")["expense_fen"] == "3025"
+        )
         restored.close()
         sock = socket.socket()
         sock.bind(("127.0.0.1", 0))

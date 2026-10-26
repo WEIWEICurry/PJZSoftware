@@ -14,9 +14,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+SUPPORTED_SCHEMAS = (1, 2)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 
@@ -59,6 +62,31 @@ class LedgerStore:
                 )
                 connection.execute(text("PRAGMA user_version=1"))
         with self.engine.connect() as connection:
+            version = connection.execute(text("PRAGMA user_version")).scalar_one()
+        if version == 1:
+            if existing:
+                backup_dir = self.directory / "backups"
+                backup_dir.mkdir(exist_ok=True)
+                payload = self.backup()
+                inspect_backup(payload)
+                (backup_dir / ("before-v2-" + uuid.uuid4().hex + ".pjzbackup")).write_bytes(payload)
+            config = Config()
+            config.set_main_option("script_location", str(Path(__file__).parent / "migrations"))
+            with self.engine.connect() as connection:
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+                try:
+                    config.attributes["connection"] = connection
+                    command.stamp(config, "0001")
+                    command.upgrade(config, "head")
+                    connection.commit()
+                except Exception:
+                    connection.rollback()
+                    self.engine.dispose()
+                    raise
+        from pjz.accounting import Accounting
+
+        Accounting(self.engine).seed_categories()
+        with self.engine.connect() as connection:
             connection.execute(text("PRAGMA journal_mode=WAL"))
 
     def metadata(self) -> dict[str, Any]:
@@ -89,7 +117,7 @@ class LedgerStore:
             payload = snapshot.read_bytes()
         manifest = {
             "format_version": 1,
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": database_version(self.path),
             "created_at": datetime.now(UTC).isoformat(),
             "ledger_id": self.metadata()["id"],
             "files": {
@@ -118,6 +146,9 @@ class LedgerStore:
             staged.mkdir()
             (staged / "ledger.sqlite3").write_bytes(snapshot)
             validate_database(staged / "ledger.sqlite3")
+            restored = LedgerStore(staged)
+            restored.close()
+            validate_database(staged / "ledger.sqlite3")
             staged.rename(destination)
         return destination
 
@@ -128,7 +159,8 @@ class LedgerStore:
 def validate_database(path: Path) -> None:
     try:
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as connection:
-            if connection.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+            version = connection.execute("PRAGMA user_version").fetchone()[0]
+            if version not in SUPPORTED_SCHEMAS:
                 raise DataError("UNSUPPORTED_SCHEMA")
             if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
                 raise DataError("INVALID_DATABASE")
@@ -137,14 +169,51 @@ def validate_database(path: Path) -> None:
             objects = connection.execute(
                 "SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
             ).fetchall()
-            if objects != [("table", "ledger")]:
+            expected_tables = (
+                {"ledger"}
+                if version == 1
+                else {
+                    "ledger",
+                    "alembic_version",
+                    "accounts",
+                    "categories",
+                    "financial_events",
+                    "cash_entries",
+                    "operation_revisions",
+                    "idempotency_records",
+                }
+            )
+            tables = {name for kind, name in objects if kind == "table"}
+            if tables != expected_tables or any(
+                kind not in ("table", "index") for kind, _ in objects
+            ):
                 raise DataError("UNSUPPORTED_DATABASE")
+            if version == 2:
+                if connection.execute("SELECT version_num FROM alembic_version").fetchall() != [
+                    ("0002",)
+                ]:
+                    raise DataError("UNSUPPORTED_SCHEMA")
             rows = connection.execute(
                 "SELECT id, name, revision, created_at FROM ledger"
             ).fetchall()
             if len(rows) != 1 or not isinstance(rows[0][1], str) or rows[0][2] < 1:
                 raise DataError("INVALID_DATABASE")
             uuid.UUID(rows[0][0])
+        if version == 2:
+            from pjz.accounting import Accounting
+            from pjz.domain import RuleError
+
+            verifier = create_engine(
+                "sqlite://", creator=lambda: sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
+            )
+            try:
+                with verifier.connect() as check:
+                    check.exec_driver_sql("BEGIN")
+                    Accounting(verifier).rebuild(check, persist=False)
+            except RuleError as error:
+                raise DataError("INVALID_ACCOUNTING_DATA") from error
+            finally:
+                verifier.dispose()
     except (sqlite3.Error, ValueError, TypeError, IndexError) as error:
         if isinstance(error, DataError):
             raise
@@ -162,7 +231,10 @@ def inspect_backup(payload: bytes) -> bytes:
             if any(entry.file_size > MAX_PACKAGE or entry.flag_bits & 1 for entry in entries):
                 raise DataError("BACKUP_TOO_LARGE")
             manifest = json.loads(package.read("manifest.json"))
-            if manifest["format_version"] != 1 or manifest["schema_version"] != SCHEMA_VERSION:
+            if (
+                manifest["format_version"] != 1
+                or manifest["schema_version"] not in SUPPORTED_SCHEMAS
+            ):
                 raise DataError("UNSUPPORTED_BACKUP")
             snapshot = package.read("ledger.sqlite3")
             descriptor = manifest["files"]["ledger.sqlite3"]
@@ -174,8 +246,15 @@ def inspect_backup(payload: bytes) -> bytes:
             path = Path(temporary) / "ledger.sqlite3"
             path.write_bytes(snapshot)
             validate_database(path)
+            if database_version(path) != manifest["schema_version"]:
+                raise DataError("BACKUP_SCHEMA_MISMATCH")
         return snapshot
     except (zipfile.BadZipFile, KeyError, TypeError, ValueError, OSError) as error:
         if isinstance(error, DataError):
             raise
         raise DataError("INVALID_BACKUP") from error
+
+
+def database_version(path: Path) -> int:
+    with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as connection:
+        return int(connection.execute("PRAGMA user_version").fetchone()[0])

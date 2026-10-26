@@ -20,7 +20,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from pjz.storage import MAX_PACKAGE, DataError, LedgerStore
+from pjz.accounting import Accounting
+from pjz.daily_api import router
+from pjz.domain import RuleError
+from pjz.storage import MAX_PACKAGE, SCHEMA_VERSION, DataError, LedgerStore
 
 
 class BodyLimit:
@@ -120,7 +123,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.1.0",
+        version="0.2.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -201,6 +204,14 @@ def create_app(
         code = str(error)
         return failure(code, 409 if code == "REVISION_CONFLICT" else 400)
 
+    @app.exception_handler(RuleError)
+    async def rule_error(request: Request, error: RuleError) -> JSONResponse:
+        code = str(error)
+        status = 409 if code in ("REVISION_CONFLICT", "IDEMPOTENCY_CONFLICT") else 422
+        return failure(code, status)
+
+    app.include_router(router(Accounting(store.engine)))
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ready"}
@@ -221,9 +232,9 @@ def create_app(
         return {
             **store.metadata(),
             "directory": str(store.directory),
-            "schema_version": 1,
+            "schema_version": SCHEMA_VERSION,
             "encrypted": False,
-            "stage": "M0",
+            "stage": "M1",
         }
 
     @app.put("/api/v1/ledger")

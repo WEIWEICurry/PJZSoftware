@@ -1,9 +1,16 @@
 [project]
 name = "pjzsoftware"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local personal ledger foundation"
 requires-python = ">=3.13,<3.14"
-dependencies = ["fastapi", "uvicorn", "sqlalchemy>=2", "filelock", "python-multipart"]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy>=2",
+    "filelock",
+    "python-multipart",
+    "alembic>=1.20.1",
+]
 
 [dependency-groups]
 dev = ["pytest", "httpx", "ruff", "mypy", "pyinstaller"]

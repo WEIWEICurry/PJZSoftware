@@ -4,7 +4,7 @@
 
 ## ADR-001：Next.js + FastAPI + SQLite
 
-前端采用 Next.js App Router、React、TypeScript strict；后端采用 Python、FastAPI、Pydantic、Decimal；SQLite 存储账本，SQLAlchemy 数据访问，业务 schema 的 Alembic 迁移计划在 M1 引入。单仓库管理，不部署远程服务。代价是两套工具链及前后端契约维护。
+前端采用 Next.js App Router、React、TypeScript strict；后端采用 Python、FastAPI、Pydantic、Decimal；SQLite 存储账本，SQLAlchemy 数据访问，业务 schema 使用 Alembic 迁移。单仓库管理，不部署远程服务。代价是两套工具链及前后端契约维护。
 
 ## ADR-002：生产环境单个本地服务
 
@@ -90,10 +90,18 @@ M0 必须验证：干净 Windows 标准账户安装启动、无 Node/Python 环�
 
 核对日期：2026-10-26。依赖版本与部署细节仍需实测。
 
-## ADR-003：M0 实施边界
+## ADR-003：M0 实施边界（历史基线）
 
 M0 先实现单表元数据 schema v1 和未知版本拒绝；不含业务数据迁移，不覆盖旧库。恢复后保留独立副本，切换由 --data-dir 指定，完整账本选择界面后续实现。改名使用 revision 防冲突，金融事件幂等与修订将在 M1 实现。
 
 Next 内联启动脚本按构建产物计算 CSP SHA-256 白名单，不开放 script unsafe-inline；显式禁用 FastAPI telemetry 的 tracing／metrics／logs／operation_spans／auto_configure。
 
 当前使用便携目录而非安装向导；源码开发先构建静态页面再用启动器运行，带认证的 Next 热更新代理尚未实现。以上均在运行指南说明，不视为全部 M0 安装门槛已通过。
+
+## ADR-004：M1 日常账务与 schema v2
+
+账户、分类、金融事件、现金分录、修订与幂等记录已经落地。类型特有字段先集中在 financial_events，避免首版引入多层一对一表；字段、约束和口径详见 M1 实施文档。
+
+写入使用 BEGIN IMMEDIATE 事务串行化，核对完整历史现金时间线后提交。金额全程整数分；失败回滚事件、现金分录、修订和幂等记录。汇总与分页读取同一快照。修改要求 revision，重试使用幂等键；前端在丢失响应后保留原键直到完整读取成功。
+
+升级前验证备份，Alembic revision 0001→0002 与 user_version 同事务提交。备份校验除数据库完整性外，还重放账务事实核对分录投影；v1 备份在新目录恢复后升级，不覆盖当前账本。迁移脚本以资源文件随程序打包。
