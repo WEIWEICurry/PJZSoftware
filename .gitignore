@@ -33,3 +33,19 @@ coverage/
 Thumbs.db
 .idea/
 .vscode/
+
+# Python, Next and test/package build artifacts
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.next/
+build/
+*.spec
+!frontend/tests/*.spec.ts
+test-results/
+playwright-report/
+instance.lock
+reopen.request

@@ -1,0 +1,357 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState, type FormEvent } from "react";
+import { connect, request, raw, type Ledger, type Preview } from "../src/api";
+
+type Tab = "overview" | "data" | "plan";
+const stages = [
+  ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "当前验证"],
+  ["M1", "日常记账", "账户、收入支出、转账与退款", "待开发"],
+  ["M2", "历史与报表", "截图汇总导入、预算与分类报表", "待开发"],
+  ["M3", "投资资产", "A 股、ETF、基金与手动估值", "待开发"],
+];
+export default function Home() {
+  const [tab, setTab] = useState<Tab>("overview");
+  const [ledger, setLedger] = useState<Ledger | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [name, setName] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [stopped, setStopped] = useState(false);
+  useEffect(() => {
+    connect()
+      .then(() => request<Ledger>("/ledger"))
+      .then((data) => {
+        setLedger(data);
+        setName(data.name);
+      })
+      .catch((e: Error) => setError(e.message));
+  }, []);
+  async function act(operation: () => Promise<void>) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await operation();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败，请重试。");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function rename(event: FormEvent) {
+    event.preventDefault();
+    if (!ledger) return;
+    await act(async () => {
+      await request("/ledger", "PUT", {
+        name: name.trim(),
+        revision: ledger.revision,
+      });
+      setLedger(await request<Ledger>("/ledger"));
+      setNotice("账本名称已保存到本机。");
+    });
+  }
+  async function download() {
+    await act(async () => {
+      const blob = await (await raw("/backups", "POST")).blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "ledger.pjzbackup";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setNotice("备份已生成，请在浏览器下载记录中确认保存位置。");
+    });
+  }
+  async function choose(file?: File) {
+    if (!file) return;
+    setPreview(null);
+    await act(async () => {
+      const form = new FormData();
+      form.append("file", file);
+      setPreview(await request<Preview>("/restores/preview", "POST", form));
+    });
+  }
+  async function restore() {
+    if (!preview) return;
+    await act(async () => {
+      const result = await request<{ directory: string }>(
+        "/restores/commit",
+        "POST",
+        {
+          preview_token: preview.preview_token,
+        },
+      );
+      setPreview(null);
+      setNotice(
+        "恢复成功，新账本位于：" + result.directory + "。当前账本未切换。",
+      );
+    });
+  }
+  const available = !!ledger && !busy && !stopped;
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <Link className="brand" href="/">
+          <span className="brand-mark">记</span>
+          <span>
+            PJZ<span className="brand-sub">个人资产账本</span>
+          </span>
+        </Link>
+        <div className="workspace-label">我的工作空间</div>
+        <nav aria-label="主导航">
+          {(
+            [
+              ["overview", "◫", "总览"],
+              ["data", "▤", "数据管理"],
+              ["plan", "◇", "开发计划"],
+            ] as const
+          ).map(([id, icon, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={tab === id ? "nav active" : "nav"}
+              aria-current={tab === id ? "page" : undefined}
+            >
+              <span aria-hidden="true">{icon}</span>
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <span className="status-dot" />
+          仅在本机运行<small>基础验证版 · v0.1.0</small>
+        </div>
+      </aside>
+      <div className="workspace">
+        <header>
+          <span>
+            个人空间 <span className="slash">/</span>{" "}
+            {tab === "overview"
+              ? "总览"
+              : tab === "data"
+                ? "数据管理"
+                : "开发计划"}
+          </span>
+          <span className="local-tag">
+            <span className="status-dot" /> 本地模式
+          </span>
+        </header>
+        <main>
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">YOUR LOCAL LEDGER</div>
+              <h1>
+                {tab === "overview"
+                  ? "把生活与资产，理清楚。"
+                  : tab === "data"
+                    ? "数据由你保管。"
+                    : "一步一步，建立可靠的账本。"}
+              </h1>
+              <p>
+                {tab === "overview"
+                  ? "从一个属于自己的本地账本开始。"
+                  : tab === "data"
+                    ? "可验证的备份，让换一台电脑也能继续记录。"
+                    : "先验证数据可靠，再逐步开放记账与投资管理。"}
+              </p>
+            </div>
+            <span className="phase">M0 · 基础验证</span>
+          </div>
+          {error && (
+            <div className="alert error" role="alert">
+              {error}
+            </div>
+          )}
+          {notice && (
+            <div className="alert success" role="status">
+              {notice}
+            </div>
+          )}
+          {stopped && (
+            <div className="alert" role="status">
+              本地服务已退出，可以关闭页面。再次使用请双击启动器。
+            </div>
+          )}
+          {!ledger && !error && (
+            <div role="status" className="card">
+              正在连接本地账本…
+            </div>
+          )}
+          {tab === "overview" && (
+            <>
+              <section className="hero card">
+                <div className="hero-copy">
+                  <span className="pill">一个新的开始</span>
+                  <h2>{ledger?.name ?? "我的本地账本"}</h2>
+                  <p>
+                    账本的基础已经准备好。
+                    <br />
+                    当前版本验证数据保存与迁移，记账和投资功能将在后续开放。
+                  </p>
+                  <button onClick={() => setTab("data")}>
+                    管理我的数据 <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+                <div className="hero-art" aria-hidden="true">
+                  <div className="paper back" />
+                  <div className="paper front">
+                    <span>LOCAL / PRIVATE</span>
+                    <div className="art-line long" />
+                    <div className="art-line" />
+                    <div className="art-bars">
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                    <b>PJZ.</b>
+                  </div>
+                </div>
+              </section>
+              <div className="stat-grid">
+                {[
+                  ["日常记账", "收支有迹可循", "M1 开放"],
+                  ["历史与预算", "看清消费结构", "M2 开放"],
+                  ["投资资产", "持仓、成本与收益", "M3 开放"],
+                ].map(([title, text, stage], i) => (
+                  <section className="card stat" key={title}>
+                    <span className="stat-icon">0{i + 1}</span>
+                    <h3>{title}</h3>
+                    <p>{text}</p>
+                    <span className="muted-label">{stage}</span>
+                  </section>
+                ))}
+              </div>
+              <section className="card details">
+                <div>
+                  <span className="section-label">本地账本状态</span>
+                  <h2>数据留在你的电脑里</h2>
+                </div>
+                <div className="detail-row">
+                  <span>连接状态</span>
+                  <strong>
+                    {ledger && !stopped ? "已连接本机服务" : "尚未连接"}
+                  </strong>
+                </div>
+                <div className="detail-row">
+                  <span>应用层加密</span>
+                  <strong>未启用 · 依赖 Windows 账户保护</strong>
+                </div>
+                <div className="detail-row">
+                  <span>数据存放位置</span>
+                  <code>{ledger?.directory ?? "连接后显示"}</code>
+                </div>
+                <p className="footnote">
+                  当前未导入历史截图，不显示虚构余额或收益。
+                </p>
+              </section>
+            </>
+          )}
+          {tab === "data" && (
+            <div className="data-grid">
+              <section className="card panel">
+                <span className="section-label">01 / 账本信息</span>
+                <h2>给账本起个名字</h2>
+                <form onSubmit={rename}>
+                  <label htmlFor="ledger-name">账本名称</label>
+                  <input
+                    id="ledger-name"
+                    maxLength={60}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                  <button disabled={!available || !name.trim()} type="submit">
+                    保存名称
+                  </button>
+                </form>
+                <p className="footnote">
+                  这是基础阶段的持久化验证，不会创建收支记录。
+                </p>
+              </section>
+              <section className="card panel">
+                <span className="section-label">02 / 备份</span>
+                <h2>保存一份完整副本</h2>
+                <p>
+                  使用 SQLite
+                  一致性快照并校验文件内容。当前基础备份包含账本元数据。
+                </p>
+                <button disabled={!available} onClick={download}>
+                  下载本地备份
+                </button>
+                <p className="footnote">备份未加密，请保存在你信任的位置。</p>
+              </section>
+              <section className="card panel full">
+                <span className="section-label">03 / 恢复验证</span>
+                <h2>先核验，再恢复</h2>
+                <p>
+                  选择备份后先检查格式和校验和。确认后会备份当前账本，并在新目录恢复，不覆盖当前账本。
+                </p>
+                <label className="file-label" htmlFor="backup-file">
+                  选择 .pjzbackup 备份
+                </label>
+                <input
+                  id="backup-file"
+                  type="file"
+                  accept=".pjzbackup"
+                  disabled={!available}
+                  onChange={(e) => {
+                    void choose(e.target.files?.[0]);
+                    e.target.value = "";
+                  }}
+                />
+                {preview && (
+                  <div className="preview">
+                    <strong>备份验证通过</strong>
+                    <code>SHA-256: {preview.sha256}</code>
+                    <p>{preview.message}</p>
+                    <button disabled={!available} onClick={restore}>
+                      确认恢复到新目录
+                    </button>
+                  </div>
+                )}
+                <p className="footnote">
+                  当前恢复只验证独立副本，切换账本功能后续开放。基础版本文件上限
+                  8 MB。
+                </p>
+              </section>
+            </div>
+          )}
+          {tab === "plan" && (
+            <section className="card roadmap">
+              {stages.map(([id, title, description, status]) => (
+                <div className="milestone" key={id}>
+                  <span className="milestone-id">{id}</span>
+                  <div>
+                    <h2>{title}</h2>
+                    <p>{description}</p>
+                  </div>
+                  <span className="muted-label">{status}</span>
+                </div>
+              ))}
+            </section>
+          )}
+          <footer>
+            <span>PJZSoftware · 一个属于自己的账本</span>
+            <button
+              className="text-button"
+              disabled={!available}
+              onClick={() =>
+                void act(async () => {
+                  await request("/shutdown", "POST");
+                  setStopped(true);
+                })
+              }
+            >
+              退出软件
+            </button>
+          </footer>
+        </main>
+      </div>
+    </div>
+  );
+}
