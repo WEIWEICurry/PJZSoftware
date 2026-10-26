@@ -1,6 +1,6 @@
 # PJZSoftware
 
-面向个人的 Windows 本地记账与投资资产管理软件。项目暂名 PJZSoftware，当前处于设计阶段，尚无可安装程序。
+面向个人的 Windows 本地记账与投资资产管理软件。项目暂名 PJZSoftware，当前已实现 M0 基础验证便携版，尚未开放正式记账与投资功能。
 
 首版目标：离线记账、人民币账户、A 股／境内 ETF／公募基金管理，以及可验证的备份与换机恢复。按用户选择采用 **Next.js + FastAPI + SQLite**。
 
@@ -22,6 +22,7 @@
 4. [数据模型与金额规则](docs/04-data-model.md)
 5. [隐私、备份与历史迁移](docs/05-data-safety.md)
 6. [开发规范、质量与实施计划](docs/06-development.md)
+7. [运行、验证与打包指南](docs/07-running.md)
 
 [协作约定](AGENTS.md)约束后续开发；[变更记录](CHANGELOG.md)记录交付内容。
 
@@ -35,4 +36,8 @@
 
 ## 当前状态
 
-设计基线 v0.1 已整理；Next.js 静态界面由本机 FastAPI 提供，计划通过 Windows 启动器打开浏览器使用。先通过本地打包与数据库验证，再锁定依赖版本。当前没有应用代码或应用测试，文档中的验收条件不表示功能已经实现。
+已实现 Next.js 静态界面、FastAPI 本机会话保护、SQLite 元数据持久化、带校验的快照备份、新目录恢复、可见 Windows 启动器和基础 CI。真实截图尚未导入。
+
+本地构建产物：dist/PJZSoftware/PJZSoftware.exe（必须保留整个目录）。从源码运行和质量检查见[运行指南](docs/07-running.md)。
+
+后端 13 项测试及浏览器端到端流程已在本机通过，便携程序通过最小 PATH、中文目录、回环监听、重复启动及中断恢复验证。全新 Windows 标准账户、安装／卸载验收尚待完成，CI 是否通过以 GitHub 实际结果为准。
