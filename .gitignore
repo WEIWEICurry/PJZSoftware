@@ -1,0 +1,35 @@
+# Personal data must never enter version control.
+/data/
+/private/
+/backups/
+/exports/
+/logs/
+/screenshots/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.pjzbackup
+*.log
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+
+# Generated files and local tooling
+node_modules/
+dist/
+out/
+release/
+coverage/
+.cache/
+.vite/
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
