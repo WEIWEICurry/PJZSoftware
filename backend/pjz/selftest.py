@@ -9,6 +9,7 @@ import threading
 import time
 import urllib.request
 import uuid
+from datetime import date
 from pathlib import Path
 
 import uvicorn
@@ -17,7 +18,9 @@ from filelock import FileLock, Timeout
 from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.api import create_app
+from pjz.budgets import Budgets
 from pjz.history import HistoryImports
+from pjz.reports import Reports
 from pjz.storage import LedgerStore, inspect_backup
 
 
@@ -135,6 +138,13 @@ def run() -> None:
         batch = historical.commit(plan["preview_token"], str(uuid.uuid4()))
         assert accounting.summary("2026-01-01", "2026-01-31")["expense_fen"] == "4000"
         assert accounting.summary("2026-01-01", "2026-01-31")["net_fen"] == "6975"
+        reports = Reports(accounting)
+        assert reports.get("month", date(2026, 1, 3))["current"]["expense_fen"] == "4000"
+        assert reports.get("day", date(2026, 1, 3))["current"]["expense_fen"] is None
+        budgets = Budgets(accounting)
+        assert budgets.get("2026-01")["items"] == []
+        budgets.save("2026-01", expense_category, "5000", 0, str(uuid.uuid4()))
+        assert budgets.get("2026-01")["items"][0]["remaining_fen"] == "1000"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
@@ -147,6 +157,9 @@ def run() -> None:
             "source_refs"
         ] == ["synthetic-source.png"]
         assert Accounting(restored.engine).accounts() == accounting.accounts()
+        assert (
+            Budgets(Accounting(restored.engine)).get("2026-01")["items"][0]["limit_fen"] == "5000"
+        )
         restored.close()
         sock = socket.socket()
         sock.bind(("127.0.0.1", 0))

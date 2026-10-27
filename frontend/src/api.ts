@@ -11,6 +11,12 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  REPORT_INVALID_PERIOD: "所选报表期间无效，请重新选择日期。",
+  REPORT_FUTURE_PERIOD: "这个期间尚未开始，请选择今天或更早的日期。",
+  REPORT_EXPORT_TOO_LARGE: "当前构成超过 50000 行，请缩小期间或按分类导出。",
+  BUDGET_INVALID_MONTH: "预算月份格式不正确，请重新选择。",
+  BUDGET_CATEGORY_INVALID: "只能为有效支出分类设置预算，请重新选择。",
+  BUDGET_INVALID_LIMIT: "预算必须是大于零的金额，最多保留两位小数。",
   HISTORY_UNSUPPORTED_FORMAT:
     "不支持这个汇总格式，请使用版本 1、人民币、整数分的分类汇总 JSON。",
   HISTORY_INVALID_FILE: "汇总文件结构或文字格式不正确，请核对文件。",

@@ -393,6 +393,120 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.locator(".metric").filter({ hasText: "本月支出" }),
   ).toContainText("¥106.00");
   await expect(page.locator(".history-coverage")).toContainText("历史分类汇总");
+  await page.getByRole("button", { name: "报表与预算", exact: true }).click();
+  const reportMetrics = page.locator(".report-metrics");
+  const budgetPanel = page.getByRole("region", {
+    name: "可选分类预算",
+    exact: true,
+  });
+  await expect(
+    reportMetrics.locator(".metric").filter({ hasText: "净支出" }).first(),
+  ).toContainText("¥106.00");
+  await expect(budgetPanel.locator(".budget-card")).toHaveCount(0);
+  await expect(budgetPanel.locator(".budget-numbers")).toHaveCount(0);
+  await page.getByRole("button", { name: "日报表", exact: true }).click();
+  if (Number(today.slice(8)) > 1)
+    await expect(page.locator(".report-incomplete")).toContainText(
+      "缺少分日数据",
+    );
+  else await expect(reportMetrics).toContainText("¥106.00");
+  await page.getByRole("button", { name: "周报表", exact: true }).click();
+  await expect(reportMetrics.locator(".metric").first()).toBeVisible();
+  await page.getByRole("button", { name: "年报表", exact: true }).click();
+  await expect(
+    reportMetrics.locator(".metric").filter({ hasText: "净支出" }).first(),
+  ).toContainText("¥106.00");
+  await expect(page.locator(".trend-row")).toHaveCount(12);
+  await page.getByRole("button", { name: "月报表", exact: true }).click();
+  await expect(reportMetrics).toContainText("¥106.00");
+  const csvDownloadEvent = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "导出当前构成 CSV", exact: true })
+    .click();
+  const csvPath = await (await csvDownloadEvent).path();
+  const csvContents = await (
+    await import("node:fs/promises")
+  ).readFile(csvPath!, "utf8");
+  expect(csvContents).toContain("原金额（元）");
+  expect(csvContents).toContain("历史汇总");
+  await budgetPanel
+    .getByRole("button", { name: "设置分类预算", exact: true })
+    .click();
+  await budgetPanel.getByLabel("月预算（元）").fill("50");
+  let loseBudgetResponse = true;
+  await page.route("**/api/v1/budgets/*/*", async (route) => {
+    if (route.request().method() === "PUT" && loseBudgetResponse) {
+      loseBudgetResponse = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await budgetPanel
+    .getByRole("button", { name: "保存分类预算", exact: true })
+    .click();
+  await expect(
+    budgetPanel.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await budgetPanel
+    .getByRole("button", { name: "保存分类预算", exact: true })
+    .click();
+  await page.unroute("**/api/v1/budgets/*/*");
+  await expect(budgetPanel.locator(".budget-card")).toHaveCount(1);
+  await expect(budgetPanel.locator(".budget-card")).toContainText("已超支");
+  await budgetPanel
+    .getByRole("button", { name: "刷新预算", exact: true })
+    .click();
+  await expect(budgetPanel.locator(".budget-numbers")).toContainText("¥100.00");
+  await budgetPanel
+    .getByRole("button", { name: "调整额度", exact: true })
+    .click();
+  await budgetPanel.getByLabel("月预算（元）").fill("200");
+  await budgetPanel
+    .getByRole("button", { name: "保存分类预算", exact: true })
+    .click();
+  await expect(budgetPanel.locator(".budget-card")).toContainText("剩余");
+  await expect(budgetPanel.locator(".budget-card.over")).toHaveCount(0);
+  await budgetPanel
+    .getByRole("button", { name: "移除餐饮预算", exact: true })
+    .click();
+  await expect(budgetPanel.locator(".budget-card")).toHaveCount(0);
+  await expect(budgetPanel.locator(".budget-numbers")).toHaveCount(0);
+  await budgetPanel.getByLabel("月预算（元）").fill("200");
+  await budgetPanel
+    .getByRole("button", { name: "保存分类预算", exact: true })
+    .click();
+  await expect(budgetPanel.locator(".budget-card")).toHaveCount(1);
+  const nextBudgetMonth = await page.evaluate(() => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() + 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  });
+  await budgetPanel.getByLabel("预算月份").fill(nextBudgetMonth);
+  await expect(budgetPanel.locator(".budget-empty")).toBeVisible();
+  await budgetPanel
+    .getByRole("button", { name: "沿用上月预算", exact: true })
+    .click();
+  await expect(budgetPanel.locator(".budget-card")).toContainText("计划中");
+  await expect(budgetPanel.locator(".budget-numbers")).toHaveCount(0);
+  await budgetPanel.getByLabel("预算月份").fill(today.slice(0, 7));
+  await expect(budgetPanel.locator(".budget-card")).toContainText("¥200.00");
+  for (const width of [1440, 900]) {
+    await page.setViewportSize({ width, height: 1000 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({
+    path: "test-results/reports-and-budgets.png",
+    fullPage: true,
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "报表与预算", exact: true }).click();
+  await expect(budgetPanel.locator(".budget-card")).toContainText("¥200.00");
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
   await expect(page.getByText(/历史汇总已覆盖统计/)).toBeVisible();
   await page.reload();

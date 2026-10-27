@@ -36,4 +36,4 @@ schema v4 新增 import_batches 和 historical_summaries。升级前验证备份
 
 本机 52 项后端测试、Ruff 检查／格式、mypy、契约同步、前端 Prettier／ESLint／TypeScript 和静态构建通过。Edge 端到端验证映射、汇总金额及覆盖标记、丢失响应后重试、改名重排去重、撤销预览、撤销后恢复统计、重启与备份恢复，无出站请求。Windows 便携包构建、成品自检和最小 PATH 运行探测通过；成品自检实际导入合成历史来源并验证备份恢复。
 
-真实待迁移文件保持原样，尚未确认导入。GitHub CI 以 PR 的实际检查结果为准。
+开发验证不自动导入真实资料，实际导入通过本地页面确认，原始资料不覆盖。GitHub CI 以 PR 的实际检查结果为准。

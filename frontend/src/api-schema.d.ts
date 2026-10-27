@@ -90,6 +90,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Budget Page */
+        get: operations["budget_page_api_v1_budgets__month__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{month}/copy-previous": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Copy Budgets */
+        post: operations["copy_budgets_api_v1_budgets__month__copy_previous_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{month}/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save Budget */
+        put: operations["save_budget_api_v1_budgets__month___category_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -291,6 +342,57 @@ export interface paths {
         put?: never;
         /** Record Loan */
         post: operations["record_loan_api_v1_loans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report */
+        get: operations["report_api_v1_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Entries */
+        get: operations["entries_api_v1_reports_entries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export */
+        get: operations["export_api_v1_reports_export_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -531,6 +633,54 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** BudgetInput */
+        BudgetInput: {
+            /** Limit Fen */
+            limit_fen: string | null;
+            /** Revision */
+            revision: number;
+        };
+        /** BudgetOutput */
+        BudgetOutput: {
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Id */
+            id: string;
+            /** Limit Fen */
+            limit_fen: string | null;
+            /** Month */
+            month: string;
+            /** Net Expense Fen */
+            net_expense_fen: string | null;
+            /** Over Fen */
+            over_fen: string | null;
+            /** Remaining Fen */
+            remaining_fen: string | null;
+            /** Revision */
+            revision: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unset" | "future" | "unknown" | "over" | "exhausted" | "near" | "normal";
+            /** Used Bps */
+            used_bps: string | null;
+            /** Used Fen */
+            used_fen: string | null;
+        };
+        /** BudgetPage */
+        BudgetPage: {
+            /** As Of */
+            as_of: string;
+            /** Items */
+            items: components["schemas"]["BudgetOutput"][];
+            /** Ledger Revision */
+            ledger_revision: number;
+            /** Month */
+            month: string;
+        };
         /** CategoryInput */
         CategoryInput: {
             /**
@@ -552,6 +702,38 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+        };
+        /** CategoryReport */
+        CategoryReport: {
+            /** Amount Fen */
+            amount_fen: string | null;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Detail Fen */
+            detail_fen: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** Historical Fen */
+            historical_fen: string;
+            /** Known Fen */
+            known_fen: string;
+            /** Share Bps */
+            share_bps: number | null;
+        };
+        /** CopiedOutput */
+        CopiedOutput: {
+            /** Copied */
+            copied: number;
+        };
+        /** CopyInput */
+        CopyInput: {
+            /** Ledger Revision */
+            ledger_revision: number;
         };
         /** CreatedOutput */
         CreatedOutput: {
@@ -891,6 +1073,125 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** ReportChange */
+        ReportChange: {
+            /** Change Bps */
+            change_bps: string | null;
+            /** Delta Fen */
+            delta_fen: string | null;
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric: "income" | "expense" | "surplus";
+        };
+        /** ReportEntry */
+        ReportEntry: {
+            /** Account Name */
+            account_name: string;
+            /** Amount Fen */
+            amount_fen: string;
+            /** Category Id */
+            category_id: string;
+            /** Category Name */
+            category_name: string;
+            /** Counted Fen */
+            counted_fen: string | null;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** End */
+            end: string;
+            /** Id */
+            id: string;
+            /** Note */
+            note: string;
+            /** Source */
+            source: string;
+            /** Start */
+            start: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "included" | "covered" | "unallocated";
+        };
+        /** ReportEntryPage */
+        ReportEntryPage: {
+            /** Items */
+            items: components["schemas"]["ReportEntry"][];
+            /** Total */
+            total: number;
+        };
+        /** ReportHistory */
+        ReportHistory: {
+            /** Allocated */
+            allocated: boolean;
+            /** Amount Fen */
+            amount_fen: string;
+            /** Category Name */
+            category_name: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** End */
+            end: string;
+            /** Source */
+            source: string;
+            /** Start */
+            start: string;
+        };
+        /** ReportOutput */
+        ReportOutput: {
+            /** Calendar End */
+            calendar_end: string;
+            /** Changes */
+            changes: components["schemas"]["ReportChange"][];
+            current: components["schemas"]["ReportTotals"];
+            /** History Ranges */
+            history_ranges: components["schemas"]["ReportHistory"][];
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "day" | "week" | "month" | "year";
+            previous: components["schemas"]["ReportTotals"] | null;
+            /** Trend */
+            trend: components["schemas"]["TrendPoint"][];
+        };
+        /** ReportTotals */
+        ReportTotals: {
+            /** Categories */
+            categories: components["schemas"]["CategoryReport"][];
+            /** Covered Count */
+            covered_count: number;
+            /** Daily Expense Fen */
+            daily_expense_fen: string | null;
+            /** Day Count */
+            day_count: number;
+            /** Detail Count */
+            detail_count: number;
+            /** End */
+            end: string;
+            /** Expense Fen */
+            expense_fen: string | null;
+            /** Historical Count */
+            historical_count: number;
+            /** Income Fen */
+            income_fen: string | null;
+            /** Known Expense Fen */
+            known_expense_fen: string;
+            /** Known Income Fen */
+            known_income_fen: string;
+            /** Start */
+            start: string;
+            /** Surplus Fen */
+            surplus_fen: string | null;
+        };
         /** RestoreInput */
         RestoreInput: {
             /** Preview Token */
@@ -925,6 +1226,28 @@ export interface components {
             receivable_fen: string;
             /** Surplus Fen */
             surplus_fen: string;
+        };
+        /** TrendPoint */
+        TrendPoint: {
+            /** End */
+            end: string;
+            /** Expense Fen */
+            expense_fen: string | null;
+            /** Income Fen */
+            income_fen: string | null;
+            /** Known Expense Fen */
+            known_expense_fen: string;
+            /** Known Income Fen */
+            known_income_fen: string;
+            /** Start */
+            start: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "recorded" | "unallocated" | "future";
+            /** Surplus Fen */
+            surplus_fen: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1124,6 +1447,112 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    budget_page_api_v1_budgets__month__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    copy_budgets_api_v1_budgets__month__copy_previous_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopyInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopiedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_budget_api_v1_budgets__month___category_id__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                month: string;
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BudgetInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1587,6 +2016,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_api_v1_reports_get: {
+        parameters: {
+            query: {
+                period: "day" | "week" | "month" | "year";
+                anchor: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    entries_api_v1_reports_entries_get: {
+        parameters: {
+            query: {
+                period: "day" | "week" | "month" | "year";
+                anchor: string;
+                category_id?: string | null;
+                direction?: ("income" | "expense") | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportEntryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_v1_reports_export_get: {
+        parameters: {
+            query: {
+                period: "day" | "week" | "month" | "year";
+                anchor: string;
+                category_id?: string | null;
+                direction?: ("income" | "expense") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

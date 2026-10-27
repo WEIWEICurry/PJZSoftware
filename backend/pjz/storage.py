@@ -18,8 +18,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 4
-SUPPORTED_SCHEMAS = (1, 2, 3, 4)
+SCHEMA_VERSION = 5
+SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 
@@ -202,6 +202,8 @@ def validate_database(path: Path) -> None:
             )
             if version >= 4:
                 expected_tables.update({"import_batches", "historical_summaries"})
+            if version >= 5:
+                expected_tables.add("category_budgets")
             tables = {name for kind, name in objects if kind == "table"}
             if tables != expected_tables or any(
                 kind not in ("table", "index") for kind, _ in objects
@@ -233,6 +235,10 @@ def validate_database(path: Path) -> None:
                         from pjz.history import HistoryImports
 
                         HistoryImports.verify(check)
+                    if version >= 5:
+                        from pjz.budgets import Budgets
+
+                        Budgets.verify(check)
             except RuleError as error:
                 raise DataError("INVALID_ACCOUNTING_DATA") from error
             finally:
