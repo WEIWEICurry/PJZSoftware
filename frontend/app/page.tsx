@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { DailyOverview, DailyWorkspace } from "../src/daily";
+import { HistoryImport } from "../src/history-import";
 import { useEffect, useState, type FormEvent } from "react";
 import { connect, request, raw, type Ledger, type Preview } from "../src/api";
 
 type Tab = "overview" | "accounts" | "journal" | "data" | "plan";
 const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
-  ["M1", "日常记账", "账户、收入支出、转账与退款", "当前阶段"],
-  ["M2", "历史与报表", "截图汇总导入、预算与分类报表", "待开发"],
+  ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
+  ["M2", "历史与报表", "汇总导入已实现，预算与分类图表后续开发", "当前阶段"],
   ["M3", "投资资产", "A 股、ETF、基金与手动估值", "待开发"],
 ];
 export default function Home() {
@@ -131,7 +132,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>日常账本版 · v0.4.0</small>
+          仅在本机运行<small>日常账本版 · v0.5.0</small>
         </div>
       </aside>
       <div className="workspace">
@@ -179,7 +180,7 @@ export default function Home() {
                 }
               </p>
             </div>
-            <span className="phase">M1 · 日常账本</span>
+            <span className="phase">M2 · 历史迁移</span>
           </div>
           {error && (
             <div className="alert error" role="alert">
@@ -228,7 +229,7 @@ export default function Home() {
                   <code>{ledger?.directory ?? "连接后显示"}</code>
                 </div>
                 <p className="footnote">
-                  当前未导入历史截图，不显示虚构余额或收益。
+                  历史汇总在数据管理中预览导入，不反推账户余额；投资持仓尚未纳入。
                 </p>
               </section>
             </>
@@ -246,6 +247,13 @@ export default function Home() {
           )}
           {tab === "data" && (
             <div className="data-grid">
+              <HistoryImport
+                available={available}
+                changed={() => {
+                  setDailyVersion((value) => value + 1);
+                  void request<Ledger>("/ledger").then(setLedger);
+                }}
+              />
               <section className="card panel">
                 <span className="section-label">01 / 账本信息</span>
                 <h2>给账本起个名字</h2>
@@ -269,7 +277,8 @@ export default function Home() {
                 <h2>保存一份完整副本</h2>
                 <p>
                   使用 SQLite
-                  一致性快照并校验文件内容。备份包含账户、流水、分类和本地修订记录。
+                  一致性快照并校验文件内容。备份包含账户、流水、分类、历史汇总与原始
+                  JSON 来源，以及本地修订记录。
                 </p>
                 <button disabled={!available} onClick={download}>
                   下载本地备份

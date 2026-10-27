@@ -11,6 +11,20 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  HISTORY_UNSUPPORTED_FORMAT:
+    "不支持这个汇总格式，请使用版本 1、人民币、整数分的分类汇总 JSON。",
+  HISTORY_INVALID_FILE: "汇总文件结构或文字格式不正确，请核对文件。",
+  HISTORY_INVALID_AMOUNT: "汇总金额必须是非负整数分，不能包含小数或负数。",
+  HISTORY_INVALID_PERIOD:
+    "每个汇总期间必须在同一个月内，起止顺序正确且不能包含未来日期。",
+  HISTORY_TOTAL_MISMATCH: "分类金额之和与来源总额不一致，请先核对原资料。",
+  HISTORY_SOURCE_OVERLAP: "文件内同分类的汇总期间重复或重叠，请先去重核对。",
+  HISTORY_FILE_TOO_LARGE: "历史汇总文件超过 512 KB，请按更小的批次整理。",
+  HISTORY_INVALID_MAPPING: "分类映射无效，请选择同方向的账本分类并重新预览。",
+  HISTORY_CONFLICT: "该预览包含重复、未映射或重叠内容，请重新预览核对。",
+  HISTORY_BATCH_NOT_FOUND: "找不到这个导入批次，请刷新列表。",
+  HISTORY_DAILY_UNAVAILABLE:
+    "这个期间只有汇总，没有逐日数据，不能截取其中几天计算。",
   CASH_ACCOUNT_REQUIRED: "请选择银行卡、现金等资金账户。",
   COUNTERPARTY_REQUIRED: "请选择匹配的借款对象，或填写对方姓名。",
   RECEIVABLE_EVENT_UNSUPPORTED:

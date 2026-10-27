@@ -197,7 +197,7 @@ def test_v2_migration_preserves_old_debt_and_valid_backup(tmp_path):
         accounts = Accounting(store.engine).accounts()
         assert accounts[0]["balance_fen"] == "70000"
         assert accounts[0]["kind"] == "liability"
-        backups = list((path / "backups").glob("before-v3-*"))
+        backups = list((path / "backups").glob("before-v4-*"))
         assert len(backups) == 1
         with zipfile.ZipFile(io.BytesIO(backups[0].read_bytes())) as archive:
             old = tmp_path / "old.sqlite3"
@@ -207,7 +207,7 @@ def test_v2_migration_preserves_old_debt_and_valid_backup(tmp_path):
         try:
             assert Accounting(restored.engine).accounts()[0]["balance_fen"] == "70000"
             with restored.engine.connect() as connection:
-                assert connection.exec_driver_sql("PRAGMA user_version").scalar_one() == 3
+                assert connection.exec_driver_sql("PRAGMA user_version").scalar_one() == 4
         finally:
             restored.close()
         with sqlite3.connect(old) as connection:
@@ -243,4 +243,4 @@ def test_v2_failed_migration_rolls_back_and_keeps_backup(tmp_path, monkeypatch):
         assert connection.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "0002"
         assert connection.execute("SELECT kind FROM accounts").fetchone()[0] == "liability"
         assert not connection.execute("PRAGMA foreign_key_check").fetchall()
-    assert list((path / "backups").glob("before-v3-*"))
+    assert list((path / "backups").glob("before-v4-*"))

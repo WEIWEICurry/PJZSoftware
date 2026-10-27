@@ -11,7 +11,7 @@ import { fenToYuan, localDay, money, yuanToFen } from "./money";
 
 type Account = components["schemas"]["AccountOutput"];
 type Category = components["schemas"]["CategoryOutput"];
-type LedgerEvent = components["schemas"]["EventOutput"];
+type LedgerEvent = components["schemas"]["JournalEventOutput"];
 type EventPage = components["schemas"]["EventPage"];
 type Summary = components["schemas"]["SummaryOutput"];
 type NoteSuggestion = components["schemas"]["NoteSuggestion"];
@@ -89,6 +89,14 @@ export function DailyOverview({
           </div>
         ))}
       </div>
+      {summary && summary.historical_row_count !== "0" && (
+        <p className="alert history-coverage">
+          本月包含历史分类汇总：收入 {money(summary.historical_income_fen)}
+          、支出 {money(summary.historical_expense_fen)}；
+          {summary.covered_detail_count}{" "}
+          条范围内明细已避免重复统计。汇总没有逐日数据，实际覆盖期间可在数据管理查看。
+        </p>
+      )}
       <div className="card asset-strip">
         <div>
           <span>账户净额</span>
@@ -1124,6 +1132,9 @@ export function DailyWorkspace({
                               })()
                             : eventKinds[row.kind]}{" "}
                           {row.status === "void" ? "· 已作废" : ""}
+                          {row.covered_by_history
+                            ? " · 历史汇总已覆盖统计"
+                            : ""}
                         </small>
                       </td>
                       <td>

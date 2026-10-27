@@ -909,3 +909,59 @@ details[open] summary {
 [hidden] {
   display: none !important;
 }
+
+.history-import > p {
+  line-height: 1.7;
+}
+.history-import > input {
+  margin: 10px 0;
+}
+.history-preview,
+.history-detail {
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.history-table td {
+  vertical-align: top;
+}
+.history-table td:first-child {
+  min-width: 240px;
+}
+.history-table select {
+  min-width: 150px;
+  margin-top: 6px;
+}
+.history-preview code,
+.history-detail code {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.history-batch {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.history-batch small {
+  display: block;
+  margin-top: 6px;
+}
+.coverage-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+.coverage-check input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.source-hashes {
+  margin-top: 16px;
+}
