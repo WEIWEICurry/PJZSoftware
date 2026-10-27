@@ -113,6 +113,9 @@ class LedgerStore:
                 closing(sqlite3.connect(snapshot)) as target,
             ):
                 source.backup(target)
+            # Rebuild the snapshot, not the live ledger, so free pages do not carry old text.
+            with closing(sqlite3.connect(snapshot)) as compacted:
+                compacted.execute("VACUUM")
             validate_database(snapshot)
             payload = snapshot.read_bytes()
         manifest = {

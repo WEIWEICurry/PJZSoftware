@@ -104,7 +104,10 @@ class Accounting:
                 if previous:
                     if previous[0]["payload_hash"] != digest:
                         raise RuleError("IDEMPOTENCY_CONFLICT")
-                    return dict(json.loads(previous[0]["result_json"]))
+                    result = dict(json.loads(previous[0]["result_json"]))
+                    if result.get("_purged"):
+                        raise RuleError("RESOURCE_DELETED")
+                    return result
                 result = action(connection)
                 self.rebuild(connection)
                 connection.execute(text("UPDATE ledger SET revision=revision+1"))
@@ -507,3 +510,23 @@ class Accounting:
                 "net_fen": assets - debt,
             }.items()
         }
+
+    def note_suggestions(self, category_id: str, limit: int = 5) -> list[dict[str, Any]]:
+        with self.engine.connect() as connection:
+            rows = fetch_all(
+                connection,
+                "SELECT note,updated_at,sequence FROM financial_events "
+                "WHERE category_id=:category AND status='active' AND note<>''",
+                {"category": category_id},
+            )
+        groups: dict[str, tuple[int, str, int]] = {}
+        for row in rows:
+            note = row["note"].strip()
+            if not note:
+                continue
+            count, last, sequence = groups.get(note, (0, "", 0))
+            recent = max((last, sequence), (row["updated_at"], row["sequence"]))
+            groups[note] = (count + 1, recent[0], recent[1])
+        ranked = sorted(groups.items())
+        ranked.sort(key=lambda item: item[1], reverse=True)
+        return [{"note": note, "count": info[0]} for note, info in ranked[:limit]]

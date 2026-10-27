@@ -60,14 +60,127 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(
     page.getByRole("heading", { name: "Synthetic cash", exact: true }),
   ).toBeVisible();
+  await page.getByLabel("账户名称").fill("Synthetic archived");
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  const archivedCard = page
+    .locator(".account-card")
+    .filter({ hasText: "Synthetic archived" });
+  await expect(archivedCard).toBeVisible();
+  await archivedCard
+    .getByRole("button", { name: "归档账户", exact: true })
+    .click();
+  const archiveToggle = page.getByRole("button", { name: /已归档账户（1）/ });
+  await expect(archiveToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(archivedCard).toBeHidden();
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.screenshot({
+    path: "test-results/accounts-collapsed.png",
+    fullPage: true,
+  });
+  await archiveToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(archiveToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(archivedCard).toBeVisible();
+  await archiveToggle.click();
+  await expect(archivedCard).toBeHidden();
+  await archiveToggle.click();
+  await archivedCard
+    .getByRole("button", { name: "恢复账户", exact: true })
+    .click();
+  await expect(page.getByRole("button", { name: /已归档账户/ })).toHaveCount(0);
+  await expect(archivedCard).toBeVisible();
+  await archivedCard
+    .getByRole("button", { name: "归档账户", exact: true })
+    .click();
+  await expect(archiveToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(archivedCard).toBeHidden();
+  await archiveToggle.click();
+  await page.reload();
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  await expect(archiveToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(archivedCard).toBeHidden();
+  await archiveToggle.click();
+  await archivedCard
+    .getByRole("button", { name: "彻底删除", exact: true })
+    .click();
+  const deleteDialog = page.getByRole("dialog");
+  await expect(deleteDialog).toContainText("1 条相关流水");
+  await expect(
+    deleteDialog.getByRole("button", { name: "确认彻底删除" }),
+  ).toBeDisabled();
+  await deleteDialog.getByLabel("输入账户名称以确认").fill("wrong name");
+  await expect(
+    deleteDialog.getByRole("button", { name: "确认彻底删除" }),
+  ).toBeDisabled();
+  await deleteDialog.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(deleteDialog).not.toBeVisible();
+  await expect(archivedCard).toBeVisible();
+  await archivedCard
+    .getByRole("button", { name: "彻底删除", exact: true })
+    .click();
+  await deleteDialog
+    .getByLabel("输入账户名称以确认")
+    .fill("Synthetic archived");
+  await page.screenshot({
+    path: "test-results/delete-confirmation.png",
+    fullPage: true,
+  });
+  let loseDeleteResponse = true;
+  await page.route("**/api/v1/accounts/*/delete", async (route) => {
+    if (loseDeleteResponse) {
+      loseDeleteResponse = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await deleteDialog.getByRole("button", { name: "确认彻底删除" }).click();
+  await expect(
+    deleteDialog.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await deleteDialog.getByRole("button", { name: "确认彻底删除" }).click();
+  await expect(deleteDialog).not.toBeVisible();
+  await expect(archivedCard).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /已归档账户/ })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("已删除");
+  await page.unroute("**/api/v1/accounts/*/delete");
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  await expect(page.getByLabel("金额（元）", { exact: true })).toBeVisible();
+  expect(
+    await page
+      .getByLabel("金额（元）", { exact: true })
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+  ).toBeGreaterThanOrEqual(16);
+
   await page.getByLabel("金额（元）", { exact: true }).fill("30.25");
   await page.getByLabel("备注", { exact: true }).fill("Synthetic expense");
   await page.getByRole("button", { name: "保存流水", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("流水已保存");
+  const commonNotes = page.getByRole("group", {
+    name: "常用备注",
+    exact: true,
+  });
+  await expect(
+    commonNotes.getByRole("button", { name: "Synthetic expense", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("金额（元）", { exact: true }).fill("1.00");
+  await page.getByLabel("备注", { exact: true }).fill("manual draft");
+  const rowsBeforeSuggestion = await page.locator("tbody tr").count();
+  await commonNotes
+    .getByRole("button", { name: "Synthetic expense", exact: true })
+    .click();
+  await expect(page.getByLabel("备注", { exact: true })).toHaveValue(
+    "Synthetic expense",
+  );
+  await expect(page.locator("tbody tr")).toHaveCount(rowsBeforeSuggestion);
+
   await page
     .getByRole("combobox", { name: "类型", exact: true })
     .selectOption("income");
+  await expect(
+    commonNotes.getByRole("button", { name: "Synthetic expense", exact: true }),
+  ).not.toBeVisible();
+  await page.getByLabel("备注", { exact: true }).fill("Synthetic income");
   await page.getByLabel("金额（元）", { exact: true }).fill("200.00");
   await page.getByRole("button", { name: "保存流水", exact: true }).click();
   await expect(
@@ -119,7 +232,28 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.locator(".metric").filter({ hasText: "本月支出" }),
   ).toContainText("¥41.25");
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
-  await page.screenshot({ path: "test-results/journal.png", fullPage: true });
+  for (const width of [1280, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.locator("#entry-form")).toBeVisible();
+    const form = await page.locator("#entry-form").boundingBox();
+    expect(form!.height).toBeLessThan(360);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    expect(
+      await page
+        .locator("tbody td")
+        .first()
+        .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+    ).toBeGreaterThanOrEqual(15);
+    await page.screenshot({
+      path: "test-results/journal-" + width + ".png",
+      fullPage: true,
+    });
+  }
+
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载本地备份" }).click();

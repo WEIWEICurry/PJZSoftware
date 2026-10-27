@@ -11,6 +11,11 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  RESOURCE_DELETED: "账户或流水已删除，请刷新后查看最新数据。",
+  ACCOUNT_NOT_ARCHIVED: "请先归档账户，再进行彻底删除。",
+  CONFIRM_NAME_MISMATCH: "输入的账户名称不一致，请核对后重试。",
+  BACKUP_FAILED:
+    "删除前备份未成功，账户未删除。请检查磁盘空间和目录权限后重试。",
   FEE_EXCEEDS_AMOUNT: "借款手续费不能超过借款本金。",
   IDEMPOTENCY_CONFLICT: "重复请求的内容不一致，请刷新后重试。",
   DUPLICATE_OR_INVALID_REFERENCE: "名称已存在或引用数据无效，请检查。",
@@ -36,17 +41,18 @@ const messages: Record<string, string> = {
   REVISION_CONFLICT: "数据已发生变化，请刷新后重试。",
   INVALID_BACKUP: "无法识别备份文件。",
   BACKUP_CHECKSUM_FAILED: "备份校验失败，请选择完好的备份。",
-  PREVIEW_EXPIRED: "恢复预览已过期，请重新选择文件。",
+  PREVIEW_EXPIRED: "预览已过期，请重新打开预览。",
   INVALID_INPUT: "请检查填写内容。",
   REQUEST_TOO_LARGE: "文件超过基础版本的 8 MB 限制。",
 };
+export function errorMessage(code: string): string {
+  return messages[code] ?? `操作失败（${code}），请重试或检查数据。`;
+}
 async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
     const code = result.error?.code ?? "UNKNOWN";
-    throw new Error(
-      messages[code] ?? `操作失败（${code}），请重试或检查文件。`,
-    );
+    throw new Error(errorMessage(code));
   }
   return response;
 }

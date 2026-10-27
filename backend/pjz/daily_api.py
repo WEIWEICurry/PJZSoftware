@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.domain import MAX_FEN, RuleError
 
@@ -156,7 +157,42 @@ class CreatedOutput(BaseModel):
     id: str
 
 
-def router(service: Accounting) -> APIRouter:
+class DeleteConfirmation(StrictInput):
+    preview_token: str = Field(min_length=20, max_length=128)
+    confirm_name: str = Field(min_length=1, max_length=60)
+
+
+class DeleteImpact(BaseModel):
+    account_id: str
+    name: str
+    before_fen: str
+    after_fen: str
+
+
+class DeletePreview(BaseModel):
+    account_id: str
+    account_name: str
+    event_count: int
+    refund_count: int
+    transfer_count: int
+    other_accounts: list[DeleteImpact]
+    preview_token: str
+    can_delete: bool
+    reason: str | None
+
+
+class DeleteOutput(BaseModel):
+    deleted: bool
+    event_count: int
+    backup_path: str
+
+
+class NoteSuggestion(BaseModel):
+    note: str
+    count: int
+
+
+def router(service: Accounting, deletion: AccountDeletion) -> APIRouter:
     result = APIRouter(prefix="/api/v1")
 
     @result.get("/accounts", response_model=list[AccountOutput])
@@ -170,6 +206,18 @@ def router(service: Accounting) -> APIRouter:
     @result.patch("/accounts/{identifier}", response_model=CreatedOutput)
     def update_account(identifier: UUID, body: AccountChange, key: Key) -> dict[str, Any]:
         return service.update_account(str(identifier), body.model_dump(mode="json"), key)
+
+    @result.post("/accounts/{identifier}/delete-preview", response_model=DeletePreview)
+    def delete_preview(identifier: UUID) -> dict[str, Any]:
+        return deletion.preview(str(identifier))
+
+    @result.post("/accounts/{identifier}/delete", response_model=DeleteOutput)
+    def delete_account(identifier: UUID, body: DeleteConfirmation, key: Key) -> dict[str, Any]:
+        return deletion.commit(str(identifier), body.model_dump(), key)
+
+    @result.get("/categories/{identifier}/note-suggestions", response_model=list[NoteSuggestion])
+    def note_suggestions(identifier: UUID) -> list[dict[str, Any]]:
+        return service.note_suggestions(str(identifier))
 
     @result.get("/categories", response_model=list[CategoryOutput])
     def categories() -> list[dict[str, Any]]:

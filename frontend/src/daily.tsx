@@ -1,6 +1,10 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
+import {
+  AccountDeleteDialog,
+  type AccountDeletePreview,
+} from "./account-delete-dialog";
 import type { components } from "./api-schema";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
 
@@ -9,6 +13,7 @@ type Category = components["schemas"]["CategoryOutput"];
 type LedgerEvent = components["schemas"]["EventOutput"];
 type EventPage = components["schemas"]["EventPage"];
 type Summary = components["schemas"]["SummaryOutput"];
+type NoteSuggestion = components["schemas"]["NoteSuggestion"];
 type EventInput = components["schemas"]["EventInput"];
 const accountKinds = {
   cash: "现金",
@@ -115,6 +120,14 @@ export function DailyWorkspace({
   changed: () => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [pendingDelete, setPendingDelete] =
+    useState<AccountDeletePreview | null>(null);
+  const [noteRefresh, setNoteRefresh] = useState(0);
+  const [noteChoices, setNoteChoices] = useState<{
+    category: string;
+    items: NoteSuggestion[];
+  }>({ category: "", items: [] });
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState<EventPage>({ items: [], total: 0 });
   const [month, setMonth] = useState(localDay().slice(0, 7));
@@ -199,6 +212,7 @@ export function DailyWorkspace({
     setNotice("");
     try {
       await operation();
+      setNoteRefresh((value) => value + 1);
       await refreshBase();
       await refreshEvents();
       changed();
@@ -286,6 +300,32 @@ export function DailyWorkspace({
             ? "工资"
             : "餐饮"),
     )?.id ?? choices[0]?.id;
+  const suggestionCategory =
+    draft.kind === "adjustment"
+      ? ""
+      : draft.category_id || defaultCategory || "";
+  useEffect(() => {
+    if (!available || !suggestionCategory) return;
+    let cancelled = false;
+    request<NoteSuggestion[]>(
+      "/categories/" + suggestionCategory + "/note-suggestions",
+    )
+      .then((items) => {
+        if (!cancelled) setNoteChoices({ category: suggestionCategory, items });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setNoteChoices({ category: suggestionCategory, items: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [available, suggestionCategory, noteRefresh]);
+  const suggestions =
+    suggestionCategory && noteChoices.category === suggestionCategory
+      ? noteChoices.items
+      : [];
+
   async function saveEvent(event: FormEvent) {
     event.preventDefault();
     await act(async () => {
@@ -323,9 +363,76 @@ export function DailyWorkspace({
     accounts.find((item) => item.id === id)?.name ?? "—";
   const categoryLabel = (id: string | null) =>
     categories.find((item) => item.id === id)?.name ?? "—";
+  const archivedAccounts = accounts.filter((item) => item.archived);
+  function renderAccount(item: Account) {
+    return (
+      <section
+        className={"card account-card" + (item.archived ? " archived" : "")}
+        key={item.id}
+      >
+        <span className="section-label">
+          {accountKinds[item.kind]} {item.archived ? "· 已归档" : ""}
+        </span>
+        <h2>{item.name}</h2>
+        <strong>{money(item.balance_fen)}</strong>
+        <p>
+          {item.kind === "liability" ? "当前欠款" : "当前余额"} · 期初{" "}
+          {item.opening_date}
+        </p>
+        <div className="row-actions">
+          <button
+            className="text-button"
+            disabled={!enabled}
+            onClick={() => {
+              setEditingAccount(item);
+              setAccountName(item.name);
+            }}
+          >
+            编辑名称
+          </button>
+          <button
+            className="text-button"
+            disabled={!enabled}
+            onClick={() =>
+              void act(async () => {
+                await request("/accounts/" + item.id, "PATCH", {
+                  name: item.name,
+                  archived: !item.archived,
+                  revision: item.revision,
+                });
+                if (!item.archived) setShowArchived(false);
+                setNotice(item.archived ? "账户已恢复。" : "账户已归档。");
+              })
+            }
+          >
+            {item.archived ? "恢复账户" : "归档账户"}
+          </button>
+          {item.archived && (
+            <button
+              type="button"
+              className="text-button danger"
+              disabled={!enabled}
+              onClick={() =>
+                void act(async () => {
+                  setPendingDelete(
+                    await request<AccountDeletePreview>(
+                      "/accounts/" + item.id + "/delete-preview",
+                      "POST",
+                    ),
+                  );
+                })
+              }
+            >
+              彻底删除
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
   return (
     <div className="daily-workspace">
-      {error && (
+      {error && !pendingDelete && (
         <div className="alert error" role="alert">
           {error}
         </div>
@@ -335,63 +442,77 @@ export function DailyWorkspace({
           {notice}
         </div>
       )}
+      {pendingDelete && (
+        <AccountDeleteDialog
+          key={pendingDelete.preview_token}
+          preview={pendingDelete}
+          busy={busy}
+          error={error}
+          cancel={() => {
+            setPendingDelete(null);
+            setError("");
+          }}
+          confirm={(name) =>
+            void act(async () => {
+              const result = await request<
+                components["schemas"]["DeleteOutput"]
+              >("/accounts/" + pendingDelete.account_id + "/delete", "POST", {
+                preview_token: pendingDelete.preview_token,
+                confirm_name: name,
+              });
+              if (editingAccount?.id === pendingDelete.account_id) {
+                setEditingAccount(null);
+                setAccountName("");
+              }
+              setPendingDelete(null);
+              setNotice(
+                "账户及 " +
+                  result.event_count +
+                  " 条流水已删除。删除前备份：" +
+                  result.backup_path,
+              );
+            })
+          }
+        />
+      )}
       {mode === "accounts" ? (
         <>
           <div className="account-grid">
-            {accounts.map((item) => (
-              <section
-                className={
-                  "card account-card" + (item.archived ? " archived" : "")
-                }
-                key={item.id}
-              >
-                <span className="section-label">
-                  {accountKinds[item.kind]} {item.archived ? "· 已归档" : ""}
-                </span>
-                <h2>{item.name}</h2>
-                <strong>{money(item.balance_fen)}</strong>
-                <p>
-                  {item.kind === "liability" ? "当前欠款" : "当前余额"} · 期初{" "}
-                  {item.opening_date}
-                </p>
-                <div className="row-actions">
-                  <button
-                    className="text-button"
-                    disabled={!enabled}
-                    onClick={() => {
-                      setEditingAccount(item);
-                      setAccountName(item.name);
-                    }}
-                  >
-                    编辑名称
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={!enabled}
-                    onClick={() =>
-                      void act(async () => {
-                        await request("/accounts/" + item.id, "PATCH", {
-                          name: item.name,
-                          archived: !item.archived,
-                          revision: item.revision,
-                        });
-                        setNotice(
-                          item.archived ? "账户已恢复。" : "账户已归档。",
-                        );
-                      })
-                    }
-                  >
-                    {item.archived ? "恢复账户" : "归档账户"}
-                  </button>
-                </div>
-              </section>
-            ))}
+            {accounts.filter((item) => !item.archived).map(renderAccount)}
           </div>
-          {!accounts.length && (
+          {!accounts.some((item) => !item.archived) && (
             <div className="card empty-state">
-              <h2>先添加一个账户</h2>
-              <p>录入今天的实际余额作为期初，之后的收支都会有据可查。</p>
+              <h2>{accounts.length ? "暂无使用中的账户" : "先添加一个账户"}</h2>
+              <p>
+                {accounts.length
+                  ? "可以添加新账户，或展开已归档账户后恢复使用。"
+                  : "录入实际余额作为期初，之后的收支都会有据可查。"}
+              </p>
             </div>
+          )}
+          {archivedAccounts.length > 0 && (
+            <section className="archive-section" aria-label="归档账户管理">
+              <button
+                className="archive-toggle"
+                aria-expanded={showArchived}
+                aria-controls="archived-accounts"
+                onClick={() => setShowArchived(!showArchived)}
+              >
+                <span aria-hidden="true">{showArchived ? "▾" : "▸"}</span>
+                已归档账户（{archivedAccounts.length}）
+                <span className="archive-action">
+                  {showArchived ? "收起" : "展开"}
+                </span>
+              </button>
+              <div id="archived-accounts" hidden={!showArchived}>
+                <p className="footnote">
+                  归档账户不再日常显示，历史流水保留；需要时可以恢复。
+                </p>
+                <div className="account-grid">
+                  {archivedAccounts.map(renderAccount)}
+                </div>
+              </div>
+            </section>
           )}
           <section className="card panel">
             <span className="section-label">账户设置</span>
@@ -494,7 +615,11 @@ export function DailyWorkspace({
                 </button>
               )}
             </div>
-            <form onSubmit={saveEvent} className="form-grid">
+            <form
+              onSubmit={saveEvent}
+              className="form-grid entry-grid"
+              data-kind={draft.kind}
+            >
               <label>
                 类型
                 <select
@@ -616,15 +741,39 @@ export function DailyWorkspace({
                   </select>
                 </label>
               )}
-              <label className="wide-field">
-                {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+              <div className="wide-field note-field">
+                <label htmlFor="transaction-note">
+                  {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+                </label>
                 <input
+                  id="transaction-note"
                   value={draft.note ?? ""}
                   onChange={(e) => setDraft({ ...draft, note: e.target.value })}
                   maxLength={500}
                   required={draft.kind === "adjustment"}
                 />
-              </label>
+                {suggestions.length > 0 && (
+                  <div
+                    className="note-suggestions"
+                    role="group"
+                    aria-label="常用备注"
+                  >
+                    <span>常用备注</span>
+                    {suggestions.map((item) => (
+                      <button
+                        key={item.note}
+                        type="button"
+                        className="note-chip"
+                        title={item.note + "（已使用 " + item.count + " 次）"}
+                        disabled={!enabled}
+                        onClick={() => setDraft({ ...draft, note: item.note })}
+                      >
+                        {item.note}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {draft.kind === "refund" && (
                 <p className="footnote wide-field">
                   {draft.original_event_id
@@ -647,7 +796,7 @@ export function DailyWorkspace({
                     ? "借还本金与普通转账均不计收支，只有费用计入支出。"
                     : draft.kind === "adjustment"
                       ? "余额校正不计收支，并保留校正原因。"
-                      : "金额按整数分保存，未来日期不作为已发生流水。"}
+                      : "记录已发生的交易；期初和转账本金不计入收支。"}
                 </small>
               </div>
             </form>

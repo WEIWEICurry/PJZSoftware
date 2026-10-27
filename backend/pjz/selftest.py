@@ -14,6 +14,7 @@ from pathlib import Path
 import uvicorn
 from filelock import FileLock, Timeout
 
+from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.api import create_app
 from pjz.storage import LedgerStore, inspect_backup
@@ -53,6 +54,38 @@ def run() -> None:
             str(uuid.uuid4()),
         )
         assert accounting.summary("2026-01-01", "2026-01-31")["assets_fen"] == "6975"
+        assert accounting.note_suggestions(expense_category) == [
+            {"note": "Synthetic packaged expense", "count": 1}
+        ]
+        disposable = accounting.create_account(
+            {
+                "name": "Synthetic packaged discarded",
+                "kind": "cash",
+                "opening_date": "2026-01-01",
+                "opening_fen": "0",
+            },
+            str(uuid.uuid4()),
+        )
+        accounting.update_account(
+            disposable["id"],
+            {
+                "name": "Synthetic packaged discarded",
+                "archived": True,
+                "revision": 1,
+            },
+            str(uuid.uuid4()),
+        )
+        deletion = AccountDeletion(store)
+        preview = deletion.preview(disposable["id"])
+        deleted = deletion.commit(
+            disposable["id"],
+            {
+                "preview_token": preview["preview_token"],
+                "confirm_name": "Synthetic packaged discarded",
+            },
+            str(uuid.uuid4()),
+        )
+        assert deleted["deleted"] and len(accounting.accounts()) == 1
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
