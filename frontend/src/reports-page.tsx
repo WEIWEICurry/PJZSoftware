@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { raw, request } from "./api";
 import type { components } from "./api-schema";
 import { BudgetPanel } from "./budget-panel";
+import { ReportPeriodPicker } from "./report-period-picker";
+import { ReportTrend } from "./report-trend";
 import { fenToYuan, localDay, money } from "./money";
 
 type Report = components["schemas"]["ReportOutput"];
@@ -150,19 +152,6 @@ export function ReportsPage({
   }
   const categories =
     data?.current.categories.filter((row) => row.direction === direction) ?? [];
-  const maximum = (data?.trend ?? []).reduce((largest, row) => {
-    for (const value of [row.income_fen, row.expense_fen]) {
-      if (value !== null) {
-        const n = BigInt(value) < 0n ? -BigInt(value) : BigInt(value);
-        if (n > largest) largest = n;
-      }
-    }
-    return largest;
-  }, 1n);
-  const width = (value: string) => {
-    const n = BigInt(value) < 0n ? -BigInt(value) : BigInt(value);
-    return Number((n * 10000n) / maximum) / 100;
-  };
   return (
     <div className="reports-workspace">
       <section className="card panel report-controls" aria-label="报表期间选择">
@@ -189,16 +178,12 @@ export function ReportsPage({
           >
             上一{labels[period]}
           </button>
-          <label>
-            选择日期
-            <input
-              type="date"
-              max={localDay()}
-              value={anchor}
-              disabled={!available}
-              onChange={(e) => chooseAnchor(e.target.value)}
-            />
-          </label>
+          <ReportPeriodPicker
+            period={period}
+            anchor={anchor}
+            disabled={!available}
+            choose={chooseAnchor}
+          />
           <button
             className="secondary"
             disabled={!available || !data || data.calendar_end >= localDay()}
@@ -323,61 +308,13 @@ export function ReportsPage({
               ))}
             </div>
           </section>
-          <section className="card panel" aria-label="收支趋势">
-            <div className="section-heading">
-              <h2>{period === "year" ? "逐月" : "逐日"}收支趋势</h2>
-              <span className="trend-key">
-                <i className="income-key" />
-                收入 <i className="expense-key" />
-                净支出
-              </span>
-            </div>
-            <p className="footnote">
-              柱长按金额绝对值展示，负净支出代表退款净额；精确数值见表格。历史汇总无逐日数据时不拆分、不填零。
-            </p>
-            <div className="trend-list">
-              {data.trend.map((point) => (
-                <div className={"trend-row " + point.status} key={point.start}>
-                  <span>
-                    {period === "year"
-                      ? point.start.slice(0, 7)
-                      : point.start.slice(5)}
-                  </span>
-                  <div className="trend-bars">
-                    {(["income_fen", "expense_fen"] as const).map(
-                      (field, index) => (
-                        <div key={field} className="trend-track">
-                          {point[field] !== null ? (
-                            <span
-                              className={index ? "expense-bar" : "income-bar"}
-                              style={{ width: width(point[field]!) + "%" }}
-                              title={money(point[field]!)}
-                            />
-                          ) : (
-                            <small>
-                              {point.status === "future"
-                                ? "未到日期"
-                                : "缺少分日数据"}
-                            </small>
-                          )}
-                        </div>
-                      ),
-                    )}
-                  </div>
-                  <div className="trend-values">
-                    {point.status === "future" ? (
-                      "—"
-                    ) : (
-                      <>
-                        <span>{amount(point.income_fen)}</span>
-                        <span>{amount(point.expense_fen)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          {period !== "day" && (
+            <ReportTrend
+              key={period + data.current.start}
+              period={period}
+              points={data.trend}
+            />
+          )}
           {data.history_ranges.length > 0 && (
             <details className="card panel report-sources">
               <summary>

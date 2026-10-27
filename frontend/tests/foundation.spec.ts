@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { isoWeekValue } from "../src/report-period";
 
 test("本地连接、日常账务、幂等重试和备份恢复，页面无出站请求", async ({
   page,
@@ -404,21 +405,95 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   ).toContainText("¥106.00");
   await expect(budgetPanel.locator(".budget-card")).toHaveCount(0);
   await expect(budgetPanel.locator(".budget-numbers")).toHaveCount(0);
+  await expect(page.getByLabel("选择月份", { exact: true })).toHaveAttribute(
+    "type",
+    "month",
+  );
   await page.getByRole("button", { name: "日报表", exact: true }).click();
+  await expect(page.getByLabel("选择日期", { exact: true })).toHaveAttribute(
+    "type",
+    "date",
+  );
   if (Number(today.slice(8)) > 1)
     await expect(page.locator(".report-incomplete")).toContainText(
       "缺少分日数据",
     );
   else await expect(reportMetrics).toContainText("¥106.00");
+  await expect(
+    page.getByRole("region", { name: "收支趋势", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "周报表", exact: true }).click();
+  await expect(page.getByLabel("选择周", { exact: true })).toHaveAttribute(
+    "type",
+    "week",
+  );
+  await page.getByLabel("选择周", { exact: true }).fill("2020-W53");
+  await expect(page.locator(".report-range")).toContainText(
+    "2020-12-28 ～ 2021-01-03",
+  );
+  await expect(page.locator(".trend-row")).toHaveCount(7);
+  const firstWeekBar = await page.locator(".trend-row").nth(0).boundingBox();
+  const secondWeekBar = await page.locator(".trend-row").nth(1).boundingBox();
+  expect(secondWeekBar!.x).toBeGreaterThan(firstWeekBar!.x);
+  expect(secondWeekBar!.y).toBe(firstWeekBar!.y);
+  await page.getByLabel("选择周", { exact: true }).fill(isoWeekValue(today));
   await expect(reportMetrics.locator(".metric").first()).toBeVisible();
   await page.getByRole("button", { name: "年报表", exact: true }).click();
+  await page.getByLabel("选择年份", { exact: true }).selectOption("2024");
+  await expect(page.locator(".report-range")).toContainText(
+    "2024-01-01 ～ 2024-12-31",
+  );
+  await expect(page.locator(".trend-row")).toHaveCount(12);
+  await page.getByRole("button", { name: "返回当前年", exact: true }).click();
   await expect(
     reportMetrics.locator(".metric").filter({ hasText: "净支出" }).first(),
   ).toContainText("¥106.00");
   await expect(page.locator(".trend-row")).toHaveCount(12);
   await page.getByRole("button", { name: "月报表", exact: true }).click();
+  await page.getByLabel("选择月份", { exact: true }).fill("2024-02");
+  await expect(page.locator(".report-range")).toContainText(
+    "2024-02-01 ～ 2024-02-29",
+  );
+  await expect(page.locator(".trend-row")).toHaveCount(29);
+  await page.getByRole("button", { name: "返回当前月", exact: true }).click();
   await expect(reportMetrics).toContainText("¥106.00");
+  const firstDay = page.locator(".trend-row").first();
+  await firstDay.focus();
+  await expect(firstDay).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".trend-detail")).toContainText(
+    today.slice(0, 7) + "-01",
+  );
+  // Exercise below-zero rendering with synthetic chart samples.
+  await page.route("**/api/v1/reports?*", async (route) => {
+    const response = await route.fetch();
+    const result = await response.json();
+    result.trend[0] = {
+      ...result.trend[0],
+      income_fen: "10000",
+      expense_fen: "-30000",
+      surplus_fen: "40000",
+      status: "recorded",
+    };
+    await route.fulfill({ response, json: result });
+  });
+  await page.getByRole("button", { name: "刷新报表", exact: true }).click();
+  const negativeBar = page.locator(".expense-bar.negative");
+  await expect(negativeBar).toHaveCount(1);
+  const negativeBox = await negativeBar.boundingBox();
+  const plotBox = await page.locator(".trend-plot").boundingBox();
+  const positiveBox = await page
+    .locator(".income-bar.positive")
+    .first()
+    .boundingBox();
+  expect(negativeBox!.y).toBeCloseTo(plotBox!.y + 100, 0);
+  expect(positiveBox!.y + positiveBox!.height).toBeLessThanOrEqual(
+    negativeBox!.y + 1,
+  );
+  await page.locator(".trend-row").first().focus();
+  await expect(page.locator(".trend-detail")).toContainText("¥-300.00");
+  await page.unroute("**/api/v1/reports?*");
+  await page.getByRole("button", { name: "刷新报表", exact: true }).click();
+  await expect(negativeBar).toHaveCount(0);
   const csvDownloadEvent = page.waitForEvent("download");
   await page
     .getByRole("button", { name: "导出当前构成 CSV", exact: true })
@@ -498,6 +573,14 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
+    if (width === 900) {
+      const scroll = page.locator(".trend-scroller");
+      expect(
+        await scroll.evaluate((el) => el.scrollWidth > el.clientWidth),
+      ).toBe(true);
+      await page.locator(".trend-row").last().focus();
+      expect(await scroll.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+    }
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({
