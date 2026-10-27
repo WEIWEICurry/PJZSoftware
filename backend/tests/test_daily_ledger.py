@@ -106,7 +106,7 @@ def test_daily_income_expense_transfer_and_full_backup(ledger):
     assert other.summary("2026-01-01", "2026-01-31") == result
     assert len(other.events("2026-01-01", "2026-01-31")["items"]) == 5
     restored.close()
-    assert client.get("/api/v1/ledger").json()["schema_version"] == 2
+    assert client.get("/api/v1/ledger").json()["schema_version"] == 3
 
 
 def test_idempotency_conflict_and_input_precision(ledger):
@@ -269,7 +269,7 @@ def test_legacy_upgrade_and_restore(tmp_path):
     path = tmp_path / "legacy"
     legacy_ledger(path)
     store = LedgerStore(path)
-    backups = list((path / "backups").glob("before-v2-*.pjzbackup"))
+    backups = list((path / "backups").glob("before-v3-*.pjzbackup"))
     assert len(backups) == 1
     with zipfile.ZipFile(io.BytesIO(backups[0].read_bytes())) as package:
         assert json.loads(package.read("manifest.json"))["schema_version"] == 1
@@ -305,7 +305,7 @@ def test_failed_migration_rolls_back(tmp_path, monkeypatch):
             ).fetchall()
             == []
         )
-    assert list((path / "backups").glob("before-v2-*.pjzbackup"))
+    assert list((path / "backups").glob("before-v3-*.pjzbackup"))
 
 
 def test_concurrent_retries_and_stale_revision(ledger):

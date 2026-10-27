@@ -195,6 +195,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/loans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Loan */
+        post: operations["record_loan_api_v1_loans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/restores/commit": {
         parameters: {
             query?: never;
@@ -333,7 +350,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "cash" | "bank" | "payment" | "securities" | "liability";
+            kind: "cash" | "bank" | "payment" | "securities" | "liability" | "receivable";
             /** Name */
             name: string;
             /**
@@ -359,7 +376,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "cash" | "bank" | "payment" | "securities" | "liability";
+            kind: "cash" | "bank" | "payment" | "securities" | "liability" | "receivable";
             /** Name */
             name: string;
             /** Opening Date */
@@ -587,6 +604,35 @@ export interface components {
             /** Stage */
             stage: string;
         };
+        /** LoanInput */
+        LoanInput: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "borrow" | "repay" | "lend" | "collect";
+            /** Amount Fen */
+            amount_fen: string;
+            /**
+             * Cash Account Id
+             * Format: uuid
+             */
+            cash_account_id: string;
+            /** Counterparty Id */
+            counterparty_id?: string | null;
+            /** Counterparty Name */
+            counterparty_name?: string | null;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+        };
         /** NoteSuggestion */
         NoteSuggestion: {
             /** Count */
@@ -623,6 +669,8 @@ export interface components {
             income_fen: string;
             /** Net Fen */
             net_fen: string;
+            /** Receivable Fen */
+            receivable_fen: string;
             /** Surplus Fen */
             surplus_fen: string;
         };
@@ -1102,6 +1150,41 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_loan_api_v1_loans_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoanInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOutput"];
                 };
             };
             /** @description Validation Error */

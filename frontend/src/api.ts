@@ -11,6 +11,10 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  CASH_ACCOUNT_REQUIRED: "请选择银行卡、现金等资金账户。",
+  COUNTERPARTY_REQUIRED: "请选择匹配的借款对象，或填写对方姓名。",
+  RECEIVABLE_EVENT_UNSUPPORTED:
+    "应收款请通过借出或收回记录，不直接记普通收支。",
   RESOURCE_DELETED: "账户或流水已删除，请刷新后查看最新数据。",
   ACCOUNT_NOT_ARCHIVED: "请先归档账户，再进行彻底删除。",
   CONFIRM_NAME_MISMATCH: "输入的账户名称不一致，请核对后重试。",
@@ -22,7 +26,7 @@ const messages: Record<string, string> = {
   ADJUSTMENT_REASON_REQUIRED: "余额校正必须填写原因，金额不能为零。",
   INVALID_AMOUNT: "这类流水的金额必须大于零。",
   DEBT_TRANSFER_UNSUPPORTED: "暂不支持负债账户之间转账。",
-  DEBT_INCOME_UNSUPPORTED: "负债账户不能记普通收入；借款请使用转账。",
+  DEBT_INCOME_UNSUPPORTED: "负债账户不能记普通收入；借款请使用借还款。",
   SAME_ACCOUNT: "转出和转入不能是同一个账户。",
   OPENING_IMMUTABLE: "期初记录不能直接修改，请使用余额校正并填写原因。",
   REFUND_BEFORE_EXPENSE: "退款日期不能早于原支出。",
@@ -35,7 +39,8 @@ const messages: Record<string, string> = {
   ACCOUNT_ARCHIVED: "账户已归档，请先恢复账户。",
   ACCOUNT_NOT_FOUND: "找不到所选账户，请刷新。",
   AMOUNT_OUT_OF_RANGE: "金额或账户余额超出支持范围。",
-  INSUFFICIENT_BALANCE: "余额不足，或这次历史改动会导致后续某一天余额不足。",
+  INSUFFICIENT_BALANCE:
+    "余额不足、还款超过剩余本金，或这次历史改动会导致后续某一天余额不足。",
   UNAUTHENTICATED: "会话未连接，请通过本地启动器重新打开软件。",
   INVALID_BOOTSTRAP: "启动链接已过期或使用过，请从启动器重新打开。",
   REVISION_CONFLICT: "数据已发生变化，请刷新后重试。",

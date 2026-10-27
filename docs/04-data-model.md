@@ -16,7 +16,7 @@
 | 实体 | 关键字段与约束 |
 | --- | --- |
 | ledgers | id、name、currency=CNY、schema_version |
-| accounts | name、kind、currency、archived；kind 区分现金／银行卡／支付／证券现金／负债 |
+| accounts | name、kind、currency、archived；kind 区分现金／银行卡／支付／证券现金／负债／应收 |
 | categories | name、direction、parent_id、archived；被引用后归档 |
 | financial_events | kind、effective_date、day_sequence、status、source、idempotency_key、revision；统一事件父表 |
 | cash_entries | event_id、account_id、delta_fen；余额＝有效 entry 之和 |
@@ -81,3 +81,9 @@
 ## 6. 修订与重算
 
 历史投资事件修改、作废或改顺序后，重放该账户标的后续有效事件；负持仓、资金不足、成本未知或不支持事件导致校验失败时整个事务回滚。当前投影可在恢复后重建，并与备份校验摘要核对。不得只修改展示数字而不修复事实来源。
+
+## schema v3：应收本金
+
+receivable 以待收回本金为正，借出增加应收、收回减少应收；负债仍以欠款为正。两类均复用 transfer 与 cash_entries，不额外维护一份余额。新建对象与借还流水同事务；旧负债直接复用。普通收入、支出、退款不能记入应收账户。
+
+总览 assets_fen 表示资金账户余额，receivable_fen 单独表示待收回本金；net_fen＝assets_fen＋receivable_fen－debt_fen。上述四类本金不进入月度收支。具体迁移与验收见 [简化借还款](10-simple-loans.md)。

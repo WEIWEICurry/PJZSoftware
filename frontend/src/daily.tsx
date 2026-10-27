@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
+import { LoanForm, isLoanAccount, type LoanAction } from "./loan-form";
 import {
   AccountDeleteDialog,
   type AccountDeletePreview,
@@ -20,13 +21,14 @@ const accountKinds = {
   bank: "银行卡",
   payment: "支付账户",
   securities: "证券现金",
-  liability: "负债",
+  liability: "我欠别人的",
+  receivable: "别人欠我的",
 };
 const eventKinds: Record<string, string> = {
   opening: "期初",
   income: "收入",
   expense: "支出",
-  transfer: "转账／借还本金",
+  transfer: "转账",
   refund: "退款",
   adjustment: "余额校正",
 };
@@ -93,7 +95,8 @@ export function DailyOverview({
           <strong>{summary ? money(summary.net_fen) : "—"}</strong>
         </div>
         <p>
-          现金资产 {summary ? money(summary.assets_fen) : "—"} · 未偿负债{" "}
+          可用资金 {summary ? money(summary.assets_fen) : "—"} · 待收回{" "}
+          {summary ? money(summary.receivable_fen) : "—"} · 未偿负债{" "}
           {summary ? money(summary.debt_fen) : "—"}
           <br />
           <small>只统计账户资金，尚未包含投资持仓价值。</small>
@@ -120,6 +123,13 @@ export function DailyWorkspace({
   changed: () => void;
 }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [showLoans, setShowLoans] = useState(false);
+  const [loanSequence, setLoanSequence] = useState(0);
+  const [loanPreset, setLoanPreset] = useState<{
+    action: LoanAction;
+    id: string;
+  } | null>(null);
+  const [showSettled, setShowSettled] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [pendingDelete, setPendingDelete] =
     useState<AccountDeletePreview | null>(null);
@@ -244,9 +254,11 @@ export function DailyWorkspace({
     });
   }
   function setKind(kind: EventInput["kind"]) {
+    setShowLoans(false);
     setDraft({
       ...draft,
       kind,
+      account_id: "",
       category_id: null,
       target_account_id: null,
       original_event_id: null,
@@ -254,6 +266,26 @@ export function DailyWorkspace({
     setFee("0.00");
   }
   function edit(row: LedgerEvent) {
+    const source = accounts.find((a) => a.id === row.account_id);
+    const target = accounts.find((a) => a.id === row.target_account_id);
+    const loanParty =
+      source && isLoanAccount(source)
+        ? source
+        : target && isLoanAccount(target)
+          ? target
+          : null;
+    if (row.kind === "transfer" && row.fee_fen === "0" && loanParty) {
+      const action: LoanAction =
+        source?.kind === "liability"
+          ? "borrow"
+          : target?.kind === "liability"
+            ? "repay"
+            : source?.kind === "receivable"
+              ? "collect"
+              : "lend";
+      setLoanPreset({ action, id: loanParty.id });
+      setShowLoans(true);
+    } else setShowLoans(false);
     setDraft({
       kind: row.kind as EventInput["kind"],
       account_id: row.account_id,
@@ -274,6 +306,7 @@ export function DailyWorkspace({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function startRefund(row: LedgerEvent) {
+    setShowLoans(false);
     setDraft({
       ...blankEvent(),
       kind: "refund",
@@ -335,7 +368,8 @@ export function DailyWorkspace({
       const body = {
         ...draft,
         account_id:
-          draft.account_id || accounts.find((item) => !item.archived)?.id,
+          draft.account_id ||
+          accounts.find((item) => !item.archived && !isLoanAccount(item))?.id,
         amount_fen: yuanToFen(amount),
         fee_fen: feeFen,
         category_id: needsCategory
@@ -364,6 +398,78 @@ export function DailyWorkspace({
   const categoryLabel = (id: string | null) =>
     categories.find((item) => item.id === id)?.name ?? "—";
   const archivedAccounts = accounts.filter((item) => item.archived);
+  const loanAccounts = accounts.filter(
+    (item) => isLoanAccount(item) && !item.archived,
+  );
+  function launchLoan(item: Account) {
+    setLoanSequence((value) => value + 1);
+    setEditing(null);
+    setLoanPreset({
+      action: item.kind === "liability" ? "repay" : "collect",
+      id: item.id,
+    });
+    setShowLoans(true);
+  }
+  const typeSelector = (
+    <label>
+      类型
+      <select
+        value={showLoans ? "loan" : draft.kind}
+        onChange={(e) => {
+          if (e.target.value === "loan") {
+            setShowLoans(true);
+            setEditing(null);
+            setLoanPreset(null);
+          } else setKind(e.target.value as EventInput["kind"]);
+        }}
+      >
+        <option value="loan">借还款</option>
+        {Object.entries(eventKinds)
+          .filter(([id]) => id !== "opening")
+          .map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+      </select>
+    </label>
+  );
+  const loanForm = (
+    <LoanForm
+      key={
+        loanPreset
+          ? loanPreset.action +
+            loanPreset.id +
+            loanSequence +
+            (editing?.id ?? "")
+          : "new-loan"
+      }
+      accounts={accounts}
+      existing={
+        editing?.kind === "transfer" && editing.fee_fen === "0"
+          ? editing
+          : undefined
+      }
+      initialAction={loanPreset?.action}
+      initialCounterparty={loanPreset?.id}
+      enabled={enabled}
+      cancel={
+        mode === "accounts"
+          ? () => {
+              setShowLoans(false);
+              setLoanPreset(null);
+            }
+          : undefined
+      }
+      save={(operation) =>
+        act(async () => {
+          await operation();
+          setEditing(null);
+          setNotice("借还款已保存，本金未计入日常收支。");
+        })
+      }
+    />
+  );
   function renderAccount(item: Account) {
     return (
       <section
@@ -376,10 +482,26 @@ export function DailyWorkspace({
         <h2>{item.name}</h2>
         <strong>{money(item.balance_fen)}</strong>
         <p>
-          {item.kind === "liability" ? "当前欠款" : "当前余额"} · 期初{" "}
-          {item.opening_date}
+          {item.kind === "liability"
+            ? "当前欠款"
+            : item.kind === "receivable"
+              ? "待收回本金"
+              : "当前余额"}{" "}
+          · 期初 {item.opening_date}
         </p>
         <div className="row-actions">
+          {isLoanAccount(item) &&
+            !item.archived &&
+            item.balance_fen !== "0" && (
+              <button
+                type="button"
+                className="text-button"
+                disabled={!enabled}
+                onClick={() => launchLoan(item)}
+              >
+                {item.kind === "liability" ? "还钱" : "收回"}
+              </button>
+            )}
           <button
             className="text-button"
             disabled={!enabled}
@@ -478,7 +600,9 @@ export function DailyWorkspace({
       {mode === "accounts" ? (
         <>
           <div className="account-grid">
-            {accounts.filter((item) => !item.archived).map(renderAccount)}
+            {accounts
+              .filter((item) => !item.archived && !isLoanAccount(item))
+              .map(renderAccount)}
           </div>
           {!accounts.some((item) => !item.archived) && (
             <div className="card empty-state">
@@ -490,6 +614,54 @@ export function DailyWorkspace({
               </p>
             </div>
           )}
+          <section className="card panel" aria-label="借还款管理">
+            <div className="section-heading">
+              <h2>借还款</h2>
+              <button
+                disabled={!enabled}
+                onClick={() => {
+                  setLoanPreset(null);
+                  setShowLoans(!showLoans);
+                }}
+              >
+                记录借还款
+              </button>
+            </div>
+            {showLoans && loanForm}
+            <div className="loan-columns">
+              {(["liability", "receivable"] as const).map((kind) => (
+                <div key={kind}>
+                  <h3>{accountKinds[kind]}</h3>
+                  <div className="account-grid">
+                    {loanAccounts
+                      .filter((a) => a.kind === kind && a.balance_fen !== "0")
+                      .map(renderAccount)}
+                  </div>
+                  {!loanAccounts.some(
+                    (a) => a.kind === kind && a.balance_fen !== "0",
+                  ) && <p className="footnote">暂无未结清欠款</p>}
+                </div>
+              ))}
+            </div>
+            {loanAccounts.some((a) => a.balance_fen === "0") && (
+              <div className="settled-loans">
+                <button
+                  className="archive-toggle"
+                  aria-expanded={showSettled}
+                  onClick={() => setShowSettled(!showSettled)}
+                >
+                  已结清（
+                  {loanAccounts.filter((a) => a.balance_fen === "0").length}）
+                  {showSettled ? "收起" : "展开"}
+                </button>
+                <div hidden={!showSettled} className="account-grid">
+                  {loanAccounts
+                    .filter((a) => a.balance_fen === "0")
+                    .map(renderAccount)}
+                </div>
+              </div>
+            )}
+          </section>
           {archivedAccounts.length > 0 && (
             <section className="archive-section" aria-label="归档账户管理">
               <button
@@ -607,6 +779,7 @@ export function DailyWorkspace({
                   className="secondary"
                   onClick={() => {
                     setEditing(null);
+                    setShowLoans(false);
                     setDraft(blankEvent());
                     setAmount("");
                   }}
@@ -615,191 +788,198 @@ export function DailyWorkspace({
                 </button>
               )}
             </div>
-            <form
-              onSubmit={saveEvent}
-              className="form-grid entry-grid"
-              data-kind={draft.kind}
-            >
-              <label>
-                类型
-                <select
-                  value={draft.kind}
-                  onChange={(e) =>
-                    setKind(e.target.value as EventInput["kind"])
-                  }
-                >
-                  {Object.entries(eventKinds)
-                    .filter(([id]) => id !== "opening")
-                    .map(([id, name]) => (
-                      <option key={id} value={id}>
-                        {name}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                发生日期
-                <input
-                  type="date"
-                  value={draft.effective_date}
-                  max={localDay()}
-                  onChange={(e) =>
-                    setDraft({ ...draft, effective_date: e.target.value })
-                  }
-                  required
-                />
-              </label>
-              <label>
-                {draft.kind === "transfer" ? "转出／借款账户" : "记账账户"}
-                <select
-                  value={
-                    draft.account_id ||
-                    accounts.find((item) => !item.archived)?.id ||
-                    ""
-                  }
-                  onChange={(e) =>
-                    setDraft({ ...draft, account_id: e.target.value })
-                  }
-                  required
-                >
-                  <option value="" disabled>
-                    请选择账户
-                  </option>
-                  {accounts
-                    .filter((item) => !item.archived)
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} · {money(item.balance_fen)}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label>
-                {draft.kind === "transfer" ? "转账本金（元）" : "金额（元）"}
-                <input
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder={
-                    draft.kind === "adjustment" ? "增额填正，减额填负" : "0.00"
-                  }
-                  required
-                />
-              </label>
-              {draft.kind === "transfer" && (
-                <>
-                  <label>
-                    转入／还款账户
-                    <select
-                      value={draft.target_account_id ?? ""}
-                      onChange={(e) =>
-                        setDraft({
-                          ...draft,
-                          target_account_id: e.target.value,
-                        })
-                      }
-                      required
-                    >
-                      <option value="" disabled>
-                        请选择账户
-                      </option>
-                      {accounts
-                        .filter((item) => !item.archived)
-                        .map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                  <label>
-                    手续费（元）
-                    <input
-                      inputMode="decimal"
-                      value={fee}
-                      onChange={(e) => setFee(e.target.value)}
-                      required
-                    />
-                  </label>
-                </>
-              )}
-              {draft.kind !== "adjustment" && (
+            {showLoans ? (
+              <>
+                <div className="entry-type">{typeSelector}</div>
+                {loanForm}
+              </>
+            ) : (
+              <form
+                onSubmit={saveEvent}
+                className="form-grid entry-grid"
+                data-kind={draft.kind}
+              >
+                {typeSelector}
                 <label>
-                  {draft.kind === "transfer" ? "手续费分类" : "分类"}
-                  <select
-                    value={draft.category_id || defaultCategory || ""}
-                    disabled={draft.kind === "refund"}
+                  发生日期
+                  <input
+                    type="date"
+                    value={draft.effective_date}
+                    max={localDay()}
                     onChange={(e) =>
-                      setDraft({ ...draft, category_id: e.target.value })
+                      setDraft({ ...draft, effective_date: e.target.value })
                     }
+                    required
+                  />
+                </label>
+                <label>
+                  {draft.kind === "transfer" ? "转出账户" : "记账账户"}
+                  <select
+                    value={
+                      draft.account_id ||
+                      accounts.find(
+                        (item) => !item.archived && !isLoanAccount(item),
+                      )?.id ||
+                      ""
+                    }
+                    onChange={(e) =>
+                      setDraft({ ...draft, account_id: e.target.value })
+                    }
+                    required
                   >
-                    {choices.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
+                    <option value="" disabled>
+                      请选择账户
+                    </option>
+                    {accounts
+                      .filter(
+                        (item) =>
+                          !item.archived &&
+                          (!isLoanAccount(item) || Boolean(editing)),
+                      )
+                      .map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} · {money(item.balance_fen)}
+                        </option>
+                      ))}
                   </select>
                 </label>
-              )}
-              <div className="wide-field note-field">
-                <label htmlFor="transaction-note">
-                  {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+                <label>
+                  {draft.kind === "transfer" ? "转账本金（元）" : "金额（元）"}
+                  <input
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={
+                      draft.kind === "adjustment"
+                        ? "增额填正，减额填负"
+                        : "0.00"
+                    }
+                    required
+                  />
                 </label>
-                <input
-                  id="transaction-note"
-                  value={draft.note ?? ""}
-                  onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-                  maxLength={500}
-                  required={draft.kind === "adjustment"}
-                />
-                {suggestions.length > 0 && (
-                  <div
-                    className="note-suggestions"
-                    role="group"
-                    aria-label="常用备注"
-                  >
-                    <span>常用备注</span>
-                    {suggestions.map((item) => (
-                      <button
-                        key={item.note}
-                        type="button"
-                        className="note-chip"
-                        title={item.note + "（已使用 " + item.count + " 次）"}
-                        disabled={!enabled}
-                        onClick={() => setDraft({ ...draft, note: item.note })}
+                {draft.kind === "transfer" && (
+                  <>
+                    <label>
+                      转入账户
+                      <select
+                        value={draft.target_account_id ?? ""}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            target_account_id: e.target.value,
+                          })
+                        }
+                        required
                       >
-                        {item.note}
-                      </button>
-                    ))}
-                  </div>
+                        <option value="" disabled>
+                          请选择账户
+                        </option>
+                        {accounts
+                          .filter(
+                            (item) =>
+                              !item.archived &&
+                              (!isLoanAccount(item) || Boolean(editing)),
+                          )
+                          .map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label>
+                      手续费（元）
+                      <input
+                        inputMode="decimal"
+                        value={fee}
+                        onChange={(e) => setFee(e.target.value)}
+                        required
+                      />
+                    </label>
+                  </>
                 )}
-              </div>
-              {draft.kind === "refund" && (
-                <p className="footnote wide-field">
-                  {draft.original_event_id
-                    ? "已关联原支出，累计退款不能超过原支出金额。"
-                    : "请先在下方找到原支出，点击该行的“退款”。"}
-                </p>
-              )}
-              <div className="form-footer">
-                <button
-                  disabled={
-                    !enabled ||
-                    !accounts.some((item) => !item.archived) ||
-                    (draft.kind === "refund" && !draft.original_event_id)
-                  }
-                >
-                  {editing ? "保存修改" : "保存流水"}
-                </button>
-                <small>
-                  {draft.kind === "transfer"
-                    ? "借还本金与普通转账均不计收支，只有费用计入支出。"
-                    : draft.kind === "adjustment"
-                      ? "余额校正不计收支，并保留校正原因。"
-                      : "记录已发生的交易；期初和转账本金不计入收支。"}
-                </small>
-              </div>
-            </form>
+                {draft.kind !== "adjustment" && (
+                  <label>
+                    {draft.kind === "transfer" ? "手续费分类" : "分类"}
+                    <select
+                      value={draft.category_id || defaultCategory || ""}
+                      disabled={draft.kind === "refund"}
+                      onChange={(e) =>
+                        setDraft({ ...draft, category_id: e.target.value })
+                      }
+                    >
+                      {choices.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <div className="wide-field note-field">
+                  <label htmlFor="transaction-note">
+                    {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
+                  </label>
+                  <input
+                    id="transaction-note"
+                    value={draft.note ?? ""}
+                    onChange={(e) =>
+                      setDraft({ ...draft, note: e.target.value })
+                    }
+                    maxLength={500}
+                    required={draft.kind === "adjustment"}
+                  />
+                  {suggestions.length > 0 && (
+                    <div
+                      className="note-suggestions"
+                      role="group"
+                      aria-label="常用备注"
+                    >
+                      <span>常用备注</span>
+                      {suggestions.map((item) => (
+                        <button
+                          key={item.note}
+                          type="button"
+                          className="note-chip"
+                          title={item.note + "（已使用 " + item.count + " 次）"}
+                          disabled={!enabled}
+                          onClick={() =>
+                            setDraft({ ...draft, note: item.note })
+                          }
+                        >
+                          {item.note}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {draft.kind === "refund" && (
+                  <p className="footnote wide-field">
+                    {draft.original_event_id
+                      ? "已关联原支出，累计退款不能超过原支出金额。"
+                      : "请先在下方找到原支出，点击该行的“退款”。"}
+                  </p>
+                )}
+                <div className="form-footer">
+                  <button
+                    disabled={
+                      !enabled ||
+                      !accounts.some((item) => !item.archived) ||
+                      (draft.kind === "refund" && !draft.original_event_id)
+                    }
+                  >
+                    {editing ? "保存修改" : "保存流水"}
+                  </button>
+                  <small>
+                    {draft.kind === "transfer"
+                      ? "转账本金不计收支，只有手续费计入支出。"
+                      : draft.kind === "adjustment"
+                        ? "余额校正不计收支，并保留校正原因。"
+                        : "记录已发生的交易；期初和转账本金不计入收支。"}
+                  </small>
+                </div>
+              </form>
+            )}
           </section>
           <section className="card journal-panel">
             <div className="section-heading">
@@ -924,7 +1104,25 @@ export function DailyWorkspace({
                       <td>
                         {row.effective_date}
                         <small>
-                          {eventKinds[row.kind]}{" "}
+                          {row.kind === "transfer"
+                            ? (() => {
+                                const source = accounts.find(
+                                  (a) => a.id === row.account_id,
+                                );
+                                const target = accounts.find(
+                                  (a) => a.id === row.target_account_id,
+                                );
+                                return source?.kind === "liability"
+                                  ? "我借入"
+                                  : target?.kind === "liability"
+                                    ? "我还钱"
+                                    : source?.kind === "receivable"
+                                      ? "收回借款"
+                                      : target?.kind === "receivable"
+                                        ? "我借出"
+                                        : "转账";
+                              })()
+                            : eventKinds[row.kind]}{" "}
                           {row.status === "void" ? "· 已作废" : ""}
                         </small>
                       </td>

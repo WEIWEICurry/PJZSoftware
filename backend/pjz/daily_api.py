@@ -14,7 +14,7 @@ from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.domain import MAX_FEN, RuleError
 
-AccountKind = Literal["cash", "bank", "payment", "securities", "liability"]
+AccountKind = Literal["cash", "bank", "payment", "securities", "liability", "receivable"]
 EventKind = Literal["income", "expense", "refund", "transfer", "adjustment"]
 Fen = Annotated[str, Field(pattern=r"^-?(0|[1-9][0-9]{0,12})$")]
 Key = Annotated[
@@ -100,6 +100,28 @@ class EventInput(StrictInput):
         return value
 
 
+class LoanInput(StrictInput):
+    action: Literal["borrow", "repay", "lend", "collect"]
+    cash_account_id: UUID
+    counterparty_id: UUID | None = None
+    counterparty_name: str | None = Field(default=None, min_length=1, max_length=50)
+    effective_date: date
+    amount_fen: Fen
+    note: str = Field(default="", max_length=500)
+
+    @field_validator("effective_date")
+    @classmethod
+    def past_date(cls, value: date) -> date:
+        return EventInput.past_date(value)
+
+    @field_validator("amount_fen")
+    @classmethod
+    def principal(cls, value: str) -> str:
+        if not 0 < int(value) <= MAX_FEN:
+            raise ValueError("Positive principal required")
+        return value
+
+
 class RevisionInput(StrictInput):
     revision: int = Field(ge=1, strict=True)
 
@@ -149,6 +171,7 @@ class SummaryOutput(BaseModel):
     expense_fen: str
     surplus_fen: str
     assets_fen: str
+    receivable_fen: str
     debt_fen: str
     net_fen: str
 
@@ -226,6 +249,12 @@ def router(service: Accounting, deletion: AccountDeletion) -> APIRouter:
     @result.post("/categories", response_model=CategoryOutput)
     def create_category(body: CategoryInput, key: Key) -> dict[str, Any]:
         return service.create_category(body.model_dump(mode="json"), key)
+
+    @result.post("/loans", response_model=EventOutput)
+    def record_loan(body: LoanInput, key: Key) -> dict[str, Any]:
+        if body.counterparty_id and body.counterparty_name:
+            raise RuleError("INVALID_EVENT_FIELDS")
+        return service.record_loan(body.model_dump(mode="json"), key)
 
     @result.post("/events", response_model=EventOutput)
     def create_event(body: EventInput, key: Key) -> dict[str, Any]:

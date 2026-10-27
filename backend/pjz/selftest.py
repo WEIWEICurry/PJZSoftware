@@ -86,6 +86,32 @@ def run() -> None:
             str(uuid.uuid4()),
         )
         assert deleted["deleted"] and len(accounting.accounts()) == 1
+        loan = accounting.record_loan(
+            {
+                "action": "lend",
+                "cash_account_id": account["id"],
+                "counterparty_name": "Synthetic packaged borrower",
+                "counterparty_id": None,
+                "effective_date": "2026-01-03",
+                "amount_fen": "1000",
+                "note": "",
+            },
+            str(uuid.uuid4()),
+        )
+        accounting.record_loan(
+            {
+                "action": "collect",
+                "cash_account_id": account["id"],
+                "counterparty_id": loan["target_account_id"],
+                "counterparty_name": None,
+                "effective_date": "2026-01-04",
+                "amount_fen": "500",
+                "note": "",
+            },
+            str(uuid.uuid4()),
+        )
+        totals = accounting.summary("2026-01-01", "2026-01-31")
+        assert totals["receivable_fen"] == "500" and totals["net_fen"] == "6975"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
@@ -94,6 +120,7 @@ def run() -> None:
         assert (
             Accounting(restored.engine).summary("2026-01-01", "2026-01-31")["expense_fen"] == "3025"
         )
+        assert Accounting(restored.engine).accounts() == accounting.accounts()
         restored.close()
         sock = socket.socket()
         sock.bind(("127.0.0.1", 0))

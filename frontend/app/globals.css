@@ -875,3 +875,37 @@ details[open] summary {
   background: #a6372d;
   color: #fff;
 }
+
+.entry-type {
+  max-width: 240px;
+  margin-bottom: 16px;
+}
+.loan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.loan-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+.loan-columns .account-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.loan-form {
+  margin-bottom: 20px;
+}
+.settled-loans {
+  margin-top: 20px;
+}
+@media (max-width: 800px) {
+  .loan-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
