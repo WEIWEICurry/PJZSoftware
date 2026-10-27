@@ -453,6 +453,9 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.unroute("**/api/v1/budgets/*/*");
   await expect(budgetPanel.locator(".budget-card")).toHaveCount(1);
   await expect(budgetPanel.locator(".budget-card")).toContainText("已超支");
+  await budgetPanel
+    .getByRole("button", { name: "刷新预算", exact: true })
+    .click();
   await expect(budgetPanel.locator(".budget-numbers")).toContainText("¥100.00");
   await budgetPanel
     .getByRole("button", { name: "调整额度", exact: true })

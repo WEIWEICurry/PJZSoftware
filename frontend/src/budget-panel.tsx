@@ -106,23 +106,32 @@ export function BudgetPanel({
               : "设置分类预算"}
         </button>
       </div>
-      <label className="budget-month">
-        预算月份
-        <input
-          type="month"
-          value={month}
-          disabled={busy || !available}
-          onChange={(e) => {
-            if (e.target.value) {
-              setMonth(e.target.value);
-              setNotice("");
-              setError("");
-              setCategory("");
-              setAmount("");
-            }
-          }}
-        />
-      </label>
+      <div className="report-date-controls">
+        <label className="budget-month">
+          预算月份
+          <input
+            type="month"
+            value={month}
+            disabled={busy || !available}
+            onChange={(e) => {
+              if (e.target.value) {
+                setMonth(e.target.value);
+                setNotice("");
+                setError("");
+                setCategory("");
+                setAmount("");
+              }
+            }}
+          />
+        </label>
+        <button
+          className="text-button"
+          disabled={!available || busy}
+          onClick={() => void act(async () => {})}
+        >
+          刷新预算
+        </button>
+      </div>
       <p className="footnote">
         预算月份独立于上方报表。只对已设置的支出分类显示额度，不限制记账，不自动续期或结转。
       </p>
