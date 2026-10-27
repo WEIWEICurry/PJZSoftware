@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { DailyOverview, DailyWorkspace } from "../src/daily";
 import { HistoryImport } from "../src/history-import";
+import { ReportsPage } from "../src/reports-page";
 import { useEffect, useState, type FormEvent } from "react";
 import { connect, request, raw, type Ledger, type Preview } from "../src/api";
 
-type Tab = "overview" | "accounts" | "journal" | "data" | "plan";
+type Tab = "overview" | "accounts" | "journal" | "reports" | "data" | "plan";
 const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
   ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
-  ["M2", "历史与报表", "汇总导入已实现，预算与分类图表后续开发", "当前阶段"],
+  ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "当前阶段"],
   ["M3", "投资资产", "A 股、ETF、基金与手动估值", "待开发"],
 ];
 export default function Home() {
@@ -115,6 +116,7 @@ export default function Home() {
               ["overview", "◫", "总览"],
               ["accounts", "▣", "账户"],
               ["journal", "≡", "日常账本"],
+              ["reports", "▥", "报表与预算"],
               ["data", "▤", "数据管理"],
               ["plan", "◇", "开发计划"],
             ] as const
@@ -132,7 +134,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>日常账本版 · v0.5.0</small>
+          仅在本机运行<small>日常账本版 · v0.6.0</small>
         </div>
       </aside>
       <div className="workspace">
@@ -144,6 +146,7 @@ export default function Home() {
                 overview: "总览",
                 accounts: "账户",
                 journal: "日常账本",
+                reports: "报表与预算",
                 data: "数据管理",
                 plan: "开发计划",
               }[tab]
@@ -163,6 +166,7 @@ export default function Home() {
                     overview: "把生活与资产，理清楚。",
                     accounts: "账户清楚，资金有序。",
                     journal: "把每一笔日常，记下来。",
+                    reports: "看清收支，按需规划。",
                     data: "数据由你保管。",
                     plan: "一步一步，建立可靠的账本。",
                   }[tab]
@@ -174,6 +178,8 @@ export default function Home() {
                     overview: "从日常收支开始，了解自己的资金变化。",
                     accounts: "期初余额、账户转账和欠款都单独记录。",
                     journal: "记录收入支出，保留每次修改的依据。",
+                    reports:
+                      "按日、周、月、年查看收支；分类预算由你选择是否设置。",
                     data: "可验证的备份，让换一台电脑也能继续记录。",
                     plan: "先验证数据可靠，再逐步开放记账与投资管理。",
                   }[tab]
@@ -238,6 +244,15 @@ export default function Home() {
             <DailyWorkspace
               key={tab}
               mode={tab}
+              available={available}
+              changed={() => {
+                setDailyVersion((value) => value + 1);
+                void request<Ledger>("/ledger").then(setLedger);
+              }}
+            />
+          )}
+          {tab === "reports" && (
+            <ReportsPage
               available={available}
               changed={() => {
                 setDailyVersion((value) => value + 1);

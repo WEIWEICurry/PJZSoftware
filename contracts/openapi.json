@@ -271,6 +271,184 @@
         "title": "BootstrapInput",
         "type": "object"
       },
+      "BudgetInput": {
+        "additionalProperties": false,
+        "properties": {
+          "limit_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Fen"
+          },
+          "revision": {
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "limit_fen",
+          "revision"
+        ],
+        "title": "BudgetInput",
+        "type": "object"
+      },
+      "BudgetOutput": {
+        "properties": {
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "limit_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit Fen"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "net_expense_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Expense Fen"
+          },
+          "over_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Over Fen"
+          },
+          "remaining_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Fen"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "unset",
+              "future",
+              "unknown",
+              "over",
+              "exhausted",
+              "near",
+              "normal"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "used_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used Bps"
+          },
+          "used_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used Fen"
+          }
+        },
+        "required": [
+          "id",
+          "month",
+          "category_id",
+          "category_name",
+          "revision",
+          "limit_fen",
+          "used_fen",
+          "net_expense_fen",
+          "remaining_fen",
+          "over_fen",
+          "used_bps",
+          "status"
+        ],
+        "title": "BudgetOutput",
+        "type": "object"
+      },
+      "BudgetPage": {
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOutput"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "ledger_revision": {
+            "title": "Ledger Revision",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "ledger_revision",
+          "as_of",
+          "items"
+        ],
+        "title": "BudgetPage",
+        "type": "object"
+      },
       "CategoryInput": {
         "additionalProperties": false,
         "properties": {
@@ -321,6 +499,100 @@
           "direction"
         ],
         "title": "CategoryOutput",
+        "type": "object"
+      },
+      "CategoryReport": {
+        "properties": {
+          "amount_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Fen"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "detail_fen": {
+            "title": "Detail Fen",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "historical_fen": {
+            "title": "Historical Fen",
+            "type": "string"
+          },
+          "known_fen": {
+            "title": "Known Fen",
+            "type": "string"
+          },
+          "share_bps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Bps"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "direction",
+          "amount_fen",
+          "known_fen",
+          "historical_fen",
+          "detail_fen",
+          "share_bps"
+        ],
+        "title": "CategoryReport",
+        "type": "object"
+      },
+      "CopiedOutput": {
+        "properties": {
+          "copied": {
+            "title": "Copied",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "copied"
+        ],
+        "title": "CopiedOutput",
+        "type": "object"
+      },
+      "CopyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "ledger_revision": {
+            "minimum": 1.0,
+            "title": "Ledger Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ledger_revision"
+        ],
+        "title": "CopyInput",
         "type": "object"
       },
       "CreatedOutput": {
@@ -1222,6 +1494,367 @@
         "title": "RenameInput",
         "type": "object"
       },
+      "ReportChange": {
+        "properties": {
+          "change_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Bps"
+          },
+          "delta_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Fen"
+          },
+          "metric": {
+            "enum": [
+              "income",
+              "expense",
+              "surplus"
+            ],
+            "title": "Metric",
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric",
+          "delta_fen",
+          "change_bps"
+        ],
+        "title": "ReportChange",
+        "type": "object"
+      },
+      "ReportEntry": {
+        "properties": {
+          "account_name": {
+            "title": "Account Name",
+            "type": "string"
+          },
+          "amount_fen": {
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "category_id": {
+            "title": "Category Id",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "counted_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counted Fen"
+          },
+          "direction": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "included",
+              "covered",
+              "unallocated"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "direction",
+          "category_id",
+          "category_name",
+          "account_name",
+          "note",
+          "source",
+          "amount_fen",
+          "counted_fen",
+          "status"
+        ],
+        "title": "ReportEntry",
+        "type": "object"
+      },
+      "ReportEntryPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ReportEntryPage",
+        "type": "object"
+      },
+      "ReportHistory": {
+        "properties": {
+          "allocated": {
+            "title": "Allocated",
+            "type": "boolean"
+          },
+          "amount_fen": {
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "category_name",
+          "direction",
+          "source",
+          "amount_fen",
+          "allocated"
+        ],
+        "title": "ReportHistory",
+        "type": "object"
+      },
+      "ReportOutput": {
+        "properties": {
+          "calendar_end": {
+            "title": "Calendar End",
+            "type": "string"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/ReportChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "current": {
+            "$ref": "#/components/schemas/ReportTotals"
+          },
+          "history_ranges": {
+            "items": {
+              "$ref": "#/components/schemas/ReportHistory"
+            },
+            "title": "History Ranges",
+            "type": "array"
+          },
+          "period": {
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "title": "Period",
+            "type": "string"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportTotals"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/TrendPoint"
+            },
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "period",
+          "calendar_end",
+          "current",
+          "previous",
+          "changes",
+          "trend",
+          "history_ranges"
+        ],
+        "title": "ReportOutput",
+        "type": "object"
+      },
+      "ReportTotals": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryReport"
+            },
+            "title": "Categories",
+            "type": "array"
+          },
+          "covered_count": {
+            "title": "Covered Count",
+            "type": "integer"
+          },
+          "daily_expense_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Expense Fen"
+          },
+          "day_count": {
+            "title": "Day Count",
+            "type": "integer"
+          },
+          "detail_count": {
+            "title": "Detail Count",
+            "type": "integer"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "expense_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Fen"
+          },
+          "historical_count": {
+            "title": "Historical Count",
+            "type": "integer"
+          },
+          "income_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Income Fen"
+          },
+          "known_expense_fen": {
+            "title": "Known Expense Fen",
+            "type": "string"
+          },
+          "known_income_fen": {
+            "title": "Known Income Fen",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "surplus_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surplus Fen"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "income_fen",
+          "expense_fen",
+          "surplus_fen",
+          "known_income_fen",
+          "known_expense_fen",
+          "daily_expense_fen",
+          "day_count",
+          "covered_count",
+          "detail_count",
+          "historical_count",
+          "categories"
+        ],
+        "title": "ReportTotals",
+        "type": "object"
+      },
       "RestoreInput": {
         "additionalProperties": false,
         "properties": {
@@ -1316,6 +1949,80 @@
         "title": "SummaryOutput",
         "type": "object"
       },
+      "TrendPoint": {
+        "properties": {
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "expense_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expense Fen"
+          },
+          "income_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Income Fen"
+          },
+          "known_expense_fen": {
+            "title": "Known Expense Fen",
+            "type": "string"
+          },
+          "known_income_fen": {
+            "title": "Known Income Fen",
+            "type": "string"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "recorded",
+              "unallocated",
+              "future"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "surplus_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Surplus Fen"
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "income_fen",
+          "expense_fen",
+          "surplus_fen",
+          "known_income_fen",
+          "known_expense_fen",
+          "status"
+        ],
+        "title": "TrendPoint",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1360,7 +2067,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.5.0"
+    "version": "0.6.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1614,6 +2321,177 @@
           }
         },
         "summary": "Backup"
+      }
+    },
+    "/api/v1/budgets/{month}": {
+      "get": {
+        "operationId": "budget_page_api_v1_budgets__month__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "title": "Month",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Budget Page"
+      }
+    },
+    "/api/v1/budgets/{month}/copy-previous": {
+      "post": {
+        "operationId": "copy_budgets_api_v1_budgets__month__copy_previous_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "title": "Month",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopiedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Copy Budgets"
+      }
+    },
+    "/api/v1/budgets/{month}/{category_id}": {
+      "put": {
+        "operationId": "save_budget_api_v1_budgets__month___category_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "title": "Month",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Category Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Budget"
       }
     },
     "/api/v1/categories": {
@@ -2335,6 +3213,266 @@
           }
         },
         "summary": "Record Loan"
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "report_api_v1_reports_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "anchor",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Anchor",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report"
+      }
+    },
+    "/api/v1/reports/entries": {
+      "get": {
+        "operationId": "entries_api_v1_reports_entries_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "anchor",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Anchor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "income",
+                    "expense"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportEntryPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Entries"
+      }
+    },
+    "/api/v1/reports/export": {
+      "get": {
+        "operationId": "export_api_v1_reports_export_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "period",
+            "required": true,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "year"
+              ],
+              "title": "Period",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "anchor",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Anchor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "income",
+                    "expense"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export"
       }
     },
     "/api/v1/restores/commit": {

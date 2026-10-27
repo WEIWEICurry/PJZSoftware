@@ -965,3 +965,247 @@ details[open] summary {
 .source-hashes {
   margin-top: 16px;
 }
+
+.reports-workspace {
+  display: grid;
+  gap: 20px;
+}
+.reports-workspace > * {
+  min-width: 0;
+}
+.period-buttons,
+.report-date-controls,
+.report-entry-filters,
+.budget-copy {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.report-date-controls {
+  margin-top: 16px;
+}
+.report-date-controls label,
+.budget-month,
+.report-entry-filters label {
+  display: grid;
+  gap: 7px;
+}
+.report-date-controls input,
+.budget-month input {
+  width: 190px;
+}
+.report-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.report-range h2 {
+  margin: 0;
+}
+.report-range span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.report-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.report-metrics small {
+  display: block;
+  margin-top: 8px;
+}
+.comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.comparison-grid strong,
+.comparison-grid small {
+  display: block;
+  margin-top: 8px;
+}
+.comparison-grid strong {
+  font-size: 22px;
+}
+.trend-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.trend-key i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.income-key,
+.income-bar {
+  background: #246557;
+}
+.expense-key,
+.expense-bar {
+  background: #ad6745;
+}
+.trend-list {
+  display: grid;
+  gap: 7px;
+  max-height: 550px;
+  overflow-y: auto;
+}
+.trend-row {
+  display: grid;
+  grid-template-columns: 90px minmax(80px, 1fr) 200px;
+  align-items: center;
+  gap: 14px;
+  padding: 5px 0;
+}
+.trend-bars {
+  display: grid;
+  gap: 4px;
+}
+.trend-track {
+  background: #f0f3f2;
+  min-height: 13px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.trend-track > span {
+  display: block;
+  height: 13px;
+  min-width: 0;
+}
+.trend-track small {
+  font-size: 13px;
+  padding-left: 6px;
+}
+.trend-values {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.trend-row.unallocated .trend-track {
+  background: repeating-linear-gradient(
+    135deg,
+    #eff1f0,
+    #eff1f0 5px,
+    #fff 5px,
+    #fff 10px
+  );
+}
+.trend-row.future {
+  color: var(--muted);
+}
+.report-sources li {
+  margin: 10px 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.category-track,
+.budget-track {
+  height: 7px;
+  background: #edf2ef;
+  border-radius: 5px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+.category-track span,
+.budget-track span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.report-entry-filters {
+  margin-bottom: 16px;
+}
+.report-entry-filters select {
+  min-width: 160px;
+}
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+.budget-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+.budget-card h3 {
+  margin: 0;
+}
+.budget-card .section-heading {
+  margin-bottom: 8px;
+}
+.budget-card .section-heading > span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.budget-card small {
+  display: block;
+  margin: 8px 0;
+}
+.budget-numbers {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.budget-card.over {
+  border-color: #be745c;
+  background: #fffaf7;
+}
+.budget-card.over .budget-track span {
+  background: #b25c42;
+}
+.budget-card.near .budget-track span {
+  background: #ad7943;
+}
+.budget-card.exhausted .budget-track span {
+  background: #ad6745;
+}
+.budget-editor {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.budget-copy {
+  margin-top: 20px;
+  align-items: center;
+}
+.budget-empty {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+@media (max-width: 1100px) {
+  .report-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .report-metrics,
+  .comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  .trend-row {
+    grid-template-columns: 60px minmax(50px, 1fr);
+    gap: 8px;
+  }
+  .trend-values {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+  .report-range h2 {
+    font-size: 20px;
+  }
+}

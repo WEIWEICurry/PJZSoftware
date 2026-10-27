@@ -22,10 +22,13 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
+from pjz.budgets import Budgets
 from pjz.daily_api import router
 from pjz.domain import RuleError
 from pjz.history import HistoryImports
 from pjz.history_api import history_router
+from pjz.report_api import report_router
+from pjz.reports import Reports
 from pjz.storage import MAX_PACKAGE, SCHEMA_VERSION, DataError, LedgerStore
 
 
@@ -126,7 +129,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.5.0",
+        version="0.6.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -220,6 +223,9 @@ def create_app(
 
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
     app.include_router(history_router(HistoryImports(Accounting(store.engine))))
+    app.include_router(
+        report_router(Reports(Accounting(store.engine)), Budgets(Accounting(store.engine)))
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:
