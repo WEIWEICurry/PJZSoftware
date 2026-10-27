@@ -129,7 +129,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.6.0",
+        version="0.6.1",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
