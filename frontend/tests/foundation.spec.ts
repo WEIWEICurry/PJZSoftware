@@ -190,9 +190,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByRole("combobox", { name: "类型", exact: true })
     .selectOption("transfer");
   await page.getByLabel("转账本金（元）").fill("100");
-  await page
-    .getByLabel("转入／还款账户")
-    .selectOption({ label: "Synthetic cash" });
+  await page.getByLabel("转入账户").selectOption({ label: "Synthetic cash" });
   await page.getByLabel("手续费（元）").fill("1");
   await page.getByRole("button", { name: "保存流水", exact: true }).click();
   await expect(
@@ -253,6 +251,73 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
       fullPage: true,
     });
   }
+
+  await page
+    .getByRole("combobox", { name: "类型", exact: true })
+    .selectOption("loan");
+  await page.getByLabel("对方姓名").fill("Synthetic lender");
+  await page.getByLabel("本金（元）").fill("1000");
+  let loseLoanResponse = true;
+  await page.route("**/api/v1/loans", async (route) => {
+    if (route.request().method() === "POST" && loseLoanResponse) {
+      loseLoanResponse = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.getByRole("button", { name: "保存我借入", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "保存我借入", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("借还款已保存");
+  await page.unroute("**/api/v1/loans");
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  const debtCard = page
+    .locator(".account-card")
+    .filter({ hasText: "Synthetic lender" });
+  await expect(debtCard).toContainText("¥1,000.00");
+  await debtCard.getByRole("button", { name: "还钱", exact: true }).click();
+  await page.getByLabel("本金（元）").fill("300");
+  await page.getByRole("button", { name: "保存我还钱", exact: true }).click();
+  await expect(debtCard).toContainText("¥700.00");
+  await page.getByRole("button", { name: "我借出", exact: true }).click();
+  await page.getByLabel("对方姓名").fill("Synthetic borrower");
+  await page.getByLabel("本金（元）").fill("500");
+  await page.getByRole("button", { name: "保存我借出", exact: true }).click();
+  const lentCard = page
+    .locator(".account-card")
+    .filter({ hasText: "Synthetic borrower" });
+  await expect(lentCard).toContainText("¥500.00");
+  await lentCard.getByRole("button", { name: "收回", exact: true }).click();
+  await page.getByLabel("本金（元）").fill("501");
+  await page.getByRole("button", { name: "保存收回借款", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "剩余本金" }),
+  ).toBeVisible();
+  await expect(lentCard).toContainText("¥500.00");
+  await page.getByLabel("本金（元）").fill("200");
+  await page.getByRole("button", { name: "保存收回借款", exact: true }).click();
+  await expect(lentCard).toContainText("¥300.00");
+  await page.screenshot({ path: "test-results/loans.png", fullPage: true });
+  await lentCard.getByRole("button", { name: "收回", exact: true }).click();
+  await page.getByLabel("本金（元）").fill("300");
+  await page.getByRole("button", { name: "保存收回借款", exact: true }).click();
+  await expect(lentCard).toBeHidden();
+  await page.getByRole("button", { name: /已结清（1）/ }).click();
+  await expect(lentCard).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  await expect(lentCard).toBeHidden();
+  await expect(debtCard).toContainText("¥700.00");
+
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  const lendingRow = page.getByRole("row").filter({ hasText: "我借出" });
+  await lendingRow.getByRole("button", { name: "修改", exact: true }).click();
+  await expect(page.getByLabel("本金（元）")).toHaveValue("500.00");
+  await page.getByLabel("备注（选填）").fill("Synthetic edited lending");
+  await page.getByRole("button", { name: "保存修改", exact: true }).click();
+  await expect(lendingRow).toContainText("Synthetic edited lending");
 
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");

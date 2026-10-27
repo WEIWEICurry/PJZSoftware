@@ -30,6 +30,8 @@ def entries_for(
         return [Entry(account, amount)]
     if kind == "adjustment":
         return [Entry(account, amount)]
+    if account_kind == "receivable" and kind not in ("transfer", "adjustment"):
+        raise RuleError("RECEIVABLE_EVENT_UNSUPPORTED")
     if kind == "income":
         if account_kind == "liability":
             raise RuleError("DEBT_INCOME_UNSUPPORTED")
@@ -41,8 +43,13 @@ def entries_for(
     if kind == "transfer" and target:
         if target == account:
             raise RuleError("SAME_ACCOUNT")
-        if account_kind == target_kind == "liability":
+        if account_kind in ("liability", "receivable") and target_kind in (
+            "liability",
+            "receivable",
+        ):
             raise RuleError("DEBT_TRANSFER_UNSUPPORTED")
+        if fee and "receivable" in (account_kind, target_kind):
+            raise RuleError("INVALID_EVENT_FIELDS")
         if account_kind == "liability":
             if fee > amount:
                 raise RuleError("FEE_EXCEEDS_AMOUNT")

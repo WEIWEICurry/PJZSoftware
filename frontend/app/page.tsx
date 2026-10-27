@@ -131,7 +131,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>日常账本版 · v0.3.0</small>
+          仅在本机运行<small>日常账本版 · v0.4.0</small>
         </div>
       </aside>
       <div className="workspace">

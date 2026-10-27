@@ -185,40 +185,43 @@ class Accounting:
 
     def create_account(self, payload: dict[str, Any], key: str) -> dict[str, Any]:
         def action(connection: Connection) -> dict[str, Any]:
-            identifier = str(uuid.uuid4())
-            connection.execute(
-                text(
-                    "INSERT INTO accounts "
-                    "(id,ledger_id,name,kind,opening_date,created_at,updated_at) "
-                    "VALUES (:id,(SELECT id FROM ledger),:name,:kind,:date,:at,:at)"
-                ),
-                {
-                    "id": identifier,
-                    "name": payload["name"],
-                    "kind": payload["kind"],
-                    "date": payload["opening_date"],
-                    "at": now(),
-                },
-            )
-            self.insert_event(
-                connection,
-                {
-                    "kind": "opening",
-                    "account_id": identifier,
-                    "effective_date": payload["opening_date"],
-                    "amount_fen": payload["opening_fen"],
-                    "fee_fen": "0",
-                    "note": "期初余额",
-                    "category_id": None,
-                    "target_account_id": None,
-                    "original_event_id": None,
-                },
-            )
-            result = {"id": identifier}
-            self.audit(connection, identifier, "create_account", None, payload)
-            return result
+            return self.insert_account(connection, payload)
 
         return self.command(key, "create_account", payload, action)
+
+    def insert_account(self, connection: Connection, payload: dict[str, Any]) -> dict[str, Any]:
+        identifier = str(uuid.uuid4())
+        connection.execute(
+            text(
+                "INSERT INTO accounts "
+                "(id,ledger_id,name,kind,opening_date,created_at,updated_at) "
+                "VALUES (:id,(SELECT id FROM ledger),:name,:kind,:date,:at,:at)"
+            ),
+            {
+                "id": identifier,
+                "name": payload["name"],
+                "kind": payload["kind"],
+                "date": payload["opening_date"],
+                "at": now(),
+            },
+        )
+        self.insert_event(
+            connection,
+            {
+                "kind": "opening",
+                "account_id": identifier,
+                "effective_date": payload["opening_date"],
+                "amount_fen": payload["opening_fen"],
+                "fee_fen": "0",
+                "note": "期初余额",
+                "category_id": None,
+                "target_account_id": None,
+                "original_event_id": None,
+            },
+        )
+        result = {"id": identifier}
+        self.audit(connection, identifier, "create_account", None, payload)
+        return result
 
     def update_account(self, identifier: str, payload: dict[str, Any], key: str) -> dict[str, Any]:
         def action(connection: Connection) -> dict[str, Any]:
@@ -298,6 +301,68 @@ class Accounting:
             return self.serialize_event(event)
 
         return self.command(key, "create_event", payload, action)
+
+    def record_loan(self, payload: dict[str, Any], key: str) -> dict[str, Any]:
+        def action(connection: Connection) -> dict[str, Any]:
+            operation = payload["action"]
+            cash_id = payload["cash_account_id"]
+            cash = fetch_all(connection, "SELECT * FROM accounts WHERE id=:id", {"id": cash_id})
+            if not cash or cash[0]["kind"] in ("liability", "receivable"):
+                raise RuleError("CASH_ACCOUNT_REQUIRED")
+            kind = "liability" if operation in ("borrow", "repay") else "receivable"
+            identifier = payload.get("counterparty_id")
+            if identifier:
+                rows = fetch_all(
+                    connection, "SELECT * FROM accounts WHERE id=:id", {"id": identifier}
+                )
+                if not rows or rows[0]["kind"] != kind:
+                    raise RuleError("COUNTERPARTY_REQUIRED")
+            else:
+                name = (payload.get("counterparty_name") or "").strip()
+                if operation in ("repay", "collect") or not name:
+                    raise RuleError("COUNTERPARTY_REQUIRED")
+                # Names remain unique with legacy accounts; same person in opposite directions
+                # is a separate balance, identified explicitly by the suffix.
+                name += " · " + ("我欠" if kind == "liability" else "欠我")
+                rows = fetch_all(
+                    connection, "SELECT * FROM accounts WHERE name=:name", {"name": name}
+                )
+                if rows:
+                    if rows[0]["kind"] != kind:
+                        raise RuleError("COUNTERPARTY_REQUIRED")
+                    identifier = rows[0]["id"]
+                else:
+                    identifier = self.insert_account(
+                        connection,
+                        {
+                            "name": name,
+                            "kind": kind,
+                            "opening_date": payload["effective_date"],
+                            "opening_fen": "0",
+                        },
+                    )["id"]
+            source, target = (
+                (identifier, cash_id)
+                if operation in ("borrow", "collect")
+                else (cash_id, identifier)
+            )
+            event_payload = {
+                "kind": "transfer",
+                "account_id": source,
+                "target_account_id": target,
+                "effective_date": payload["effective_date"],
+                "amount_fen": payload["amount_fen"],
+                "fee_fen": "0",
+                "category_id": None,
+                "original_event_id": None,
+                "note": payload.get("note", ""),
+            }
+            self.ensure_writable_accounts(connection, event_payload)
+            result = self.insert_event(connection, event_payload)
+            self.audit(connection, result["id"], "record_loan", None, result)
+            return self.serialize_event(result)
+
+        return self.command(key, "record_loan", payload, action)
 
     def change_event(
         self, identifier: str, payload: dict[str, Any], key: str, void: bool = False
@@ -497,7 +562,12 @@ class Accounting:
         expense = sum(row["amount_fen"] for row in rows if row["kind"] == "expense")
         expense -= sum(row["amount_fen"] for row in rows if row["kind"] == "refund")
         expense += sum(row["fee_fen"] for row in rows if row["kind"] == "transfer")
-        assets = sum(int(row["balance_fen"]) for row in accounts if row["kind"] != "liability")
+        assets = sum(
+            int(row["balance_fen"])
+            for row in accounts
+            if row["kind"] not in ("liability", "receivable")
+        )
+        receivable = sum(int(row["balance_fen"]) for row in accounts if row["kind"] == "receivable")
         debt = sum(int(row["balance_fen"]) for row in accounts if row["kind"] == "liability")
         return {
             key: str(value)
@@ -507,7 +577,8 @@ class Accounting:
                 "surplus_fen": income - expense,
                 "assets_fen": assets,
                 "debt_fen": debt,
-                "net_fen": assets - debt,
+                "receivable_fen": receivable,
+                "net_fen": assets + receivable - debt,
             }.items()
         }
 

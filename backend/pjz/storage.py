@@ -18,8 +18,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 2
-SUPPORTED_SCHEMAS = (1, 2)
+SCHEMA_VERSION = 3
+SUPPORTED_SCHEMAS = (1, 2, 3)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 
@@ -63,26 +63,40 @@ class LedgerStore:
                 connection.execute(text("PRAGMA user_version=1"))
         with self.engine.connect() as connection:
             version = connection.execute(text("PRAGMA user_version")).scalar_one()
-        if version == 1:
+        if version < SCHEMA_VERSION:
             if existing:
                 backup_dir = self.directory / "backups"
                 backup_dir.mkdir(exist_ok=True)
                 payload = self.backup()
                 inspect_backup(payload)
-                (backup_dir / ("before-v2-" + uuid.uuid4().hex + ".pjzbackup")).write_bytes(payload)
+                (
+                    backup_dir
+                    / ("before-v" + str(SCHEMA_VERSION) + "-" + uuid.uuid4().hex + ".pjzbackup")
+                ).write_bytes(payload)
             config = Config()
             config.set_main_option("script_location", str(Path(__file__).parent / "migrations"))
             with self.engine.connect() as connection:
+                connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+                connection.commit()
                 connection.exec_driver_sql("BEGIN IMMEDIATE")
                 try:
                     config.attributes["connection"] = connection
-                    command.stamp(config, "0001")
+                    if version == 1:
+                        command.stamp(config, "0001")
                     command.upgrade(config, "head")
+                    if connection.exec_driver_sql("PRAGMA foreign_key_check").fetchall():
+                        raise DataError("INVALID_DATABASE")
+                    from pjz.accounting import Accounting
+
+                    Accounting(self.engine).rebuild(connection, persist=False)
                     connection.commit()
                 except Exception:
                     connection.rollback()
                     self.engine.dispose()
                     raise
+                finally:
+                    connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+                    connection.commit()
         from pjz.accounting import Accounting
 
         Accounting(self.engine).seed_categories()
@@ -191,9 +205,9 @@ def validate_database(path: Path) -> None:
                 kind not in ("table", "index") for kind, _ in objects
             ):
                 raise DataError("UNSUPPORTED_DATABASE")
-            if version == 2:
+            if version >= 2:
                 if connection.execute("SELECT version_num FROM alembic_version").fetchall() != [
-                    ("0002",)
+                    (f"{version:04d}",)
                 ]:
                     raise DataError("UNSUPPORTED_SCHEMA")
             rows = connection.execute(
@@ -202,7 +216,7 @@ def validate_database(path: Path) -> None:
             if len(rows) != 1 or not isinstance(rows[0][1], str) or rows[0][2] < 1:
                 raise DataError("INVALID_DATABASE")
             uuid.UUID(rows[0][0])
-        if version == 2:
+        if version >= 2:
             from pjz.accounting import Accounting
             from pjz.domain import RuleError
 
