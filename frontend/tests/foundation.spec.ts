@@ -320,6 +320,119 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(lendingRow).toContainText("Synthetic edited lending");
 
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
+  const history = page.getByRole("region", {
+    name: "历史汇总导入",
+    exact: true,
+  });
+  const today = await page.evaluate(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  });
+  const source = {
+    schema_version: 1,
+    currency: "CNY",
+    amount_unit: "fen",
+    record_type: "monthly_category_expense_summary",
+    periods: [
+      {
+        start_date: today.slice(0, 7) + "-01",
+        end_date: today,
+        displayed_total_fen: 10500,
+        source_images: ["synthetic-browser-source.png"],
+        categories: [
+          { category: "餐饮", amount_fen: 10000 },
+          { category: "Synthetic mapped", amount_fen: 500 },
+        ],
+      },
+    ],
+  };
+  await page.getByLabel("选择历史汇总 JSON（最多 512 KB）").setInputFiles({
+    name: "synthetic-history.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(source)),
+  });
+  await expect(history.getByText("待映射", { exact: true })).toBeVisible();
+  await expect(
+    history.getByRole("button", { name: "确认导入历史汇总", exact: true }),
+  ).toBeDisabled();
+  await history
+    .getByRole("combobox", {
+      name: "映射 Synthetic mapped expense",
+      exact: true,
+    })
+    .selectOption({ label: "日用" });
+  await history
+    .getByRole("button", { name: "按当前分类重新预览", exact: true })
+    .click();
+  await expect(history.locator(".history-period-totals")).toContainText(
+    "¥105.00",
+  );
+  await history.getByLabel("我已核对期间、金额及明细覆盖规则").check();
+  let loseImportResponse = true;
+  await page.route("**/api/v1/history/commit", async (route) => {
+    if (loseImportResponse) {
+      loseImportResponse = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await history
+    .getByRole("button", { name: "确认导入历史汇总", exact: true })
+    .click();
+  await expect(
+    history.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await history
+    .getByRole("button", { name: "确认导入历史汇总", exact: true })
+    .click();
+  await expect(history.getByRole("status")).toContainText("历史汇总已导入");
+  await page.unroute("**/api/v1/history/commit");
+  await expect(history.locator(".history-batch")).toHaveCount(1);
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect(
+    page.locator(".metric").filter({ hasText: "本月支出" }),
+  ).toContainText("¥106.00");
+  await expect(page.locator(".history-coverage")).toContainText("历史分类汇总");
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  await expect(page.getByText(/历史汇总已覆盖统计/)).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "数据管理", exact: true }).click();
+  await history.getByRole("button", { name: "查看明细", exact: true }).click();
+  await expect(history.locator(".history-detail")).toContainText(
+    "synthetic-browser-source.png",
+  );
+  await page.screenshot({
+    path: "test-results/history-import.png",
+    fullPage: true,
+  });
+  source.periods[0].categories.reverse();
+  await page.getByLabel("选择历史汇总 JSON（最多 512 KB）").setInputFiles({
+    name: "renamed-history.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(source, null, 2)),
+  });
+  await expect(history.getByText("重复，已导入", { exact: true })).toHaveCount(
+    2,
+  );
+  await expect(
+    history.getByRole("button", { name: "确认导入历史汇总", exact: true }),
+  ).toBeDisabled();
+  await history.getByRole("button", { name: "取消预览", exact: true }).click();
+  await history.getByRole("button", { name: "预览撤销", exact: true }).click();
+  await expect(
+    history.getByRole("heading", { name: /撤销影响预览/ }),
+  ).toBeVisible();
+  await history.getByLabel("我已核对期间、金额及明细覆盖规则").check();
+  await history
+    .getByRole("button", { name: "确认撤销此批次", exact: true })
+    .click();
+  await expect(history.getByRole("status")).toContainText("批次已撤销");
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect(
+    page.locator(".metric").filter({ hasText: "本月支出" }),
+  ).toContainText("¥41.25");
+
+  await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载本地备份" }).click();
   const businessBackup = await (await businessDownloadEvent).path();

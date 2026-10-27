@@ -1,6 +1,6 @@
 [project]
 name = "pjzsoftware"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local personal ledger foundation"
 requires-python = ">=3.13,<3.14"
 dependencies = [

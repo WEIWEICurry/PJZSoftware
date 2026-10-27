@@ -1,6 +1,6 @@
 # 数据模型与计算口径
 
-状态：总体逻辑模型。M1 已落地的表与首版字段合并决策见 docs/08-daily-ledger.md；投资和历史汇总实体仍属后续设计。物理变更必须有迁移与验证。
+状态：总体逻辑模型。M1 表与字段合并决策见 docs/08-daily-ledger.md；历史汇总已按 docs/11-history-import.md 落地，投资实体仍属后续设计。物理变更必须有迁移与验证。
 
 ## 1. 基础规则
 
@@ -87,3 +87,9 @@
 receivable 以待收回本金为正，借出增加应收、收回减少应收；负债仍以欠款为正。两类均复用 transfer 与 cash_entries，不额外维护一份余额。新建对象与借还流水同事务；旧负债直接复用。普通收入、支出、退款不能记入应收账户。
 
 总览 assets_fen 表示资金账户余额，receivable_fen 单独表示待收回本金；net_fen＝assets_fen＋receivable_fen－debt_fen。上述四类本金不进入月度收支。具体迁移与验收见 [简化借还款](10-simple-loans.md)。
+
+## schema v4：历史汇总
+
+import_batches 保存原 JSON 的 BLOB、来源文件名、原文件／规范内容 SHA-256、分类映射、active/withdrawn 状态与 revision。historical_summaries 保存批次、原分类、目标分类、起止日期、方向、整数分金额和来源图片标识；不建立资金分录。
+
+同分类同方向的有效覆盖区间不能重叠。收支汇总先排除被覆盖的有效明细，再加有效历史汇总；退款和转账费用以发生日和支出分类判断。账户、净资产和明细原事实不变。历史行数、金额、被覆盖明细数量随月总览返回，流水列表带 covered_by_history，单笔写入响应维持原契约。撤销保留批次与源数据并恢复明细统计。完整明细替换与 reconciliation_groups 尚未实现。

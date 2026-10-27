@@ -24,6 +24,8 @@ from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.daily_api import router
 from pjz.domain import RuleError
+from pjz.history import HistoryImports
+from pjz.history_api import history_router
 from pjz.storage import MAX_PACKAGE, SCHEMA_VERSION, DataError, LedgerStore
 
 
@@ -124,7 +126,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.4.0",
+        version="0.5.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -217,6 +219,7 @@ def create_app(
         return failure(code, status)
 
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
+    app.include_router(history_router(HistoryImports(Accounting(store.engine))))
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -240,7 +243,7 @@ def create_app(
             "directory": str(store.directory),
             "schema_version": SCHEMA_VERSION,
             "encrypted": False,
-            "stage": "M1",
+            "stage": "M2",
         }
 
     @app.put("/api/v1/ledger")

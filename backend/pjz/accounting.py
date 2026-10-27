@@ -14,6 +14,7 @@ from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import IntegrityError
 
 from pjz.domain import MAX_FEN, RuleError, check_balance, entries_for
+from pjz.history_domain import covered, event_amount, event_direction
 
 
 def now() -> str:
@@ -546,7 +547,25 @@ class Accounting:
                 + " ORDER BY effective_date DESC,sequence DESC LIMIT :limit OFFSET :offset",
                 params,
             )
-        return {"items": [self.serialize_event(row) for row in rows], "total": total}
+            history = self.history_rows(connection)
+            items = [
+                {
+                    **self.serialize_event(row),
+                    "covered_by_history": row["status"] == "active" and covered(row, history),
+                }
+                for row in rows
+            ]
+        return {"items": items, "total": total}
+
+    @staticmethod
+    def history_rows(connection: Connection) -> list[dict[str, Any]]:
+        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() < 4:
+            return []
+        return fetch_all(
+            connection,
+            "SELECT s.* FROM historical_summaries s JOIN import_batches b "
+            "ON b.id=s.batch_id WHERE b.status='active'",
+        )
 
     def summary(self, start: str, end: str) -> dict[str, str]:
         with self.engine.connect() as connection:
@@ -554,14 +573,26 @@ class Accounting:
             accounts = self.account_rows(connection)
             rows = fetch_all(
                 connection,
-                "SELECT kind,amount_fen,fee_fen FROM financial_events "
+                "SELECT * FROM financial_events "
                 "WHERE status='active' AND effective_date>=:start AND effective_date<=:end",
                 {"start": start, "end": end},
             )
-        income = sum(row["amount_fen"] for row in rows if row["kind"] == "income")
-        expense = sum(row["amount_fen"] for row in rows if row["kind"] == "expense")
-        expense -= sum(row["amount_fen"] for row in rows if row["kind"] == "refund")
-        expense += sum(row["fee_fen"] for row in rows if row["kind"] == "transfer")
+            history = [
+                r
+                for r in self.history_rows(connection)
+                if r["period_start"] <= end and r["period_end"] >= start
+            ]
+        if any(r["period_start"] < start or r["period_end"] > end for r in history):
+            raise RuleError("HISTORY_DAILY_UNAVAILABLE")
+        visible = [row for row in rows if not covered(row, history)]
+        historical_income = sum(r["amount_fen"] for r in history if r["direction"] == "income")
+        historical_expense = sum(r["amount_fen"] for r in history if r["direction"] == "expense")
+        income = historical_income + sum(
+            event_amount(r) for r in visible if event_direction(r) == "income"
+        )
+        expense = historical_expense + sum(
+            event_amount(r) for r in visible if event_direction(r) == "expense"
+        )
         assets = sum(
             int(row["balance_fen"])
             for row in accounts
@@ -579,6 +610,10 @@ class Accounting:
                 "debt_fen": debt,
                 "receivable_fen": receivable,
                 "net_fen": assets + receivable - debt,
+                "historical_income_fen": historical_income,
+                "historical_expense_fen": historical_expense,
+                "historical_row_count": len(history),
+                "covered_detail_count": len(rows) - len(visible),
             }.items()
         }
 

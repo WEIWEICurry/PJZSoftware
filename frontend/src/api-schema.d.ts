@@ -177,6 +177,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/history/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Batches */
+        get: operations["batches_api_v1_history_batches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/batches/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_api_v1_history_batches__identifier__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/batches/{identifier}/withdraw-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdrawal Preview */
+        post: operations["withdrawal_preview_api_v1_history_batches__identifier__withdraw_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit */
+        post: operations["commit_api_v1_history_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_history_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ledger": {
         parameters: {
             query?: never;
@@ -384,6 +469,58 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** BatchDetail */
+        BatchDetail: {
+            /** Canonical Hash */
+            canonical_hash: string;
+            /** Created At */
+            created_at: string;
+            /** File Hash */
+            file_hash: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: string;
+            /** Revision */
+            revision: number;
+            /** Rows */
+            rows: components["schemas"]["HistoryRow"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "withdrawn";
+        };
+        /** BatchOutput */
+        BatchOutput: {
+            /** Canonical Hash */
+            canonical_hash: string;
+            /** Created At */
+            created_at: string;
+            /** File Hash */
+            file_hash: string;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "withdrawn";
+        };
+        /** Body_preview_api_v1_history_preview_post */
+        Body_preview_api_v1_history_preview_post: {
+            /** File */
+            file: string;
+            /**
+             * Mapping
+             * @default {}
+             */
+            mapping: string;
+        };
         /** Body_preview_api_v1_restores_preview_post */
         Body_preview_api_v1_restores_preview_post: {
             /** File */
@@ -576,7 +713,7 @@ export interface components {
         /** EventPage */
         EventPage: {
             /** Items */
-            items: components["schemas"]["EventOutput"][];
+            items: components["schemas"]["JournalEventOutput"][];
             /** Total */
             total: number;
         };
@@ -584,6 +721,113 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HistoryPreview */
+        HistoryPreview: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "import" | "withdraw";
+            /** Can Confirm */
+            can_confirm: boolean;
+            /** Canonical Hash */
+            canonical_hash: string;
+            /** File Hash */
+            file_hash: string;
+            /** Filename */
+            filename: string;
+            /** Preview Token */
+            preview_token: string;
+            /** Rows */
+            rows: components["schemas"]["HistoryRow"][];
+        };
+        /** HistoryRow */
+        HistoryRow: {
+            /** Amount Fen */
+            amount_fen: string;
+            /** Category Id */
+            category_id: string | null;
+            /** Category Name */
+            category_name: string;
+            /** Detail Count */
+            detail_count: number;
+            /** Detail Fen */
+            detail_fen: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "income" | "expense";
+            /** Mapping Key */
+            mapping_key: string;
+            /** Period End */
+            period_end: string;
+            /** Period Start */
+            period_start: string;
+            /** Report Delta Fen */
+            report_delta_fen: string;
+            /** Source Category */
+            source_category: string;
+            /** Source Refs */
+            source_refs: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "unmapped" | "duplicate" | "conflict";
+        };
+        /** ImportCommit */
+        ImportCommit: {
+            /** Acknowledge Coverage */
+            acknowledge_coverage: boolean;
+            /** Preview Token */
+            preview_token: string;
+        };
+        /** ImportResult */
+        ImportResult: {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "withdrawn";
+        };
+        /** JournalEventOutput */
+        JournalEventOutput: {
+            /** Account Id */
+            account_id: string;
+            /** Amount Fen */
+            amount_fen: string;
+            /** Category Id */
+            category_id: string | null;
+            /**
+             * Covered By History
+             * @default false
+             */
+            covered_by_history: boolean;
+            /** Effective Date */
+            effective_date: string;
+            /** Fee Fen */
+            fee_fen: string;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Note */
+            note: string;
+            /** Original Event Id */
+            original_event_id: string | null;
+            /** Revision */
+            revision: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "void";
+            /** Target Account Id */
+            target_account_id: string | null;
         };
         /** LedgerOutput */
         LedgerOutput: {
@@ -661,10 +905,18 @@ export interface components {
         SummaryOutput: {
             /** Assets Fen */
             assets_fen: string;
+            /** Covered Detail Count */
+            covered_detail_count: string;
             /** Debt Fen */
             debt_fen: string;
             /** Expense Fen */
             expense_fen: string;
+            /** Historical Expense Fen */
+            historical_expense_fen: string;
+            /** Historical Income Fen */
+            historical_income_fen: string;
+            /** Historical Row Count */
+            historical_row_count: string;
             /** Income Fen */
             income_fen: string;
             /** Net Fen */
@@ -1095,6 +1347,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batches_api_v1_history_batches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchOutput"][];
+                };
+            };
+        };
+    };
+    detail_api_v1_history_batches__identifier__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdrawal_preview_api_v1_history_batches__identifier__withdraw_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commit_api_v1_history_commit_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportCommit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_history_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_api_v1_history_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPreview"];
                 };
             };
             /** @description Validation Error */

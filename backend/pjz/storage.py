@@ -18,8 +18,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 3
-SUPPORTED_SCHEMAS = (1, 2, 3)
+SCHEMA_VERSION = 4
+SUPPORTED_SCHEMAS = (1, 2, 3, 4)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 
@@ -200,6 +200,8 @@ def validate_database(path: Path) -> None:
                     "idempotency_records",
                 }
             )
+            if version >= 4:
+                expected_tables.update({"import_batches", "historical_summaries"})
             tables = {name for kind, name in objects if kind == "table"}
             if tables != expected_tables or any(
                 kind not in ("table", "index") for kind, _ in objects
@@ -227,11 +229,15 @@ def validate_database(path: Path) -> None:
                 with verifier.connect() as check:
                     check.exec_driver_sql("BEGIN")
                     Accounting(verifier).rebuild(check, persist=False)
+                    if version >= 4:
+                        from pjz.history import HistoryImports
+
+                        HistoryImports.verify(check)
             except RuleError as error:
                 raise DataError("INVALID_ACCOUNTING_DATA") from error
             finally:
                 verifier.dispose()
-    except (sqlite3.Error, ValueError, TypeError, IndexError) as error:
+    except (sqlite3.Error, ValueError, TypeError, IndexError, KeyError, AttributeError) as error:
         if isinstance(error, DataError):
             raise
         raise DataError("INVALID_DATABASE") from error

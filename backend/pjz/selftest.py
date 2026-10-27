@@ -17,6 +17,7 @@ from filelock import FileLock, Timeout
 from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.api import create_app
+from pjz.history import HistoryImports
 from pjz.storage import LedgerStore, inspect_backup
 
 
@@ -112,14 +113,39 @@ def run() -> None:
         )
         totals = accounting.summary("2026-01-01", "2026-01-31")
         assert totals["receivable_fen"] == "500" and totals["net_fen"] == "6975"
+        historical = HistoryImports(accounting)
+        historical_source = json.dumps(
+            {
+                "schema_version": 1,
+                "currency": "CNY",
+                "amount_unit": "fen",
+                "record_type": "monthly_category_expense_summary",
+                "periods": [
+                    {
+                        "start_date": "2026-01-01",
+                        "end_date": "2026-01-20",
+                        "displayed_total_fen": 4000,
+                        "source_images": ["synthetic-source.png"],
+                        "categories": [{"category": "餐饮", "amount_fen": 4000}],
+                    }
+                ],
+            }
+        ).encode()
+        plan = historical.preview(historical_source, "synthetic-history.json", {})
+        batch = historical.commit(plan["preview_token"], str(uuid.uuid4()))
+        assert accounting.summary("2026-01-01", "2026-01-31")["expense_fen"] == "4000"
+        assert accounting.summary("2026-01-01", "2026-01-31")["net_fen"] == "6975"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
         restored = LedgerStore(destination)
         assert restored.metadata() == store.metadata(), "Restore mismatch"
         assert (
-            Accounting(restored.engine).summary("2026-01-01", "2026-01-31")["expense_fen"] == "3025"
+            Accounting(restored.engine).summary("2026-01-01", "2026-01-31")["expense_fen"] == "4000"
         )
+        assert HistoryImports(Accounting(restored.engine)).detail(batch["id"])["rows"][0][
+            "source_refs"
+        ] == ["synthetic-source.png"]
         assert Accounting(restored.engine).accounts() == accounting.accounts()
         restored.close()
         sock = socket.socket()

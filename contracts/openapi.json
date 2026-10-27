@@ -120,6 +120,127 @@
         "title": "AccountOutput",
         "type": "object"
       },
+      "BatchDetail": {
+        "properties": {
+          "canonical_hash": {
+            "title": "Canonical Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "file_hash": {
+            "title": "File Hash",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "withdrawn"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "file_hash",
+          "canonical_hash",
+          "status",
+          "revision",
+          "created_at",
+          "rows"
+        ],
+        "title": "BatchDetail",
+        "type": "object"
+      },
+      "BatchOutput": {
+        "properties": {
+          "canonical_hash": {
+            "title": "Canonical Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "file_hash": {
+            "title": "File Hash",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "withdrawn"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "file_hash",
+          "canonical_hash",
+          "status",
+          "revision",
+          "created_at"
+        ],
+        "title": "BatchOutput",
+        "type": "object"
+      },
+      "Body_preview_api_v1_history_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "mapping": {
+            "default": "{}",
+            "title": "Mapping",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_preview_api_v1_history_preview_post",
+        "type": "object"
+      },
       "Body_preview_api_v1_restores_preview_post": {
         "properties": {
           "file": {
@@ -629,7 +750,7 @@
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/EventOutput"
+              "$ref": "#/components/schemas/JournalEventOutput"
             },
             "title": "Items",
             "type": "array"
@@ -657,6 +778,290 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HistoryPreview": {
+        "properties": {
+          "action": {
+            "enum": [
+              "import",
+              "withdraw"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "can_confirm": {
+            "title": "Can Confirm",
+            "type": "boolean"
+          },
+          "canonical_hash": {
+            "title": "Canonical Hash",
+            "type": "string"
+          },
+          "file_hash": {
+            "title": "File Hash",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "preview_token": {
+            "title": "Preview Token",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "preview_token",
+          "action",
+          "filename",
+          "file_hash",
+          "canonical_hash",
+          "can_confirm",
+          "rows"
+        ],
+        "title": "HistoryPreview",
+        "type": "object"
+      },
+      "HistoryRow": {
+        "properties": {
+          "amount_fen": {
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "category_name": {
+            "title": "Category Name",
+            "type": "string"
+          },
+          "detail_count": {
+            "title": "Detail Count",
+            "type": "integer"
+          },
+          "detail_fen": {
+            "title": "Detail Fen",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "income",
+              "expense"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "mapping_key": {
+            "title": "Mapping Key",
+            "type": "string"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "string"
+          },
+          "report_delta_fen": {
+            "title": "Report Delta Fen",
+            "type": "string"
+          },
+          "source_category": {
+            "title": "Source Category",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "unmapped",
+              "duplicate",
+              "conflict"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mapping_key",
+          "source_category",
+          "category_id",
+          "category_name",
+          "period_start",
+          "period_end",
+          "direction",
+          "amount_fen",
+          "source_refs",
+          "status",
+          "detail_count",
+          "detail_fen",
+          "report_delta_fen"
+        ],
+        "title": "HistoryRow",
+        "type": "object"
+      },
+      "ImportCommit": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledge_coverage": {
+            "title": "Acknowledge Coverage",
+            "type": "boolean"
+          },
+          "preview_token": {
+            "maxLength": 128,
+            "minLength": 20,
+            "title": "Preview Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_token",
+          "acknowledge_coverage"
+        ],
+        "title": "ImportCommit",
+        "type": "object"
+      },
+      "ImportResult": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "withdrawn"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "ImportResult",
+        "type": "object"
+      },
+      "JournalEventOutput": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "amount_fen": {
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "covered_by_history": {
+            "default": false,
+            "title": "Covered By History",
+            "type": "boolean"
+          },
+          "effective_date": {
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "fee_fen": {
+            "title": "Fee Fen",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "original_event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Original Event Id"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "void"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "target_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Account Id"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "effective_date",
+          "account_id",
+          "target_account_id",
+          "category_id",
+          "original_event_id",
+          "amount_fen",
+          "fee_fen",
+          "note",
+          "status",
+          "revision"
+        ],
+        "title": "JournalEventOutput",
         "type": "object"
       },
       "LedgerOutput": {
@@ -854,12 +1259,28 @@
             "title": "Assets Fen",
             "type": "string"
           },
+          "covered_detail_count": {
+            "title": "Covered Detail Count",
+            "type": "string"
+          },
           "debt_fen": {
             "title": "Debt Fen",
             "type": "string"
           },
           "expense_fen": {
             "title": "Expense Fen",
+            "type": "string"
+          },
+          "historical_expense_fen": {
+            "title": "Historical Expense Fen",
+            "type": "string"
+          },
+          "historical_income_fen": {
+            "title": "Historical Income Fen",
+            "type": "string"
+          },
+          "historical_row_count": {
+            "title": "Historical Row Count",
             "type": "string"
           },
           "income_fen": {
@@ -886,7 +1307,11 @@
           "assets_fen",
           "receivable_fen",
           "debt_fen",
-          "net_fen"
+          "net_fen",
+          "historical_income_fen",
+          "historical_expense_fen",
+          "historical_row_count",
+          "covered_detail_count"
         ],
         "title": "SummaryOutput",
         "type": "object"
@@ -935,7 +1360,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1610,6 +2035,198 @@
           }
         },
         "summary": "Void Event"
+      }
+    },
+    "/api/v1/history/batches": {
+      "get": {
+        "operationId": "batches_api_v1_history_batches_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BatchOutput"
+                  },
+                  "title": "Response Batches Api V1 History Batches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Batches"
+      }
+    },
+    "/api/v1/history/batches/{identifier}": {
+      "get": {
+        "operationId": "detail_api_v1_history_batches__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detail"
+      }
+    },
+    "/api/v1/history/batches/{identifier}/withdraw-preview": {
+      "post": {
+        "operationId": "withdrawal_preview_api_v1_history_batches__identifier__withdraw_preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdrawal Preview"
+      }
+    },
+    "/api/v1/history/commit": {
+      "post": {
+        "operationId": "commit_api_v1_history_commit_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCommit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Commit"
+      }
+    },
+    "/api/v1/history/preview": {
+      "post": {
+        "operationId": "preview_api_v1_history_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_api_v1_history_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview"
       }
     },
     "/api/v1/ledger": {

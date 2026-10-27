@@ -161,8 +161,12 @@ class EventOutput(BaseModel):
     revision: int
 
 
+class JournalEventOutput(EventOutput):
+    covered_by_history: bool = False
+
+
 class EventPage(BaseModel):
-    items: list[EventOutput]
+    items: list[JournalEventOutput]
     total: int
 
 
@@ -174,6 +178,10 @@ class SummaryOutput(BaseModel):
     receivable_fen: str
     debt_fen: str
     net_fen: str
+    historical_income_fen: str
+    historical_expense_fen: str
+    historical_row_count: str
+    covered_detail_count: str
 
 
 class CreatedOutput(BaseModel):
