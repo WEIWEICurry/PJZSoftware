@@ -1416,3 +1416,18 @@ details[open] summary {
 .investment-workspace > .stat-grid {
   margin: 0;
 }
+.investment-table .investment-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+.investment-table .investment-sort:hover,
+.investment-table th[aria-sort="ascending"],
+.investment-table th[aria-sort="descending"] {
+  color: var(--accent);
+}

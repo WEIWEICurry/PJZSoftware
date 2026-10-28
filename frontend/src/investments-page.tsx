@@ -4,6 +4,11 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
 import { request } from "./api";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
+import {
+  sortPositions,
+  type PositionSort,
+  type PositionSortKey,
+} from "./position-sort";
 
 type Page = components["schemas"]["InvestmentPage"];
 type Account = components["schemas"]["AccountOutput"];
@@ -84,6 +89,7 @@ export function InvestmentsPage({
   const [pendingVoid, setPendingVoid] = useState<Trade | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
+  const [positionSort, setPositionSort] = useState<PositionSort | null>(null);
   const [filterAccount, setFilterAccount] = useState("");
   const [filterKind, setFilterKind] = useState("");
   const [detail, setDetail] = useState<{
@@ -152,10 +158,21 @@ export function InvestmentsPage({
     (!filterKind ||
       page?.instruments.find((i) => i.id === item.instrument_id)?.kind ===
         filterKind);
-  const positions =
+  const positions = sortPositions(
     page?.positions.filter(
       (p) => matching(p) && (showClosed || p.quantity !== "0"),
-    ) ?? [];
+    ) ?? [],
+    positionSort,
+  );
+  function toggleSort(key: PositionSortKey) {
+    setPositionSort((previous) => ({
+      key,
+      direction:
+        previous?.key === key && previous.direction === "descending"
+          ? "ascending"
+          : "descending",
+    }));
+  }
   const trades =
     page?.trades.filter(
       (t) =>
@@ -571,9 +588,40 @@ export function InvestmentsPage({
                   <tr>
                     <th>标的／账户</th>
                     <th>份额／股数</th>
-                    <th>剩余成本</th>
-                    <th>市值</th>
-                    <th>持仓盈亏</th>
+                    {(
+                      [
+                        ["cost_fen", "剩余成本"],
+                        ["value_fen", "市值"],
+                        ["unrealized_fen", "持仓盈亏"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <th
+                        key={key}
+                        scope="col"
+                        aria-sort={
+                          positionSort?.key === key
+                            ? positionSort.direction
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="investment-sort"
+                          aria-label={label}
+                          title={`按${label}${positionSort?.key === key && positionSort.direction === "descending" ? "从小到大" : "从大到小"}排序`}
+                          onClick={() => toggleSort(key)}
+                        >
+                          {label}
+                          <span aria-hidden="true">
+                            {positionSort?.key === key
+                              ? positionSort.direction === "descending"
+                                ? "↓"
+                                : "↑"
+                              : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                    ))}
                     <th>手动估值</th>
                     <th>操作</th>
                   </tr>
