@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { test, expect } from "@playwright/test";
 import { isoWeekValue } from "../src/report-period";
 
@@ -946,6 +947,98 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.getByRole("alert").filter({ hasText: "折算前份额" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "取消作废", exact: true }).click();
+  // M3.3: actual investment reports and allocation are read-only, with four scoped CSVs.
+  await page.getByRole("button", { name: "投资报表", exact: true }).click();
+  const investmentReports = page.locator(".investment-report-page");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "买入实际扣款" }),
+  ).toContainText("¥2,210.00");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "卖出净到账" }),
+  ).toContainText("¥648.00");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "已实现卖出盈亏" }),
+  ).toContainText("¥95.50");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "再投净分红" }),
+  ).toContainText("¥100.00");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "已计入费用" }),
+  ).toContainText("¥14.00");
+  await expect(
+    investmentReports
+      .getByRole("table", { name: "投资事件明细", exact: true })
+      .locator("tbody tr"),
+  ).toHaveCount(6);
+  await investmentReports.getByLabel("包含作废记录").check();
+  await expect(
+    investmentReports
+      .getByRole("table", { name: "投资事件明细", exact: true })
+      .locator("tbody tr"),
+  ).toHaveCount(7);
+  const allocation = investmentReports.getByRole("region", {
+    name: "当前资产配置",
+    exact: true,
+  });
+  await expect(allocation).toContainText("不是所选期间的期末快照");
+  await allocation.getByRole("button", { name: "按账户", exact: true }).click();
+  await expect(allocation.getByRole("table").locator("tbody tr")).toHaveCount(
+    1,
+  );
+  await expect(allocation.getByRole("table")).toContainText("¥4,050.00");
+  await allocation.getByRole("button", { name: "按类型", exact: true }).click();
+  await expect(allocation.getByRole("table").locator("tbody tr")).toHaveCount(
+    2,
+  );
+  await investmentReports
+    .getByRole("button", { name: "年报", exact: true })
+    .click();
+  await investmentReports.getByLabel("选择年份").selectOption("2025");
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "买入实际扣款" }),
+  ).toContainText("¥0.00");
+  await expect(allocation).toContainText("¥4,050.00");
+  await investmentReports
+    .getByRole("button", { name: "自选期间", exact: true })
+    .click();
+  await investmentReports.getByLabel("开始日期", { exact: true }).fill(today);
+  await investmentReports.getByLabel("结束日期", { exact: true }).fill(today);
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "买入实际扣款" }),
+  ).toContainText("¥2,210.00");
+  await expect(
+    investmentReports
+      .getByRole("combobox", { name: "持仓账户筛选", exact: true })
+      .locator("option")
+      .filter({ hasText: /欠我|我欠|Synthetic borrower/ }),
+  ).toHaveCount(0);
+  await investmentReports
+    .getByRole("combobox", { name: "投资标的筛选", exact: true })
+    .selectOption({ label: "Synthetic distribution fund · 000001" });
+  await expect(
+    investmentReports.locator(".metric").filter({ hasText: "已计入费用" }),
+  ).toContainText("¥2.00");
+  await expect(allocation.getByRole("table")).toContainText("51.85%");
+  for (const label of [
+    "期间报表 CSV",
+    "投资记录 CSV",
+    "当前持仓 CSV",
+    "手动估值 CSV（含作废）",
+  ]) {
+    const downloaded = page.waitForEvent("download");
+    await investmentReports
+      .getByRole("button", { name: label, exact: true })
+      .click();
+    const file = await (await downloaded).path();
+    const bytes = await readFile(file!);
+    expect(bytes.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
+    expect(bytes.toString("utf8")).toContain("账本版本");
+    expect(bytes.toString("utf8")).toContain("000001");
+  }
+  await page.screenshot({
+    path: "test-results/investment-reports.png",
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载本地备份" }).click();

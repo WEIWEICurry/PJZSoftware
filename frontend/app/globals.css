@@ -1431,3 +1431,49 @@ details[open] summary {
 .investment-table th[aria-sort="descending"] {
   color: var(--accent);
 }
+
+.investment-report-page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.investment-report-page > .stat-grid {
+  margin: 0;
+}
+.investment-report-page > .footnote {
+  margin: 0;
+}
+.investment-report-controls {
+  border: 0;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.investment-report-controls label {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.investment-export-buttons {
+  margin-top: 18px;
+}
+.investment-report-page .investment-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.investment-report-page .investment-checkbox input {
+  width: auto;
+}
+@media (max-width: 1100px) {
+  .investment-report-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .investment-report-controls {
+    grid-template-columns: 1fr;
+  }
+}

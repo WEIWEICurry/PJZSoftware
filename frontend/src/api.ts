@@ -11,6 +11,11 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  INVESTMENT_REPORT_INVALID_PERIOD:
+    "请选择有效的投资报表期间，起始日期不能晚于结束日期。",
+  INVESTMENT_REPORT_INVALID_FILTER:
+    "所选投资账户或标的不存在，或账户类型不适用，请刷新后重新选择。",
+  INVESTMENT_REPORT_INVALID_EXPORT: "不支持这个投资导出类型，请重新选择。",
   INVESTMENT_HISTORY_REQUIRED:
     "该账户标的还没有有效持仓历史，请先录入期初或买入；折算还需要当前有持仓。",
   INVESTMENT_REINVEST_FUND_ONLY:

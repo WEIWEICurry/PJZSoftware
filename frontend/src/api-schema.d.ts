@@ -313,6 +313,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investment-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report */
+        get: operations["report_api_v1_investment_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investment-reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export */
+        get: operations["export_api_v1_investment_reports_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments": {
         parameters: {
             query?: never;
@@ -1116,6 +1150,81 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** InvestmentAllocationGroup */
+        InvestmentAllocationGroup: {
+            /**
+             * Group By
+             * @enum {string}
+             */
+            group_by: "instrument" | "account" | "kind";
+            /** Id */
+            id: string;
+            /** Known Value Fen */
+            known_value_fen: string;
+            /** Label */
+            label: string;
+            /** Missing Price Count */
+            missing_price_count: number;
+            /** Position Count */
+            position_count: number;
+            /** Price End */
+            price_end: string | null;
+            /** Price Start */
+            price_start: string | null;
+            /** Share Bps */
+            share_bps: string | null;
+            /** Value Fen */
+            value_fen: string | null;
+        };
+        /** InvestmentContribution */
+        InvestmentContribution: {
+            /** Buy Outflow Fen */
+            buy_outflow_fen: string;
+            /** Cash Delta Fen */
+            cash_delta_fen: string;
+            /** Cash Dividends Fen */
+            cash_dividends_fen: string;
+            /** Code */
+            code: string;
+            /** Fees Fen */
+            fees_fen: string;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Instrument Name */
+            instrument_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf" | "fund";
+            /** Market */
+            market: string;
+            /** Realized And Dividends Fen */
+            realized_and_dividends_fen: string;
+            /** Realized Fen */
+            realized_fen: string;
+            /** Record Count */
+            record_count: number;
+            /** Reinvested Dividends Fen */
+            reinvested_dividends_fen: string;
+            /** Sell Inflow Fen */
+            sell_inflow_fen: string;
+        };
+        /** InvestmentCurrentAllocation */
+        InvestmentCurrentAllocation: {
+            /** As Of Date */
+            as_of_date: string;
+            /** Groups */
+            groups: components["schemas"]["InvestmentAllocationGroup"][];
+            /** Known Value Fen */
+            known_value_fen: string;
+            /** Missing Price Count */
+            missing_price_count: number;
+            /** Selected Position Count */
+            selected_position_count: number;
+            /** Total Value Fen */
+            total_value_fen: string | null;
+        };
         /** InvestmentPage */
         InvestmentPage: {
             /** Cash Dividends Fen */
@@ -1146,6 +1255,119 @@ export interface components {
             unrealized_fen: string | null;
             /** Valuations */
             valuations: components["schemas"]["PriceOutput"][];
+        };
+        /** InvestmentPeriodTotals */
+        InvestmentPeriodTotals: {
+            /** Buy Outflow Fen */
+            buy_outflow_fen: string;
+            /** Cash Delta Fen */
+            cash_delta_fen: string;
+            /** Cash Dividends Fen */
+            cash_dividends_fen: string;
+            /** Fees Fen */
+            fees_fen: string;
+            /** Realized And Dividends Fen */
+            realized_and_dividends_fen: string;
+            /** Realized Fen */
+            realized_fen: string;
+            /** Record Count */
+            record_count: number;
+            /** Reinvested Dividends Fen */
+            reinvested_dividends_fen: string;
+            /** Sell Inflow Fen */
+            sell_inflow_fen: string;
+        };
+        /** InvestmentReportEntries */
+        InvestmentReportEntries: {
+            /** Items */
+            items: components["schemas"]["InvestmentReportEntry"][];
+            /** Total */
+            total: number;
+        };
+        /** InvestmentReportEntry */
+        InvestmentReportEntry: {
+            /** Account Id */
+            account_id: string;
+            /** Account Name */
+            account_name: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "opening" | "buy" | "sell" | "cash_dividend" | "reinvest" | "split";
+            /** Allocated Cost Fen */
+            allocated_cost_fen: string | null;
+            /** Cash Account Id */
+            cash_account_id: string | null;
+            /** Cash Account Name */
+            cash_account_name: string;
+            /** Cash Delta Fen */
+            cash_delta_fen: string | null;
+            /** Code */
+            code: string;
+            /** Cost Basis Fen */
+            cost_basis_fen: string | null;
+            /** Costs Fen */
+            costs_fen: string;
+            /** Effective Date */
+            effective_date: string;
+            /** Gross Fen */
+            gross_fen: string;
+            /** Id */
+            id: string;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Instrument Name */
+            instrument_name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf" | "fund";
+            /** Market */
+            market: string;
+            /** Note */
+            note: string;
+            /** Quantity */
+            quantity: string;
+            /** Realized Fen */
+            realized_fen: string | null;
+            /** Revision */
+            revision: number;
+            /** Sequence */
+            sequence: number;
+            /** Split From Quantity */
+            split_from_quantity: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "void";
+        };
+        /** InvestmentReportOutput */
+        InvestmentReportOutput: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountOutput"][];
+            /** Contributions */
+            contributions: components["schemas"]["InvestmentContribution"][];
+            current_allocation: components["schemas"]["InvestmentCurrentAllocation"];
+            /** End */
+            end: string;
+            entries: components["schemas"]["InvestmentReportEntries"];
+            /** Instruments */
+            instruments: components["schemas"]["InstrumentOutput"][];
+            /** Ledger Revision */
+            ledger_revision: number;
+            /**
+             * Period
+             * @enum {string}
+             */
+            period: "month" | "year" | "custom";
+            /** Requested End */
+            requested_end: string;
+            /** Start */
+            start: string;
+            totals: components["schemas"]["InvestmentPeriodTotals"];
         };
         /** JournalEventOutput */
         JournalEventOutput: {
@@ -2325,6 +2547,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_api_v1_investment_reports_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                include_void?: boolean;
+                period?: "month" | "year" | "custom";
+                anchor?: string | null;
+                start?: string | null;
+                end?: string | null;
+                account_id?: string | null;
+                instrument_id?: string | null;
+                kind?: ("stock" | "etf" | "fund") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentReportOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_v1_investment_reports_export_get: {
+        parameters: {
+            query: {
+                dataset: "report" | "trades" | "positions" | "valuations";
+                include_void?: boolean;
+                period?: "month" | "year" | "custom";
+                anchor?: string | null;
+                start?: string | null;
+                end?: string | null;
+                account_id?: string | null;
+                instrument_id?: string | null;
+                kind?: ("stock" | "etf" | "fund") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description UTF-8 BOM CSV */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
                 };
             };
             /** @description Validation Error */
