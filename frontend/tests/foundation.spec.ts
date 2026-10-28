@@ -642,6 +642,25 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "投资", exact: true }).click();
+  const investmentAccountFilter = page
+    .locator(".investment-filters")
+    .getByRole("combobox", { name: "账户筛选", exact: true });
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: "Synthetic investment cash" }),
+  ).toHaveCount(1);
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: /我欠|欠我|Synthetic borrower/ }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "投资记录", exact: true }).click();
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: /我欠|欠我|Synthetic borrower/ }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "标的与估值", exact: true }).click();
   await page.getByLabel("六位代码").fill("600001");
   await page.getByLabel("标的名称").fill("Synthetic stock");

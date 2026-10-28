@@ -261,7 +261,7 @@ export function InvestmentsPage({
       </div>
       <p className="footnote">
         已实现卖出盈亏 {amount(page?.realized_fen, "—")}
-        ；累计仅包含录入期初之后的交易。手动价格可能来自不同日期。
+        ；已实现盈亏从录入期初之后计算，持仓盈亏按带入的总成本核算。手动价格可能来自不同日期。
         {!!page?.missing_price_count &&
           ` ${page.missing_price_count} 项待估值，市值仅为已知小计。`}
         {!!page?.unknown_cost_count &&
@@ -406,11 +406,15 @@ export function InvestmentsPage({
                   <input
                     inputMode="decimal"
                     placeholder="未知请留空，不能填写买入单价"
+                    aria-describedby="opening-cost-help"
                     value={form.basis}
                     onChange={(e) =>
                       setForm({ ...form, basis: e.target.value })
                     }
                   />
+                  <small id="opening-cost-help">
+                    当前持有份额对应的成本合计，不是每份成本价，也不是当前市值。未知可留空。
+                  </small>
                 </label>
               ) : (
                 <>
@@ -511,11 +515,15 @@ export function InvestmentsPage({
               }}
             >
               <option value="">全部账户</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
+              {accounts
+                .filter(
+                  (a) => a.kind !== "liability" && a.kind !== "receivable",
+                )
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
             </select>
           </label>
           <label>
