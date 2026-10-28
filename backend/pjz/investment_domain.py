@@ -29,6 +29,21 @@ def rounded(value: Decimal) -> int:
     return result
 
 
+def holding_share_bps(value: int | None, total: int, complete: bool) -> str | None:
+    """A missing valuation makes the portfolio denominator unknown, not zero."""
+    if not complete or value is None or total <= 0:
+        return None
+    with localcontext() as context:
+        context.prec = 64
+        return str(
+            int(
+                (Decimal(value) * 10000 / Decimal(total)).quantize(
+                    Decimal(1), rounding=ROUND_HALF_UP
+                )
+            )
+        )
+
+
 @dataclass
 class Position:
     quantity: Decimal = Decimal(0)

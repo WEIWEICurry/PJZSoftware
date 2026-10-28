@@ -1249,6 +1249,8 @@ export interface components {
             quantity: string;
             /** Realized Fen */
             realized_fen: string;
+            /** Share Bps */
+            share_bps: string | null;
             /** Unrealized Fen */
             unrealized_fen: string | null;
             /** Value Fen */

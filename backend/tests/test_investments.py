@@ -8,7 +8,7 @@ from decimal import Decimal
 import pytest
 from pjz.accounting import Accounting
 from pjz.domain import RuleError
-from pjz.investment_domain import Position, decimal_value
+from pjz.investment_domain import Position, decimal_value, holding_share_bps
 from pjz.investments import Investments
 from pjz.storage import DataError, LedgerStore, inspect_backup, validate_database
 from sqlalchemy import text
@@ -524,3 +524,75 @@ def test_invalid_instrument_money_and_account_inputs(ledger):
     )
     assert price(ledger, stock, "0").status_code == 422
     assert price(ledger, stock, "1", "2099-01-01").status_code == 422
+
+
+@pytest.mark.parametrize(
+    "value,total,complete,expected",
+    [
+        (1000, 4000, True, "2500"),
+        (1, 3, True, "3333"),
+        (1, 6, True, "1667"),
+        (1, 20000, True, "1"),
+        (0, 1000, True, "0"),
+        (1000, 1000, True, "10000"),
+        (None, 1000, True, None),
+        (1000, 1000, False, None),
+        (0, 0, True, None),
+    ],
+)
+def test_holding_share_exact_rounding_and_unknown(value, total, complete, expected):
+    assert holding_share_bps(value, total, complete) == expected
+
+
+def test_portfolio_share_includes_all_accounts_not_cash_or_cost(ledger):
+    first = account(ledger, "Synthetic share A", "1000000")
+    second = account(ledger, "Synthetic share B", "9000000")
+    stock = instrument(ledger)
+    other = instrument(ledger, "600002")
+    for cash, asset, basis in [
+        (first, stock, "1000"),
+        (second, other, None),
+        (second, stock, "1000"),
+    ]:
+        assert (
+            trade(
+                ledger,
+                cash,
+                asset,
+                action="opening",
+                quantity="1",
+                amount_fen="0",
+                costs_fen="0",
+                cost_basis_fen=basis,
+            ).status_code
+            == 200
+        )
+    assert price(ledger, stock, "10").status_code == 200
+    assert all(p["share_bps"] is None for p in page(ledger)["positions"])
+    assert price(ledger, other, "30").status_code == 200
+    result = page(ledger)
+    assert result["known_value_fen"] == "5000"
+    shares = {(p["account_id"], p["instrument_id"]): p["share_bps"] for p in result["positions"]}
+    assert shares == {(first, stock): "2000", (second, other): "6000", (second, stock): "2000"}
+    assert price(ledger, other, "30", revision=1, status="void").status_code == 200
+    assert all(p["share_bps"] is None for p in page(ledger)["positions"])
+
+
+def test_holding_share_zero_total_closed_and_single_position(ledger):
+    cash = account(ledger, "Synthetic zero share", "100000")
+    stock = instrument(ledger)
+    trade(ledger, cash, stock, quantity="1", amount_fen="1000", costs_fen="0")
+    assert price(ledger, stock, "0.000001").status_code == 200
+    assert page(ledger)["positions"][0]["value_fen"] == "0"
+    assert page(ledger)["positions"][0]["share_bps"] is None
+    assert price(ledger, stock, "10", revision=1).status_code == 200
+    assert page(ledger)["positions"][0]["share_bps"] == "10000"
+    trade(ledger, cash, stock, action="sell", quantity="1", amount_fen="1000", costs_fen="0")
+    assert page(ledger)["positions"][0]["share_bps"] is None
+    other = instrument(ledger, "600002")
+    trade(ledger, cash, other, quantity="1", amount_fen="1000", costs_fen="0")
+    assert price(ledger, other, "10").status_code == 200
+    assert {p["instrument_id"]: p["share_bps"] for p in page(ledger)["positions"]} == {
+        stock: "0",
+        other: "10000",
+    }

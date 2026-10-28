@@ -576,6 +576,11 @@ export function InvestmentsPage({
       {section === "positions" && (
         <section className="card panel">
           <h2>我的持仓</h2>
+          <p className="footnote">
+            持仓占比按全部账户持仓市值计算，不含现金，筛选不改变分母；显示到小数点后两位。
+            {!!page?.missing_price_count &&
+              " 存在未估值持仓，总市值未知，占比暂不计算。"}
+          </p>
           {!positions.length && (
             <p className="empty-state">
               暂无匹配持仓。先在“标的与估值”添加标的，再录入期初或买入。
@@ -593,6 +598,7 @@ export function InvestmentsPage({
                         ["cost_fen", "剩余成本"],
                         ["value_fen", "市值"],
                         ["unrealized_fen", "持仓盈亏"],
+                        ["share_bps", "持仓占比"],
                       ] as const
                     ).map(([key, label]) => (
                       <th
@@ -640,6 +646,13 @@ export function InvestmentsPage({
                       <td>{amount(p.cost_fen, "成本待补")}</td>
                       <td>{amount(p.value_fen, "待估值")}</td>
                       <td>{amount(p.unrealized_fen)}</td>
+                      <td>
+                        {p.share_bps == null
+                          ? page?.missing_price_count
+                            ? "待估值"
+                            : "—"
+                          : fenToYuan(p.share_bps) + "%"}
+                      </td>
                       <td>
                         {p.price ?? "—"}
                         <small>

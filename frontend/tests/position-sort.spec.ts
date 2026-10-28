@@ -8,19 +8,28 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
       cost_fen: "9007199254740992",
       value_fen: "0",
       unrealized_fen: "-500",
+      share_bps: "0",
     },
     {
       id: "high",
       cost_fen: "9007199254740993",
       value_fen: "1000",
       unrealized_fen: "100",
+      share_bps: "10000",
     },
-    { id: "missing", cost_fen: null, value_fen: null, unrealized_fen: null },
+    {
+      id: "missing",
+      cost_fen: null,
+      value_fen: null,
+      unrealized_fen: null,
+      share_bps: null,
+    },
     {
       id: "equal",
       cost_fen: "9007199254740992",
       value_fen: "0",
       unrealized_fen: "-500",
+      share_bps: "0",
     },
   ];
   const ids = (items: typeof rows) => items.map((item) => item.id);
@@ -36,6 +45,12 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
   expect(
     ids(sortPositions(rows, { key: "unrealized_fen", direction: "ascending" })),
   ).toEqual(["low", "equal", "high", "missing"]);
+  expect(
+    ids(sortPositions(rows, { key: "share_bps", direction: "descending" })),
+  ).toEqual(["high", "low", "equal", "missing"]);
+  expect(
+    ids(sortPositions(rows, { key: "share_bps", direction: "ascending" })),
+  ).toEqual(["low", "equal", "high", "missing"]);
   expect(ids(sortPositions(rows, null))).toEqual([
     "low",
     "high",
@@ -47,6 +62,8 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
 
 test("持仓表头点击与键盘切换排序，筛选和视图切换保持方向", async ({ page }) => {
   const accountId = "11111111-1111-4111-8111-111111111111";
+  const otherAccount = "44444444-4444-4444-8444-444444444444";
+  let complete = false;
   const instruments = ["合成甲", "合成乙", "合成丙", "合成丁", "合成戊"].map(
     (name, index) => ({
       id: `22222222-2222-4222-8222-22222222222${index}`,
@@ -66,12 +83,13 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
   ];
   const positions = positionValues.map(
     ([cost_fen, value_fen, unrealized_fen], index) => ({
-      account_id: accountId,
+      account_id: index === 4 ? otherAccount : accountId,
       instrument_id: instruments[index].id,
       quantity: "1",
       cost_fen,
       value_fen,
       unrealized_fen,
+      share_bps: null,
       realized_fen: "0",
       price: ["5", "10", "20", null, "5"][index],
       price_date: value_fen === null ? null : "2026-01-01",
@@ -114,6 +132,15 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
           archived: false,
           revision: 1,
         },
+        {
+          id: otherAccount,
+          name: "合成第二账户",
+          kind: "bank",
+          opening_date: "2026-01-01",
+          balance_fen: "0",
+          archived: false,
+          revision: 1,
+        },
       ],
     }),
   );
@@ -121,17 +148,30 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
     route.fulfill({
       json: {
         instruments,
-        positions,
+        positions: complete
+          ? positions.map((p, index) => ({
+              ...p,
+              ...(index === 3
+                ? {
+                    value_fen: "1000",
+                    unrealized_fen: "0",
+                    price: "10",
+                    price_date: "2026-01-01",
+                  }
+                : {}),
+              share_bps: ["1000", "2000", "4000", "2000", "1000"][index],
+            }))
+          : positions,
         trades: [],
         valuations: [],
-        known_value_fen: "4000",
-        missing_price_count: 1,
+        known_value_fen: complete ? "5000" : "4000",
+        missing_price_count: complete ? 0 : 1,
         unknown_cost_count: 1,
         realized_fen: "0",
         unrealized_fen: null,
         total_profit_fen: null,
-        known_net_fen: "14000",
-        net_fen: null,
+        known_net_fen: complete ? "15000" : "14000",
+        net_fen: complete ? "15000" : null,
       },
     }),
   );
@@ -234,5 +274,41 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
     "合成丙",
     "合成丁",
   ]);
+  const share = table.getByRole("button", { name: "持仓占比", exact: true });
+  await share.click();
+  await expect(
+    table.locator("tbody tr td:nth-child(6)").filter({ hasText: "待估值" }),
+  ).toHaveCount(5);
+  complete = true;
+  await page.getByRole("button", { name: "刷新投资", exact: true }).click();
+  await expect(table.locator("tbody tr").first()).toContainText("40.00%");
+  expect(await names()).toEqual([
+    "合成丙",
+    "合成乙",
+    "合成丁",
+    "合成甲",
+    "合成戊",
+  ]);
+  await share.click();
+  await expect(
+    table.getByRole("columnheader", { name: "持仓占比", exact: true }),
+  ).toHaveAttribute("aria-sort", "ascending");
+  expect(await names()).toEqual([
+    "合成甲",
+    "合成戊",
+    "合成乙",
+    "合成丁",
+    "合成丙",
+  ]);
+  await page
+    .getByRole("combobox", { name: "账户筛选", exact: true })
+    .selectOption(accountId);
+  expect(await names()).toEqual(["合成甲", "合成乙", "合成丁", "合成丙"]);
+  await expect(
+    table
+      .locator("tbody tr")
+      .first()
+      .getByRole("cell", { name: "10.00%", exact: true }),
+  ).toBeVisible();
   expect(writes).toEqual([]);
 });

@@ -11,7 +11,7 @@ from sqlalchemy import Connection, text
 
 from pjz.accounting import Accounting, fetch_all, now
 from pjz.domain import RuleError
-from pjz.investment_domain import Position, decimal_text, decimal_value
+from pjz.investment_domain import Position, decimal_text, decimal_value, holding_share_bps
 
 
 class Investments:
@@ -306,6 +306,12 @@ class Investments:
                         "price": price["price"] if price else None,
                         "price_date": price["price_date"] if price else None,
                     }
+                )
+            for item in items:
+                item["share_bps"] = holding_share_bps(
+                    None if item["value_fen"] is None else int(item["value_fen"]),
+                    total,
+                    missing == 0,
                 )
             accounts = self.accounting.account_rows(connection)
             net = sum(

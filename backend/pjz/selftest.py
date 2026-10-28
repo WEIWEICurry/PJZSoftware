@@ -189,6 +189,7 @@ def run() -> None:
         assert investment_result["positions"][0]["cost_fen"] == "502"
         assert investment_result["positions"][0]["realized_fen"] == "145"
         assert investment_result["positions"][0]["value_fen"] == "650"
+        assert investment_result["positions"][0]["share_bps"] == "10000"
         assert investment_result["total_profit_fen"] == "293"
         assert investment_result["net_fen"] == "7268"
         payload = store.backup()

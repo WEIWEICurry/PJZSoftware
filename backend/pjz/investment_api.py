@@ -116,6 +116,7 @@ class PositionOutput(BaseModel):
     realized_fen: str
     value_fen: str | None
     unrealized_fen: str | None
+    share_bps: str | None
     price: str | None
     price_date: str | None
 

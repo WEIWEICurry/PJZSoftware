@@ -1718,6 +1718,17 @@
             "title": "Realized Fen",
             "type": "string"
           },
+          "share_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share Bps"
+          },
           "unrealized_fen": {
             "anyOf": [
               {
@@ -1749,6 +1760,7 @@
           "realized_fen",
           "value_fen",
           "unrealized_fen",
+          "share_bps",
           "price",
           "price_date"
         ],
