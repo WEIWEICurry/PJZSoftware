@@ -20,12 +20,12 @@ class Investments:
         self.accounting = accounting
 
     @staticmethod
-    def replay(
+    def replay_details(
         connection: Connection,
-    ) -> tuple[dict[tuple[str, str], Position], dict[str, list[Entry]]]:
+    ) -> tuple[dict[tuple[str, str], Position], dict[str, list[Entry]], dict[str, dict[str, Any]]]:
         version = connection.exec_driver_sql("PRAGMA user_version").scalar_one()
         if version < 6:
-            return {}, {}
+            return {}, {}, {}
         instruments = {r["id"]: r for r in fetch_all(connection, "SELECT * FROM instruments")}
         for item in instruments.values():
             if not re.fullmatch(r"[0-9]{6}", item["code"]) or not item["name"].strip():
@@ -59,6 +59,7 @@ class Investments:
             raise RuleError("INVESTMENT_INVALID_FACTS")
         positions: dict[tuple[str, str], Position] = {}
         cash: dict[str, list[Entry]] = {}
+        effects: dict[str, dict[str, Any]] = {}
         for row in rows:
             if row["kind"] != "investment" or row["account_kind"] in ("liability", "receivable"):
                 raise RuleError("INVESTMENT_INVALID_FACTS")
@@ -90,6 +91,8 @@ class Investments:
             key = (row["account_id"], row["instrument_id"])
             position = positions.setdefault(key, Position())
             try:
+                before_cost = position.cost
+                before_realized = position.realized
                 delta = position.apply(
                     row["action"],
                     row["quantity"],
@@ -105,6 +108,16 @@ class Investments:
                 if row["effective_date"] < receiving["opening_date"]:
                     raise RuleError("BEFORE_OPENING")
                 cash[row["id"]] = [Entry(receiving_id, delta)]
+                effects[row["id"]] = {
+                    "cash_delta_fen": str(delta),
+                    "cash_account_id": receiving_id,
+                    "allocated_cost_fen": str(before_cost - position.cost)
+                    if row["action"] == "sell"
+                    and before_cost is not None
+                    and position.cost is not None
+                    else None,
+                    "realized_fen": str(position.realized - before_realized),
+                }
                 if row["action"] in ("cash_dividend", "reinvest", "split"):
                     position.valuation_required_at = (
                         max(position.valuation_required_at or "", row["updated_at"])
@@ -126,6 +139,13 @@ class Investments:
             price = latest_prices.get(instrument_id)
             if price and position.price_is_usable(price["price_date"], price["updated_at"]):
                 position.market_value(price["price"])
+        return positions, cash, effects
+
+    @staticmethod
+    def replay(
+        connection: Connection,
+    ) -> tuple[dict[tuple[str, str], Position], dict[str, list[Entry]]]:
+        positions, cash, _ = Investments.replay_details(connection)
         return positions, cash
 
     def instrument(self, payload: dict[str, Any], key: str) -> dict[str, Any]:
@@ -308,99 +328,99 @@ class Investments:
     def page(self) -> dict[str, Any]:
         with self.accounting.engine.connect() as connection:
             connection.exec_driver_sql("BEGIN")
+            return self.snapshot(connection)
+
+    def snapshot(
+        self, connection: Connection, positions: dict[tuple[str, str], Position] | None = None
+    ) -> dict[str, Any]:
+        if positions is None:
             positions, _ = self.replay(connection)
-            instruments = fetch_all(
-                connection, "SELECT * FROM instruments ORDER BY kind,market,code"
+        instruments = fetch_all(connection, "SELECT * FROM instruments ORDER BY kind,market,code")
+        prices = fetch_all(connection, "SELECT * FROM valuations ORDER BY price_date DESC,id")
+        latest: dict[str, dict[str, Any]] = {}
+        for valuation in prices:
+            if valuation["status"] == "active":
+                latest.setdefault(valuation["instrument_id"], valuation)
+        items = []
+        total = 0
+        missing = 0
+        unknown_cost = 0
+        realized = 0
+        unrealized = 0
+        cash_dividends = 0
+        reinvested_dividends = 0
+        for (account_id, instrument_id), position in positions.items():
+            price = latest.get(instrument_id)
+            usable = price is not None and position.price_is_usable(
+                price["price_date"], price["updated_at"]
             )
-            prices = fetch_all(connection, "SELECT * FROM valuations ORDER BY price_date DESC,id")
-            latest: dict[str, dict[str, Any]] = {}
-            for valuation in prices:
-                if valuation["status"] == "active":
-                    latest.setdefault(valuation["instrument_id"], valuation)
-            items = []
-            total = 0
-            missing = 0
-            unknown_cost = 0
-            realized = 0
-            unrealized = 0
-            cash_dividends = 0
-            reinvested_dividends = 0
-            for (account_id, instrument_id), position in positions.items():
-                price = latest.get(instrument_id)
-                usable = price is not None and position.price_is_usable(
-                    price["price_date"], price["updated_at"]
-                )
-                value = (
-                    0
-                    if not position.quantity
-                    else position.market_value(price["price"])
-                    if usable and price
-                    else None
-                )
-                profit = (
-                    value - position.cost
-                    if value is not None and position.cost is not None
-                    else None
-                )
-                total += value or 0
-                missing += int(value is None)
-                unknown_cost += int(position.cost is None)
-                realized += position.realized
-                cash_dividends += position.cash_dividends
-                reinvested_dividends += position.reinvested_dividends
-                unrealized += profit or 0
-                items.append(
-                    {
-                        "account_id": account_id,
-                        "instrument_id": instrument_id,
-                        "quantity": decimal_text(position.quantity),
-                        "cost_fen": None if position.cost is None else str(position.cost),
-                        "realized_fen": str(position.realized),
-                        "value_fen": None if value is None else str(value),
-                        "unrealized_fen": None if profit is None else str(profit),
-                        "price": price["price"] if price else None,
-                        "price_date": price["price_date"] if price else None,
-                        "cash_dividends_fen": str(position.cash_dividends),
-                        "reinvested_dividends_fen": str(position.reinvested_dividends),
-                        "valuation_required_from": position.valuation_required_from,
-                    }
-                )
-            for item in items:
-                item["share_bps"] = holding_share_bps(
-                    None if item["value_fen"] is None else int(item["value_fen"]),
-                    total,
-                    missing == 0,
-                )
-            accounts = self.accounting.account_rows(connection)
-            net = sum(
-                int(r["balance_fen"]) * (-1 if r["kind"] == "liability" else 1) for r in accounts
+            value = (
+                0
+                if not position.quantity
+                else position.market_value(price["price"])
+                if usable and price
+                else None
             )
-            trades = fetch_all(
-                connection,
-                "SELECT "
-                "f.id,f.account_id,f.effective_date,f.note,f.status,f.revision,"
-                "f.sequence,i.* FROM financial_events f JOIN investment_events i "
-                "ON i.event_id=f.id ORDER BY f.effective_date DESC,f.sequence DESC",
+            profit = (
+                value - position.cost if value is not None and position.cost is not None else None
             )
-            for trade in trades:
-                for field in ("gross_fen", "costs_fen", "cost_basis_fen"):
-                    if trade[field] is not None:
-                        trade[field] = str(trade[field])
-            return {
-                "instruments": instruments,
-                "positions": items,
-                "trades": trades,
-                "valuations": prices,
-                "known_value_fen": str(total),
-                "missing_price_count": missing,
-                "unknown_cost_count": unknown_cost,
-                "realized_fen": str(realized),
-                "cash_dividends_fen": str(cash_dividends),
-                "reinvested_dividends_fen": str(reinvested_dividends),
-                "unrealized_fen": None if missing or unknown_cost else str(unrealized),
-                "total_profit_fen": None
-                if missing or unknown_cost
-                else str(realized + cash_dividends + reinvested_dividends + unrealized),
-                "known_net_fen": str(net + total),
-                "net_fen": None if missing else str(net + total),
-            }
+            total += value or 0
+            missing += int(value is None)
+            unknown_cost += int(position.cost is None)
+            realized += position.realized
+            cash_dividends += position.cash_dividends
+            reinvested_dividends += position.reinvested_dividends
+            unrealized += profit or 0
+            items.append(
+                {
+                    "account_id": account_id,
+                    "instrument_id": instrument_id,
+                    "quantity": decimal_text(position.quantity),
+                    "cost_fen": None if position.cost is None else str(position.cost),
+                    "realized_fen": str(position.realized),
+                    "value_fen": None if value is None else str(value),
+                    "unrealized_fen": None if profit is None else str(profit),
+                    "price": price["price"] if price else None,
+                    "price_date": price["price_date"] if price else None,
+                    "cash_dividends_fen": str(position.cash_dividends),
+                    "reinvested_dividends_fen": str(position.reinvested_dividends),
+                    "valuation_required_from": position.valuation_required_from,
+                }
+            )
+        for item in items:
+            item["share_bps"] = holding_share_bps(
+                None if item["value_fen"] is None else int(item["value_fen"]),
+                total,
+                missing == 0,
+            )
+        accounts = self.accounting.account_rows(connection)
+        net = sum(int(r["balance_fen"]) * (-1 if r["kind"] == "liability" else 1) for r in accounts)
+        trades = fetch_all(
+            connection,
+            "SELECT "
+            "f.id,f.account_id,f.effective_date,f.note,f.status,f.revision,"
+            "f.sequence,i.* FROM financial_events f JOIN investment_events i "
+            "ON i.event_id=f.id ORDER BY f.effective_date DESC,f.sequence DESC",
+        )
+        for trade in trades:
+            for field in ("gross_fen", "costs_fen", "cost_basis_fen"):
+                if trade[field] is not None:
+                    trade[field] = str(trade[field])
+        return {
+            "instruments": instruments,
+            "positions": items,
+            "trades": trades,
+            "valuations": prices,
+            "known_value_fen": str(total),
+            "missing_price_count": missing,
+            "unknown_cost_count": unknown_cost,
+            "realized_fen": str(realized),
+            "cash_dividends_fen": str(cash_dividends),
+            "reinvested_dividends_fen": str(reinvested_dividends),
+            "unrealized_fen": None if missing or unknown_cost else str(unrealized),
+            "total_profit_fen": None
+            if missing or unknown_cost
+            else str(realized + cash_dividends + reinvested_dividends + unrealized),
+            "known_net_fen": str(net + total),
+            "net_fen": None if missing else str(net + total),
+        }

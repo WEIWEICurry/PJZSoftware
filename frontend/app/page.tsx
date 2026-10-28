@@ -5,6 +5,7 @@ import { InvestmentAssets, InvestmentsPage } from "../src/investments-page";
 import { DailyOverview, DailyWorkspace } from "../src/daily";
 import { HistoryImport } from "../src/history-import";
 import { ReportsPage } from "../src/reports-page";
+import { InvestmentReportsPage } from "../src/investment-reports-page";
 import { useEffect, useState, type FormEvent } from "react";
 import { connect, request, raw, type Ledger, type Preview } from "../src/api";
 
@@ -14,13 +15,14 @@ type Tab =
   | "journal"
   | "reports"
   | "investments"
+  | "investmentReports"
   | "data"
   | "plan";
 const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
   ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
   ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "已实现"],
-  ["M3", "投资资产", "投资基础、分红和折算；投资报表后续", "当前阶段"],
+  ["M3", "投资资产", "期间构成、当前配置和导出；历史绩效后续", "当前阶段"],
 ];
 export default function Home() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -126,6 +128,7 @@ export default function Home() {
               ["journal", "≡", "日常账本"],
               ["reports", "▥", "报表与预算"],
               ["investments", "◈", "投资"],
+              ["investmentReports", "▦", "投资报表"],
               ["data", "▤", "数据管理"],
               ["plan", "◇", "开发计划"],
             ] as const
@@ -143,7 +146,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>记账与投资版 · v0.8.0</small>
+          仅在本机运行<small>记账与投资版 · v0.9.0</small>
         </div>
       </aside>
       <div className="workspace">
@@ -157,6 +160,7 @@ export default function Home() {
                 journal: "日常账本",
                 reports: "报表与预算",
                 investments: "投资",
+                investmentReports: "投资报表",
                 data: "数据管理",
                 plan: "开发计划",
               }[tab]
@@ -178,6 +182,7 @@ export default function Home() {
                     journal: "把每一笔日常，记下来。",
                     reports: "看清收支，按需规划。",
                     investments: "看清持仓，记录每次投资。",
+                    investmentReports: "看清交易，核对投资收益。",
                     data: "数据由你保管。",
                     plan: "一步一步，建立可靠的账本。",
                   }[tab]
@@ -193,6 +198,8 @@ export default function Home() {
                       "按日、周、月、年查看收支；分类预算由你选择是否设置。",
                     investments:
                       "管理股票、ETF 与基金；现金、成本和手动估值各有依据。",
+                    investmentReports:
+                      "期间收益构成、当前资产配置与可追溯的 CSV 导出。",
                     data: "可验证的备份，让换一台电脑也能继续记录。",
                     plan: "先验证数据可靠，再逐步开放记账与投资管理。",
                   }[tab]
@@ -273,6 +280,9 @@ export default function Home() {
                 void request<Ledger>("/ledger").then(setLedger);
               }}
             />
+          )}
+          {tab === "investmentReports" && (
+            <InvestmentReportsPage available={available} />
           )}
           {tab === "reports" && (
             <ReportsPage

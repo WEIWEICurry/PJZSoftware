@@ -28,6 +28,8 @@ from pjz.domain import RuleError
 from pjz.history import HistoryImports
 from pjz.history_api import history_router
 from pjz.investment_api import investment_router
+from pjz.investment_report_api import investment_report_router
+from pjz.investment_reports import InvestmentReports
 from pjz.investments import Investments
 from pjz.report_api import report_router
 from pjz.reports import Reports
@@ -131,7 +133,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.8.0",
+        version="0.9.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -235,6 +237,7 @@ def create_app(
         )
 
     app.include_router(investment_router(Investments(Accounting(store.engine))))
+    app.include_router(investment_report_router(InvestmentReports(Accounting(store.engine))))
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
     app.include_router(history_router(HistoryImports(Accounting(store.engine))))
     app.include_router(

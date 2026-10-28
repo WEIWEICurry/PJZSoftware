@@ -20,6 +20,7 @@ from pjz.accounting import Accounting
 from pjz.api import create_app
 from pjz.budgets import Budgets
 from pjz.history import HistoryImports
+from pjz.investment_reports import InvestmentReports
 from pjz.investments import Investments
 from pjz.reports import Reports
 from pjz.storage import LedgerStore, inspect_backup
@@ -268,6 +269,24 @@ def run() -> None:
         )
         assert investment_result["total_profit_fen"] == "10093"
         assert investment_result["net_fen"] == "227068"
+        report_service = InvestmentReports(accounting)
+        query = {"period": "month", "anchor": date(2026, 1, 20)}
+        investment_report = report_service.get(query)
+        assert investment_report["totals"]["record_count"] == 6
+        assert investment_report["totals"]["buy_outflow_fen"] == "1005"
+        assert investment_report["totals"]["sell_inflow_fen"] == "648"
+        assert investment_report["totals"]["realized_fen"] == "145"
+        assert investment_report["totals"]["fees_fen"] == "207"
+        assert investment_report["totals"]["cash_delta_fen"] == "9443"
+        assert investment_report["totals"]["realized_and_dividends_fen"] == "20145"
+        assert investment_report["current_allocation"]["known_value_fen"] == "210650"
+        before_export = store.metadata()["revision"]
+        for dataset in ("report", "trades", "positions", "valuations"):
+            exported = report_service.export(dataset, query, True)
+            assert exported.startswith(b"\xef\xbb\xbf") and "账本版本" in exported.decode(
+                "utf-8-sig"
+            )
+        assert store.metadata()["revision"] == before_export
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
