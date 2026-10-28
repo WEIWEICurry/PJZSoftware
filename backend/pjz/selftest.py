@@ -192,6 +192,82 @@ def run() -> None:
         assert investment_result["positions"][0]["share_bps"] == "10000"
         assert investment_result["total_profit_fen"] == "293"
         assert investment_result["net_fen"] == "7268"
+        fund = investments.instrument(
+            {"market": "FUND", "code": "000001", "name": "Synthetic packaged fund", "kind": "fund"},
+            str(uuid.uuid4()),
+        )["id"]
+        base = {
+            **trade_payload,
+            "instrument_id": fund,
+            "action": "opening",
+            "effective_date": "2026-01-23",
+            "quantity": "1000",
+            "amount_fen": "0",
+            "costs_fen": "0",
+            "cost_basis_fen": "210000",
+        }
+        investments.trade(base, str(uuid.uuid4()))
+        investments.trade(
+            {
+                **base,
+                "action": "cash_dividend",
+                "quantity": "0",
+                "amount_fen": "10000",
+                "cost_basis_fen": None,
+                "effective_date": "2026-01-24",
+            },
+            str(uuid.uuid4()),
+        )
+        investments.trade(
+            {
+                **base,
+                "action": "reinvest",
+                "quantity": "50",
+                "amount_fen": "10000",
+                "costs_fen": "200",
+                "cost_basis_fen": None,
+                "effective_date": "2026-01-25",
+            },
+            str(uuid.uuid4()),
+        )
+        investments.trade(
+            {
+                **base,
+                "action": "split",
+                "quantity": "2100",
+                "split_from_quantity": "1050",
+                "cost_basis_fen": None,
+                "effective_date": "2026-01-26",
+                "note": "Synthetic confirmed split",
+            },
+            str(uuid.uuid4()),
+        )
+        investments.price(
+            {
+                "instrument_id": fund,
+                "price_date": "2026-01-26",
+                "price": "1",
+                "revision": 0,
+                "status": "active",
+            },
+            str(uuid.uuid4()),
+        )
+        investment_result = investments.page()
+        fund_position = next(
+            p for p in investment_result["positions"] if p["instrument_id"] == fund
+        )
+        assert (
+            fund_position["quantity"],
+            fund_position["cost_fen"],
+            fund_position["value_fen"],
+        ) == ("2100", "220200", "210000")
+        assert (
+            investment_result["cash_dividends_fen"]
+            == investment_result["reinvested_dividends_fen"]
+            == "10000"
+        )
+        assert investment_result["total_profit_fen"] == "10093"
+        assert investment_result["net_fen"] == "227068"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)

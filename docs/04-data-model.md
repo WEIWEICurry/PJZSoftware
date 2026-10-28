@@ -107,3 +107,9 @@ instruments 唯一 market＋code，market=SH/SZ/BJ/FUND，kind=stock/etf/fund。
 买卖费用当前输入合计（手续费与税费），不拆费用明细。API 净金额模式在同事务转成成交金额：买入成交=实际扣款－费用，卖出成交=实际到账＋费用；数据库只保存规范成交金额及费用，避免两套口径漂移。股票／ETF 数量须整数，基金最多八位小数，不加入交易所下单手数限制。
 
 valuations 唯一 instrument_id＋price_date，price TEXT，active/void，revision 与审计保留修改。取最近有效价格，作废后回退上一有效价格。缺估值时 net_fen=NULL，known_net_fen 为含已估值部分的小计；缺成本只影响盈亏，不影响有价格时的市值。投资 page 是同一读事务快照，现金与持仓不会取自不同版本。
+
+## schema v7：分红与份额折算
+
+investment_events.action 增加 cash_dividend/reinvest/split；cash_account_id 可空且仅限现金分红，split_from_quantity 仅折算必填。现金分红 quantity="0"、gross_fen=实际净到账、费用零；再投 quantity=实际新增、gross_fen=净再投分红、costs_fen=另付现金费用；折算 quantity=实际确认后份额，现金字段零且成本不变。字段含义由动作约束，不将净分红再转换为假定税前金额。新字段和旧行在事务重建子表时保留，v6 只读备份验证使用空新字段适配。
+
+Position 分别累计 cash_dividends 和 reinvested_dividends，已实现卖出收益保持 realized；累计盈亏为三者加未实现。估值门槛从有效事件的日期／updated_at 重建，不新增数据库余额或快照；同一日以较新的事件更新时间为准。价格及分红数据完整性随财务重放和外键验证检查，含分红收款关联的账户不开放彻底删除。

@@ -1118,6 +1118,8 @@ export interface components {
         };
         /** InvestmentPage */
         InvestmentPage: {
+            /** Cash Dividends Fen */
+            cash_dividends_fen: string;
             /** Instruments */
             instruments: components["schemas"]["InstrumentOutput"][];
             /** Known Net Fen */
@@ -1132,6 +1134,8 @@ export interface components {
             positions: components["schemas"]["PositionOutput"][];
             /** Realized Fen */
             realized_fen: string;
+            /** Reinvested Dividends Fen */
+            reinvested_dividends_fen: string;
             /** Total Profit Fen */
             total_profit_fen: string | null;
             /** Trades */
@@ -1237,6 +1241,8 @@ export interface components {
         PositionOutput: {
             /** Account Id */
             account_id: string;
+            /** Cash Dividends Fen */
+            cash_dividends_fen: string;
             /** Cost Fen */
             cost_fen: string | null;
             /** Instrument Id */
@@ -1249,10 +1255,14 @@ export interface components {
             quantity: string;
             /** Realized Fen */
             realized_fen: string;
+            /** Reinvested Dividends Fen */
+            reinvested_dividends_fen: string;
             /** Share Bps */
             share_bps: string | null;
             /** Unrealized Fen */
             unrealized_fen: string | null;
+            /** Valuation Required From */
+            valuation_required_from: string | null;
             /** Value Fen */
             value_fen: string | null;
         };
@@ -1482,7 +1492,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "opening" | "buy" | "sell";
+            action: "opening" | "buy" | "sell" | "cash_dividend" | "reinvest" | "split";
             /**
              * Amount Fen
              * @default 0
@@ -1494,6 +1504,8 @@ export interface components {
              * @enum {string}
              */
             amount_mode: "gross" | "net";
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /** Cost Basis Fen */
             cost_basis_fen?: string | null;
             /**
@@ -1520,6 +1532,8 @@ export interface components {
             quantity: string;
             /** Revision */
             revision: number;
+            /** Split From Quantity */
+            split_from_quantity?: string | null;
         };
         /** TradeInput */
         TradeInput: {
@@ -1532,7 +1546,7 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "opening" | "buy" | "sell";
+            action: "opening" | "buy" | "sell" | "cash_dividend" | "reinvest" | "split";
             /**
              * Amount Fen
              * @default 0
@@ -1544,6 +1558,8 @@ export interface components {
              * @enum {string}
              */
             amount_mode: "gross" | "net";
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /** Cost Basis Fen */
             cost_basis_fen?: string | null;
             /**
@@ -1568,6 +1584,8 @@ export interface components {
             note: string;
             /** Quantity */
             quantity: string;
+            /** Split From Quantity */
+            split_from_quantity?: string | null;
         };
         /** TradeOutput */
         TradeOutput: {
@@ -1577,7 +1595,9 @@ export interface components {
              * Action
              * @enum {string}
              */
-            action: "opening" | "buy" | "sell";
+            action: "opening" | "buy" | "sell" | "cash_dividend" | "reinvest" | "split";
+            /** Cash Account Id */
+            cash_account_id: string | null;
             /** Cost Basis Fen */
             cost_basis_fen: string | null;
             /** Costs Fen */
@@ -1598,6 +1618,8 @@ export interface components {
             revision: number;
             /** Sequence */
             sequence: number;
+            /** Split From Quantity */
+            split_from_quantity: string | null;
             /**
              * Status
              * @enum {string}
