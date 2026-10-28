@@ -313,6 +313,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page */
+        get: operations["page_api_v1_investments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/instruments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Instrument */
+        post: operations["instrument_api_v1_investments_instruments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/trades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trade */
+        post: operations["trade_api_v1_investments_trades_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/trades/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change */
+        put: operations["change_api_v1_investments_trades__identifier__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/trades/{identifier}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void */
+        post: operations["void_api_v1_investments_trades__identifier__void_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/valuations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Price */
+        put: operations["price_api_v1_investments_valuations_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ledger": {
         parameters: {
             query?: never;
@@ -976,6 +1078,71 @@ export interface components {
              */
             status: "active" | "withdrawn";
         };
+        /** InstrumentInput */
+        InstrumentInput: {
+            /** Code */
+            code: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf" | "fund";
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "SH" | "SZ" | "BJ" | "FUND";
+            /** Name */
+            name: string;
+        };
+        /** InstrumentOutput */
+        InstrumentOutput: {
+            /** Code */
+            code: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "stock" | "etf" | "fund";
+            /**
+             * Market
+             * @enum {string}
+             */
+            market: "SH" | "SZ" | "BJ" | "FUND";
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+        };
+        /** InvestmentPage */
+        InvestmentPage: {
+            /** Instruments */
+            instruments: components["schemas"]["InstrumentOutput"][];
+            /** Known Net Fen */
+            known_net_fen: string;
+            /** Known Value Fen */
+            known_value_fen: string;
+            /** Missing Price Count */
+            missing_price_count: number;
+            /** Net Fen */
+            net_fen: string | null;
+            /** Positions */
+            positions: components["schemas"]["PositionOutput"][];
+            /** Realized Fen */
+            realized_fen: string;
+            /** Total Profit Fen */
+            total_profit_fen: string | null;
+            /** Trades */
+            trades: components["schemas"]["TradeOutput"][];
+            /** Unknown Cost Count */
+            unknown_cost_count: number;
+            /** Unrealized Fen */
+            unrealized_fen: string | null;
+            /** Valuations */
+            valuations: components["schemas"]["PriceOutput"][];
+        };
         /** JournalEventOutput */
         JournalEventOutput: {
             /** Account Id */
@@ -1065,6 +1232,81 @@ export interface components {
             count: number;
             /** Note */
             note: string;
+        };
+        /** PositionOutput */
+        PositionOutput: {
+            /** Account Id */
+            account_id: string;
+            /** Cost Fen */
+            cost_fen: string | null;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Price */
+            price: string | null;
+            /** Price Date */
+            price_date: string | null;
+            /** Quantity */
+            quantity: string;
+            /** Realized Fen */
+            realized_fen: string;
+            /** Unrealized Fen */
+            unrealized_fen: string | null;
+            /** Value Fen */
+            value_fen: string | null;
+        };
+        /** PriceInput */
+        PriceInput: {
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Price */
+            price: string;
+            /**
+             * Price Date
+             * Format: date
+             */
+            price_date: string;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "void";
+        };
+        /** PriceOutput */
+        PriceOutput: {
+            /** Id */
+            id: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Price */
+            price: string;
+            /**
+             * Price Date
+             * Format: date
+             */
+            price_date: string;
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "void";
         };
         /** RenameInput */
         RenameInput: {
@@ -1226,6 +1468,139 @@ export interface components {
             receivable_fen: string;
             /** Surplus Fen */
             surplus_fen: string;
+        };
+        /** TradeChange */
+        TradeChange: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "opening" | "buy" | "sell";
+            /**
+             * Amount Fen
+             * @default 0
+             */
+            amount_fen: string;
+            /**
+             * Amount Mode
+             * @default gross
+             * @enum {string}
+             */
+            amount_mode: "gross" | "net";
+            /** Cost Basis Fen */
+            cost_basis_fen?: string | null;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Quantity */
+            quantity: string;
+            /** Revision */
+            revision: number;
+        };
+        /** TradeInput */
+        TradeInput: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "opening" | "buy" | "sell";
+            /**
+             * Amount Fen
+             * @default 0
+             */
+            amount_fen: string;
+            /**
+             * Amount Mode
+             * @default gross
+             * @enum {string}
+             */
+            amount_mode: "gross" | "net";
+            /** Cost Basis Fen */
+            cost_basis_fen?: string | null;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Quantity */
+            quantity: string;
+        };
+        /** TradeOutput */
+        TradeOutput: {
+            /** Account Id */
+            account_id: string;
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "opening" | "buy" | "sell";
+            /** Cost Basis Fen */
+            cost_basis_fen: string | null;
+            /** Costs Fen */
+            costs_fen: string;
+            /** Effective Date */
+            effective_date: string;
+            /** Gross Fen */
+            gross_fen: string;
+            /** Id */
+            id: string;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Note */
+            note: string;
+            /** Quantity */
+            quantity: string;
+            /** Revision */
+            revision: number;
+            /** Sequence */
+            sequence: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "void";
         };
         /** TrendPoint */
         TrendPoint: {
@@ -1926,6 +2301,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    page_api_v1_investments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentPage"];
+                };
+            };
+        };
+    };
+    instrument_api_v1_investments_instruments_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstrumentInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trade_api_v1_investments_trades_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_api_v1_investments_trades__identifier__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TradeChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    void_api_v1_investments_trades__identifier__void_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevisionInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    price_api_v1_investments_valuations_put: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PriceInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedOutput"];
                 };
             };
             /** @description Validation Error */

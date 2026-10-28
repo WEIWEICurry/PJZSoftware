@@ -1238,6 +1238,202 @@
         "title": "ImportResult",
         "type": "object"
       },
+      "InstrumentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "stock",
+              "etf",
+              "fund"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "SH",
+              "SZ",
+              "BJ",
+              "FUND"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "market",
+          "code",
+          "kind"
+        ],
+        "title": "InstrumentInput",
+        "type": "object"
+      },
+      "InstrumentOutput": {
+        "properties": {
+          "code": {
+            "pattern": "^[0-9]{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "stock",
+              "etf",
+              "fund"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "market": {
+            "enum": [
+              "SH",
+              "SZ",
+              "BJ",
+              "FUND"
+            ],
+            "title": "Market",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "market",
+          "code",
+          "kind",
+          "id",
+          "revision"
+        ],
+        "title": "InstrumentOutput",
+        "type": "object"
+      },
+      "InvestmentPage": {
+        "properties": {
+          "instruments": {
+            "items": {
+              "$ref": "#/components/schemas/InstrumentOutput"
+            },
+            "title": "Instruments",
+            "type": "array"
+          },
+          "known_net_fen": {
+            "title": "Known Net Fen",
+            "type": "string"
+          },
+          "known_value_fen": {
+            "title": "Known Value Fen",
+            "type": "string"
+          },
+          "missing_price_count": {
+            "title": "Missing Price Count",
+            "type": "integer"
+          },
+          "net_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Fen"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionOutput"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "realized_fen": {
+            "title": "Realized Fen",
+            "type": "string"
+          },
+          "total_profit_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Profit Fen"
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOutput"
+            },
+            "title": "Trades",
+            "type": "array"
+          },
+          "unknown_cost_count": {
+            "title": "Unknown Cost Count",
+            "type": "integer"
+          },
+          "unrealized_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unrealized Fen"
+          },
+          "valuations": {
+            "items": {
+              "$ref": "#/components/schemas/PriceOutput"
+            },
+            "title": "Valuations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "instruments",
+          "positions",
+          "trades",
+          "valuations",
+          "known_value_fen",
+          "missing_price_count",
+          "unknown_cost_count",
+          "realized_fen",
+          "unrealized_fen",
+          "total_profit_fen",
+          "known_net_fen",
+          "net_fen"
+        ],
+        "title": "InvestmentPage",
+        "type": "object"
+      },
       "JournalEventOutput": {
         "properties": {
           "account_id": {
@@ -1469,6 +1665,182 @@
           "count"
         ],
         "title": "NoteSuggestion",
+        "type": "object"
+      },
+      "PositionOutput": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "cost_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Fen"
+          },
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Date"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "realized_fen": {
+            "title": "Realized Fen",
+            "type": "string"
+          },
+          "unrealized_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unrealized Fen"
+          },
+          "value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Fen"
+          }
+        },
+        "required": [
+          "account_id",
+          "instrument_id",
+          "quantity",
+          "cost_fen",
+          "realized_fen",
+          "value_fen",
+          "unrealized_fen",
+          "price",
+          "price_date"
+        ],
+        "title": "PositionOutput",
+        "type": "object"
+      },
+      "PriceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "price": {
+            "maxLength": 21,
+            "title": "Price",
+            "type": "string"
+          },
+          "price_date": {
+            "format": "date",
+            "title": "Price Date",
+            "type": "string"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "active",
+              "void"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "price_date",
+          "price"
+        ],
+        "title": "PriceInput",
+        "type": "object"
+      },
+      "PriceOutput": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "price": {
+            "maxLength": 21,
+            "title": "Price",
+            "type": "string"
+          },
+          "price_date": {
+            "format": "date",
+            "title": "Price Date",
+            "type": "string"
+          },
+          "revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "status": {
+            "default": "active",
+            "enum": [
+              "active",
+              "void"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "price_date",
+          "price",
+          "id"
+        ],
+        "title": "PriceOutput",
         "type": "object"
       },
       "RenameInput": {
@@ -1949,6 +2321,265 @@
         "title": "SummaryOutput",
         "type": "object"
       },
+      "TradeChange": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "opening",
+              "buy",
+              "sell"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "amount_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "amount_mode": {
+            "default": "gross",
+            "enum": [
+              "gross",
+              "net"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "cost_basis_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis Fen"
+          },
+          "costs_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Costs Fen",
+            "type": "string"
+          },
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "maxLength": 21,
+            "title": "Quantity",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account_id",
+          "instrument_id",
+          "action",
+          "effective_date",
+          "quantity",
+          "revision"
+        ],
+        "title": "TradeChange",
+        "type": "object"
+      },
+      "TradeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "opening",
+              "buy",
+              "sell"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "amount_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "amount_mode": {
+            "default": "gross",
+            "enum": [
+              "gross",
+              "net"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "cost_basis_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis Fen"
+          },
+          "costs_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Costs Fen",
+            "type": "string"
+          },
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "maxLength": 21,
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "instrument_id",
+          "action",
+          "effective_date",
+          "quantity"
+        ],
+        "title": "TradeInput",
+        "type": "object"
+      },
+      "TradeOutput": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "action": {
+            "enum": [
+              "opening",
+              "buy",
+              "sell"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "cost_basis_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis Fen"
+          },
+          "costs_fen": {
+            "title": "Costs Fen",
+            "type": "string"
+          },
+          "effective_date": {
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "gross_fen": {
+            "title": "Gross Fen",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "void"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "instrument_id",
+          "action",
+          "effective_date",
+          "sequence",
+          "quantity",
+          "gross_fen",
+          "costs_fen",
+          "cost_basis_fen",
+          "note",
+          "status",
+          "revision"
+        ],
+        "title": "TradeOutput",
+        "type": "object"
+      },
       "TrendPoint": {
         "properties": {
           "end": {
@@ -2067,7 +2698,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.6.1"
+    "version": "0.7.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -3105,6 +3736,304 @@
           }
         },
         "summary": "Preview"
+      }
+    },
+    "/api/v1/investments": {
+      "get": {
+        "operationId": "page_api_v1_investments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Page"
+      }
+    },
+    "/api/v1/investments/instruments": {
+      "post": {
+        "operationId": "instrument_api_v1_investments_instruments_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Instrument"
+      }
+    },
+    "/api/v1/investments/trades": {
+      "post": {
+        "operationId": "trade_api_v1_investments_trades_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trade"
+      }
+    },
+    "/api/v1/investments/trades/{identifier}": {
+      "put": {
+        "operationId": "change_api_v1_investments_trades__identifier__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TradeChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change"
+      }
+    },
+    "/api/v1/investments/trades/{identifier}/void": {
+      "post": {
+        "operationId": "void_api_v1_investments_trades__identifier__void_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Void"
+      }
+    },
+    "/api/v1/investments/valuations": {
+      "put": {
+        "operationId": "price_api_v1_investments_valuations_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Price"
       }
     },
     "/api/v1/ledger": {

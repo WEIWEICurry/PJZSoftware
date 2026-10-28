@@ -1,6 +1,6 @@
 # 数据模型与计算口径
 
-状态：总体逻辑模型。M1 表与字段合并决策见 docs/08-daily-ledger.md；历史汇总已按 docs/11-history-import.md 落地，投资实体仍属后续设计。物理变更必须有迁移与验证。
+状态：总体逻辑模型。M1 表与字段合并决策见 docs/08-daily-ledger.md；历史汇总已按 docs/11-history-import.md 落地，投资基础按 docs/13-investments.md 落地，分红等仍属后续设计。物理变更必须有迁移与验证。
 
 ## 1. 基础规则
 
@@ -99,3 +99,11 @@ import_batches 保存原 JSON 的 BLOB、来源文件名、原文件／规范内
 category_budgets 唯一键为 month＋category_id，limit_fen 为正整数分或 NULL（已移除），revision 保留并递增；类别必须是支出。默认无预算行，不自动创建或续期。预算已用=max(月度分类净支出,0)，剩余=额度－已用，超支=max(已用－额度,0)。设置、移除和复制不改变账户、事件或余额；复制只补未设置项并校验账本版本。
 
 ReportTotals 的 income/expense/surplus 可为 NULL：表示存在无法分配到所选期间的原汇总，并非零；known_* 是可定位小计。每个方向独立判断，构成记录同时保留原金额、计入金额（可未知）和覆盖状态。比例使用 Decimal ROUND_HALF_UP，可能很大的预算使用率及对比比例以字符串基点传输；分类份额分母为同方向正净额，不把净退款算作正消费。上期比例分母为上期绝对值；上期零或未知时不计算。账务金额始终整数分。
+
+## schema v6：投资基础
+
+instruments 唯一 market＋code，market=SH/SZ/BJ/FUND，kind=stock/etf/fund。investment_events 一对一引用 kind=investment 的 financial_events，保存 action=opening/buy/sell、quantity TEXT、gross_fen、costs_fen 和可空 cost_basis_fen。父金额和费用固定零，无分类、转入账户和退款引用；现金来源为子表领域规则。投资不出现在日常流水列表，独立投资列表保留作废事实。
+
+买卖费用当前输入合计（手续费与税费），不拆费用明细。API 净金额模式在同事务转成成交金额：买入成交=实际扣款－费用，卖出成交=实际到账＋费用；数据库只保存规范成交金额及费用，避免两套口径漂移。股票／ETF 数量须整数，基金最多八位小数，不加入交易所下单手数限制。
+
+valuations 唯一 instrument_id＋price_date，price TEXT，active/void，revision 与审计保留修改。取最近有效价格，作废后回退上一有效价格。缺估值时 net_fen=NULL，known_net_fen 为含已估值部分的小计；缺成本只影响盈亏，不影响有价格时的市值。投资 page 是同一读事务快照，现金与持仓不会取自不同版本。

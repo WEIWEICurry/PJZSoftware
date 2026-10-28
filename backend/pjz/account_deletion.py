@@ -34,6 +34,14 @@ class AccountDeletion:
             raise RuleError("ACCOUNT_NOT_ARCHIVED")
         if int(account["balance_fen"]) != 0:
             raise RuleError("ACCOUNT_NOT_EMPTY")
+        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 6:
+            if fetch_all(
+                connection,
+                "SELECT id FROM financial_events WHERE account_id=:id AND "
+                "kind='investment' LIMIT 1",
+                {"id": identifier},
+            ):
+                raise RuleError("INVESTMENT_ACCOUNT_HAS_HISTORY")
         events = fetch_all(connection, "SELECT * FROM financial_events")
         removed = {
             item["id"]
