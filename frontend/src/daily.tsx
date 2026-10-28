@@ -107,7 +107,7 @@ export function DailyOverview({
           {summary ? money(summary.receivable_fen) : "—"} · 未偿负债{" "}
           {summary ? money(summary.debt_fen) : "—"}
           <br />
-          <small>只统计账户资金，尚未包含投资持仓价值。</small>
+          <small>此处只统计账户资金；含投资持仓的净资产见下方资产总览。</small>
         </p>
         <button
           className="secondary"

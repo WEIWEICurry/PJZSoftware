@@ -356,7 +356,7 @@ def test_v3_to_v4_migration_and_failure_backup(tmp_path, monkeypatch):
         assert not c.execute(
             "SELECT name FROM sqlite_master WHERE name='import_batches'"
         ).fetchall()
-    assert list((path / "backups").glob("before-v5-*"))
+    assert list((path / "backups").glob("before-v6-*"))
     monkeypatch.setattr(command, "upgrade", original)
     store = LedgerStore(path)
     try:

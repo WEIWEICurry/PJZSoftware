@@ -11,6 +11,26 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  INVESTMENT_WHOLE_SHARES_REQUIRED:
+    "股票和 ETF 数量应为整数股／份，基金允许最多八位小数。",
+  INVESTMENT_INVALID_DECIMAL:
+    "份额和价格必须大于零，最多八位小数，不能用科学计数法。",
+  INVESTMENT_OPENING_ORDER:
+    "期初持仓只能是该账户标的第一笔有效记录，且不能重复建立。",
+  INVESTMENT_INSUFFICIENT_QUANTITY:
+    "持仓不足，或修改后会导致后续卖出数量不足。请先核对相关买卖记录。",
+  INVESTMENT_COST_REQUIRED:
+    "持仓成本未知，请先修改期初记录补齐剩余总成本，再卖出。",
+  INVESTMENT_ACCOUNT_HAS_HOLDINGS:
+    "账户仍有投资持仓，不能归档。请先核对或结清持仓。",
+  INVESTMENT_ACCOUNT_HAS_HISTORY:
+    "账户含投资记录，当前版本暂不支持彻底删除。归档可保留凭证并收起账户。",
+  INVESTMENT_USE_WORKSPACE: "请在投资页修改或作废投资记录。",
+  INVESTMENT_IDENTITY_IMMUTABLE:
+    "修改时不能更换账户、标的或操作，请作废后重新录入。",
+  INVESTMENT_INVALID_INSTRUMENT:
+    "标的市场与类型不匹配；公募基金请选择基金市场，并填写六位代码。",
+  INVESTMENT_INVALID_FACTS: "投资记录关联异常，请保留备份并检查账本。",
   REPORT_INVALID_PERIOD: "所选报表期间无效，请重新选择日期。",
   REPORT_FUTURE_PERIOD: "这个期间尚未开始，请选择今天或更早的日期。",
   REPORT_EXPORT_TOO_LARGE: "当前构成超过 50000 行，请缩小期间或按分类导出。",
@@ -77,7 +97,10 @@ async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
     const code = result.error?.code ?? "UNKNOWN";
-    throw new Error(errorMessage(code));
+    const context = result.error?.effective_date
+      ? `（冲突记录：${result.error.effective_date}，流水序号 ${result.error.sequence}）`
+      : "";
+    throw new Error(errorMessage(code) + context);
   }
   return response;
 }

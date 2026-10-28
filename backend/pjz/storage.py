@@ -18,8 +18,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 5
-SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5)
+SCHEMA_VERSION = 6
+SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 
@@ -204,6 +204,8 @@ def validate_database(path: Path) -> None:
                 expected_tables.update({"import_batches", "historical_summaries"})
             if version >= 5:
                 expected_tables.add("category_budgets")
+            if version >= 6:
+                expected_tables.update({"instruments", "investment_events", "valuations"})
             tables = {name for kind, name in objects if kind == "table"}
             if tables != expected_tables or any(
                 kind not in ("table", "index") for kind, _ in objects

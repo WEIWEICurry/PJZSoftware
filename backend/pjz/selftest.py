@@ -20,6 +20,7 @@ from pjz.accounting import Accounting
 from pjz.api import create_app
 from pjz.budgets import Budgets
 from pjz.history import HistoryImports
+from pjz.investments import Investments
 from pjz.reports import Reports
 from pjz.storage import LedgerStore, inspect_backup
 
@@ -145,6 +146,52 @@ def run() -> None:
         assert budgets.get("2026-01")["items"] == []
         budgets.save("2026-01", expense_category, "5000", 0, str(uuid.uuid4()))
         assert budgets.get("2026-01")["items"][0]["remaining_fen"] == "1000"
+        investments = Investments(accounting)
+        asset = investments.instrument(
+            {"market": "SH", "code": "600001", "name": "Synthetic packaged stock", "kind": "stock"},
+            str(uuid.uuid4()),
+        )["id"]
+        trade_payload = {
+            "account_id": account["id"],
+            "instrument_id": asset,
+            "action": "buy",
+            "effective_date": "2026-01-21",
+            "quantity": "10",
+            "amount_fen": "1000",
+            "costs_fen": "5",
+            "cost_basis_fen": None,
+            "amount_mode": "gross",
+            "note": "",
+        }
+        investments.trade(trade_payload, str(uuid.uuid4()))
+        investments.trade(
+            {
+                **trade_payload,
+                "action": "sell",
+                "effective_date": "2026-01-22",
+                "quantity": "5",
+                "amount_fen": "650",
+                "costs_fen": "2",
+            },
+            str(uuid.uuid4()),
+        )
+        investments.price(
+            {
+                "instrument_id": asset,
+                "price_date": "2026-01-22",
+                "price": "1.3",
+                "revision": 0,
+                "status": "active",
+            },
+            str(uuid.uuid4()),
+        )
+        investment_result = investments.page()
+        assert investment_result["positions"][0]["cost_fen"] == "502"
+        assert investment_result["positions"][0]["realized_fen"] == "145"
+        assert investment_result["positions"][0]["value_fen"] == "650"
+        assert investment_result["positions"][0]["share_bps"] == "10000"
+        assert investment_result["total_profit_fen"] == "293"
+        assert investment_result["net_fen"] == "7268"
         payload = store.backup()
         inspect_backup(payload)
         destination = store.restore(payload)
@@ -160,6 +207,7 @@ def run() -> None:
         assert (
             Budgets(Accounting(restored.engine)).get("2026-01")["items"][0]["limit_fen"] == "5000"
         )
+        assert Investments(Accounting(restored.engine)).page() == investment_result
         restored.close()
         sock = socket.socket()
         sock.bind(("127.0.0.1", 0))

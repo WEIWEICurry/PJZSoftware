@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import IntegrityError
 
-from pjz.domain import MAX_FEN, RuleError, check_balance, entries_for
+from pjz.domain import MAX_FEN, Entry, RuleError, check_balance, entries_for
 from pjz.history_domain import covered, event_amount, event_direction
 
 
@@ -241,6 +241,11 @@ class Accounting:
                 ).scalar_one()
                 if balance:
                     raise RuleError("ACCOUNT_NOT_EMPTY")
+                from pjz.investments import Investments
+
+                positions, _ = Investments.replay(connection)
+                if any(p.quantity for (a, _), p in positions.items() if a == identifier):
+                    raise RuleError("INVESTMENT_ACCOUNT_HAS_HOLDINGS")
             connection.execute(
                 text(
                     "UPDATE accounts SET name=:name, archived=:archived, revision=revision+1,"
@@ -377,6 +382,8 @@ class Accounting:
             before = rows[0]
             if before["revision"] != payload["revision"] or before["status"] == "void":
                 raise RuleError("REVISION_CONFLICT")
+            if before["kind"] == "investment":
+                raise RuleError("INVESTMENT_USE_WORKSPACE")
             if before["kind"] == "opening":
                 raise RuleError("OPENING_IMMUTABLE")
             self.ensure_writable_accounts(connection, before)
@@ -421,6 +428,9 @@ class Accounting:
         return {**event, "amount_fen": str(event["amount_fen"]), "fee_fen": str(event["fee_fen"])}
 
     def rebuild(self, connection: Connection, persist: bool = True) -> None:
+        from pjz.investments import Investments
+
+        _, investment_cash = Investments.replay(connection)
         accounts = {row["id"]: row for row in fetch_all(connection, "SELECT * FROM accounts")}
         categories = {row["id"]: row for row in fetch_all(connection, "SELECT * FROM categories")}
         events = fetch_all(
@@ -452,7 +462,7 @@ class Accounting:
                 raise RuleError("INVALID_AMOUNT")
             if abs(amount) > MAX_FEN or fee > MAX_FEN:
                 raise RuleError("AMOUNT_OUT_OF_RANGE")
-            if kind not in ("opening", "adjustment") and amount <= 0:
+            if kind not in ("opening", "adjustment", "investment") and amount <= 0:
                 raise RuleError("INVALID_AMOUNT")
             if kind == "opening" and amount < 0:
                 raise RuleError("INVALID_AMOUNT")
@@ -485,17 +495,27 @@ class Accounting:
                 refunded[original["id"]] = refunded.get(original["id"], 0) + amount
                 if refunded[original["id"]] > original["amount_fen"]:
                     raise RuleError("REFUND_EXCEEDS_EXPENSE")
-            for entry in entries_for(
-                kind,
-                account["id"],
-                account["kind"],
-                amount,
-                target["id"] if target else None,
-                target["kind"] if target else None,
-                fee,
-            ):
+            entries = (
+                [Entry(account["id"], investment_cash[item["id"]])]
+                if kind == "investment"
+                else entries_for(
+                    kind,
+                    account["id"],
+                    account["kind"],
+                    amount,
+                    target["id"] if target else None,
+                    target["kind"] if target else None,
+                    fee,
+                )
+            )
+            for entry in entries:
                 balances[entry.account_id] += entry.delta_fen
-                check_balance(balances[entry.account_id])
+                try:
+                    check_balance(balances[entry.account_id])
+                except RuleError as error:
+                    raise RuleError(
+                        str(error), item["id"], item["effective_date"], item["sequence"]
+                    ) from error
                 expected_entries[(item["id"], entry.account_id)] = entry.delta_fen
                 if persist:
                     connection.execute(
@@ -524,7 +544,7 @@ class Accounting:
         limit: int = 20,
         offset: int = 0,
     ) -> dict[str, Any]:
-        where = "effective_date>=:start AND effective_date<=:end"
+        where = "kind<>'investment' AND effective_date>=:start AND effective_date<=:end"
         params: dict[str, Any] = {"start": start, "end": end, "limit": limit, "offset": offset}
         if account_id:
             where += " AND (account_id=:account OR target_account_id=:account)"

@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { InvestmentAssets, InvestmentsPage } from "../src/investments-page";
 import { DailyOverview, DailyWorkspace } from "../src/daily";
 import { HistoryImport } from "../src/history-import";
 import { ReportsPage } from "../src/reports-page";
 import { useEffect, useState, type FormEvent } from "react";
 import { connect, request, raw, type Ledger, type Preview } from "../src/api";
 
-type Tab = "overview" | "accounts" | "journal" | "reports" | "data" | "plan";
+type Tab =
+  | "overview"
+  | "accounts"
+  | "journal"
+  | "reports"
+  | "investments"
+  | "data"
+  | "plan";
 const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
   ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
-  ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "当前阶段"],
-  ["M3", "投资资产", "A 股、ETF、基金与手动估值", "待开发"],
+  ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "已实现"],
+  ["M3", "投资资产", "期初、买卖／申赎与手动估值；分红后续开发", "基础闭环"],
 ];
 export default function Home() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -117,6 +125,7 @@ export default function Home() {
               ["accounts", "▣", "账户"],
               ["journal", "≡", "日常账本"],
               ["reports", "▥", "报表与预算"],
+              ["investments", "◈", "投资"],
               ["data", "▤", "数据管理"],
               ["plan", "◇", "开发计划"],
             ] as const
@@ -134,7 +143,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>日常账本版 · v0.6.1</small>
+          仅在本机运行<small>记账与投资版 · v0.7.0</small>
         </div>
       </aside>
       <div className="workspace">
@@ -147,6 +156,7 @@ export default function Home() {
                 accounts: "账户",
                 journal: "日常账本",
                 reports: "报表与预算",
+                investments: "投资",
                 data: "数据管理",
                 plan: "开发计划",
               }[tab]
@@ -167,6 +177,7 @@ export default function Home() {
                     accounts: "账户清楚，资金有序。",
                     journal: "把每一笔日常，记下来。",
                     reports: "看清收支，按需规划。",
+                    investments: "看清持仓，记录每次投资。",
                     data: "数据由你保管。",
                     plan: "一步一步，建立可靠的账本。",
                   }[tab]
@@ -180,13 +191,15 @@ export default function Home() {
                     journal: "记录收入支出，保留每次修改的依据。",
                     reports:
                       "按日、周、月、年查看收支；分类预算由你选择是否设置。",
+                    investments:
+                      "管理股票、ETF 与基金；现金、成本和手动估值各有依据。",
                     data: "可验证的备份，让换一台电脑也能继续记录。",
                     plan: "先验证数据可靠，再逐步开放记账与投资管理。",
                   }[tab]
                 }
               </p>
             </div>
-            <span className="phase">M2 · 历史迁移</span>
+            <span className="phase">M3 · 投资管理</span>
           </div>
           {error && (
             <div className="alert error" role="alert">
@@ -215,6 +228,7 @@ export default function Home() {
                 connected={available}
                 open={navigate}
               />
+              <InvestmentAssets key={dailyVersion} connected={available} />
               <section className="card details">
                 <div>
                   <span className="section-label">本地账本状态</span>
@@ -235,7 +249,7 @@ export default function Home() {
                   <code>{ledger?.directory ?? "连接后显示"}</code>
                 </div>
                 <p className="footnote">
-                  历史汇总在数据管理中预览导入，不反推账户余额；投资持仓尚未纳入。
+                  历史汇总不反推账户余额；持仓按手动价格估值，缺失部分单独提示。
                 </p>
               </section>
             </>
@@ -247,6 +261,15 @@ export default function Home() {
               available={available}
               changed={() => {
                 setDailyVersion((value) => value + 1);
+                void request<Ledger>("/ledger").then(setLedger);
+              }}
+            />
+          )}
+          {tab === "investments" && (
+            <InvestmentsPage
+              available={available}
+              changed={() => {
+                setDailyVersion((v) => v + 1);
                 void request<Ledger>("/ledger").then(setLedger);
               }}
             />

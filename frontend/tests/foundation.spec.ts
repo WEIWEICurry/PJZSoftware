@@ -629,6 +629,164 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.locator(".metric").filter({ hasText: "本月支出" }),
   ).toContainText("¥41.25");
 
+  // M3.1: real browser entry, lost response, exact cost, valuations and historical rollback.
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  await page.getByLabel("账户名称").fill("Synthetic investment cash");
+  await page.getByLabel("账户类型").selectOption("securities");
+  await page.getByLabel("期初余额（元）").fill("10000");
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Synthetic investment cash",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "投资", exact: true }).click();
+  const investmentAccountFilter = page
+    .locator(".investment-filters")
+    .getByRole("combobox", { name: "账户筛选", exact: true });
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: "Synthetic investment cash" }),
+  ).toHaveCount(1);
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: /我欠|欠我|Synthetic borrower/ }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "投资记录", exact: true }).click();
+  await expect(
+    investmentAccountFilter
+      .locator("option")
+      .filter({ hasText: /我欠|欠我|Synthetic borrower/ }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+  await page.getByLabel("六位代码").fill("600001");
+  await page.getByLabel("标的名称").fill("Synthetic stock");
+  await page.getByRole("button", { name: "添加标的", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("投资标的已添加");
+  await page.getByRole("button", { name: "记一笔投资", exact: true }).click();
+  const investmentForm = page.getByRole("region", { name: "投资记录表单" });
+  await investmentForm
+    .getByLabel("资金账户")
+    .selectOption({ label: "Synthetic investment cash · ¥10,000.00" });
+  await investmentForm
+    .getByLabel("投资标的")
+    .selectOption({ label: "Synthetic stock · 600001" });
+  await investmentForm.getByLabel("数量（份／股）").fill("100");
+  await investmentForm
+    .getByLabel("成交金额（元）", { exact: true })
+    .fill("1000");
+  await investmentForm.getByText("费用（选填）", { exact: true }).click();
+  await investmentForm.getByLabel("费用合计（元）").fill("5");
+  await expect(investmentForm).toContainText("本次扣款 ¥1,005.00");
+  let loseInvestment = true;
+  await page.route("**/api/v1/investments/trades", async (route) => {
+    if (route.request().method() === "POST" && loseInvestment) {
+      loseInvestment = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+  await expect(page.getByRole("status")).toContainText("投资记录已保存");
+  await page.unroute("**/api/v1/investments/trades");
+  async function investmentTrade(
+    action: string,
+    quantity: string,
+    value: string,
+    fee: string,
+    mode = "gross",
+  ) {
+    await page.getByRole("button", { name: "记一笔投资", exact: true }).click();
+    await investmentForm
+      .getByRole("combobox", { name: "操作", exact: true })
+      .selectOption(action);
+    await investmentForm
+      .getByLabel("资金账户")
+      .selectOption(
+        (await investmentForm
+          .getByLabel("资金账户")
+          .locator("option")
+          .filter({ hasText: "Synthetic investment cash" })
+          .getAttribute("value")) as string,
+      );
+    await investmentForm
+      .getByLabel("投资标的")
+      .selectOption({ label: "Synthetic stock · 600001" });
+    await investmentForm.getByLabel("数量（份／股）").fill(quantity);
+    await investmentForm.getByLabel("金额口径").selectOption(mode);
+    await investmentForm
+      .getByLabel(mode === "gross" ? "成交金额（元）" : "实际到账（元）", {
+        exact: true,
+      })
+      .fill(value);
+    await investmentForm.getByText("费用（选填）", { exact: true }).click();
+    await investmentForm.getByLabel("费用合计（元）").fill(fee);
+    await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+    await expect(page.getByRole("status")).toContainText("投资记录已保存");
+  }
+  await investmentTrade("buy", "100", "1200", "5");
+  await investmentTrade("sell", "50", "648", "2", "net");
+  const stockPrice = page
+    .locator(".investment-price-row")
+    .filter({ hasText: "Synthetic stock" });
+  await stockPrice.getByLabel("Synthetic stock价格").fill("13");
+  await stockPrice
+    .getByRole("button", { name: "保存价格", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("手动价格已保存");
+  await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  const holdingRow = page
+    .locator(".investment-table tbody tr")
+    .filter({ hasText: "Synthetic stock" });
+  await expect(holdingRow).toHaveCount(1);
+  await expect(holdingRow).toContainText("150");
+  await expect(holdingRow).toContainText("¥1,657.50");
+  await expect(holdingRow).toContainText("¥1,950.00");
+  await expect(holdingRow).toContainText("¥292.50");
+  await expect(
+    page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
+  ).toContainText("¥388.00");
+  await page.screenshot({
+    path: "test-results/investments.png",
+    fullPage: true,
+  });
+  await holdingRow.getByRole("button", { name: "查看明细" }).click();
+  await expect(page.locator(".investment-table tbody tr")).toHaveCount(3);
+  const firstBuy = page
+    .locator(".investment-table tbody tr")
+    .filter({ hasText: "¥1,000.00" });
+  await firstBuy.getByRole("button", { name: "修改", exact: true }).click();
+  await investmentForm.getByLabel("数量（份／股）").fill("10");
+  // The other 100 shares still cover a 50 share sale, so use zero whole shares to test validation.
+  await investmentForm.getByLabel("数量（份／股）").fill("0");
+  await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: /份额|填写内容/ }),
+  ).toBeVisible();
+  await investmentForm.getByRole("button", { name: "取消编辑" }).click();
+  await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+  await stockPrice.getByRole("button", { name: "作废该日价格" }).click();
+  await expect(page.getByRole("status")).toContainText("价格已作废");
+  await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  await expect(holdingRow).toContainText("待估值");
+  await page.reload();
+  await page.getByRole("button", { name: "投资", exact: true }).click();
+  await expect(holdingRow).toContainText("¥1,657.50");
+  await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+  await stockPrice.getByLabel("Synthetic stock价格").fill("13");
+  await stockPrice
+    .getByRole("button", { name: "保存价格", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("手动价格已保存");
+  await page.getByRole("button", { name: "总览", exact: true }).click();
+  await expect(page.locator(".investment-assets")).toContainText("¥1,950.00");
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载本地备份" }).click();

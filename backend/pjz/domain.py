@@ -8,7 +8,17 @@ MAX_FEN = 10**12
 
 
 class RuleError(ValueError):
-    pass
+    def __init__(
+        self,
+        code: str,
+        event_id: str | None = None,
+        effective_date: str | None = None,
+        sequence: int | None = None,
+    ) -> None:
+        super().__init__(code)
+        self.event_id = event_id
+        self.effective_date = effective_date
+        self.sequence = sequence
 
 
 @dataclass(frozen=True)

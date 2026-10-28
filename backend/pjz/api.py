@@ -27,6 +27,8 @@ from pjz.daily_api import router
 from pjz.domain import RuleError
 from pjz.history import HistoryImports
 from pjz.history_api import history_router
+from pjz.investment_api import investment_router
+from pjz.investments import Investments
 from pjz.report_api import report_router
 from pjz.reports import Reports
 from pjz.storage import MAX_PACKAGE, SCHEMA_VERSION, DataError, LedgerStore
@@ -129,7 +131,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.6.1",
+        version="0.7.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -219,8 +221,20 @@ def create_app(
             in ("REVISION_CONFLICT", "IDEMPOTENCY_CONFLICT", "RESOURCE_DELETED", "PREVIEW_EXPIRED")
             else 422
         )
-        return failure(code, status)
+        return JSONResponse(
+            {
+                "error": {
+                    "code": code,
+                    "message": code,
+                    "event_id": error.event_id,
+                    "effective_date": error.effective_date,
+                    "sequence": error.sequence,
+                }
+            },
+            status_code=status,
+        )
 
+    app.include_router(investment_router(Investments(Accounting(store.engine))))
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
     app.include_router(history_router(HistoryImports(Accounting(store.engine))))
     app.include_router(
@@ -249,7 +263,7 @@ def create_app(
             "directory": str(store.directory),
             "schema_version": SCHEMA_VERSION,
             "encrypted": False,
-            "stage": "M2",
+            "stage": "M3",
         }
 
     @app.put("/api/v1/ledger")
