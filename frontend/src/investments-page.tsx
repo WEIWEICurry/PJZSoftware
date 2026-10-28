@@ -15,7 +15,14 @@ type Account = components["schemas"]["AccountOutput"];
 type Trade = components["schemas"]["TradeOutput"];
 type Instrument = components["schemas"]["InstrumentInput"];
 const kinds = { stock: "股票", etf: "ETF", fund: "公募基金" };
-const actions = { opening: "期初持仓", buy: "买入／申购", sell: "卖出／赎回" };
+const actions = {
+  opening: "期初持仓",
+  buy: "买入／申购",
+  sell: "卖出／赎回",
+  cash_dividend: "现金分红",
+  reinvest: "基金分红再投",
+  split: "份额折算（拆分／合并）",
+};
 const amount = (value: string | null | undefined, fallback = "待核算") =>
   value == null ? fallback : money(value);
 const blank = () => ({
@@ -29,6 +36,8 @@ const blank = () => ({
   basis: "",
   amount_mode: "gross" as "gross" | "net",
   note: "",
+  cash_account_id: "",
+  split_from_quantity: "",
 });
 
 export function InvestmentAssets({ connected }: { connected: boolean }) {
@@ -205,6 +214,8 @@ export function InvestmentsPage({
         trade.cost_basis_fen === null ? "" : fenToYuan(trade.cost_basis_fen),
       amount_mode: "gross",
       note: trade.note,
+      cash_account_id: trade.cash_account_id ?? "",
+      split_from_quantity: trade.split_from_quantity ?? "",
     });
   }
   async function saveTrade(event: FormEvent) {
@@ -218,14 +229,27 @@ export function InvestmentsPage({
           instrument_id: form.instrument_id,
           action: form.action,
           effective_date: form.effective_date,
-          quantity: form.quantity.trim(),
-          amount_fen: form.action === "opening" ? "0" : yuanToFen(form.amount),
-          costs_fen: form.action === "opening" ? "0" : yuanToFen(form.costs),
+          quantity:
+            form.action === "cash_dividend" ? "0" : form.quantity.trim(),
+          amount_fen: ["opening", "split"].includes(form.action)
+            ? "0"
+            : yuanToFen(form.amount),
+          costs_fen: ["opening", "split", "cash_dividend"].includes(form.action)
+            ? "0"
+            : yuanToFen(form.costs),
           cost_basis_fen:
             form.action === "opening" && form.basis.trim()
               ? yuanToFen(form.basis)
               : null,
-          amount_mode: form.action === "opening" ? "gross" : form.amount_mode,
+          amount_mode: ["buy", "sell"].includes(form.action)
+            ? form.amount_mode
+            : "gross",
+          cash_account_id:
+            form.action === "cash_dividend" && form.cash_account_id
+              ? form.cash_account_id
+              : null,
+          split_from_quantity:
+            form.action === "split" ? form.split_from_quantity.trim() : null,
           note: form.note,
           ...(editing ? { revision: editing.revision } : {}),
         },
@@ -233,15 +257,49 @@ export function InvestmentsPage({
       setShowForm(false);
       setEditing(null);
       setForm(blank());
-      return "投资记录已保存，现金、持仓和后续成本已重新核算。";
+      return (
+        "投资记录已保存，现金、持仓和后续成本已重新核算。" +
+        (["cash_dividend", "reinvest", "split"].includes(form.action)
+          ? "请补录事件当日或之后的除息／折算后价格。"
+          : "")
+      );
+    });
+  }
+  const cashAccounts = accounts.filter(
+    (a) => !a.archived && a.kind !== "liability" && a.kind !== "receivable",
+  );
+  const heldQuantity = (account: string, asset: string) =>
+    page?.positions.find(
+      (p) => p.account_id === account && p.instrument_id === asset,
+    )?.quantity ?? "";
+  function changeAction(action: Trade["action"]) {
+    setForm({
+      ...form,
+      action,
+      quantity: action === "cash_dividend" ? "0" : "",
+      amount: "",
+      costs: "0.00",
+      basis: "",
+      amount_mode: "gross",
+      cash_account_id: "",
+      split_from_quantity:
+        action === "split"
+          ? heldQuantity(form.account_id, form.instrument_id)
+          : "",
     });
   }
   function cashPreview() {
     if (form.action === "opening")
       return "期初只建立持仓，不扣现金，不计收入。";
+    if (form.action === "split")
+      return `确认份额 ${form.split_from_quantity || "—"} → ${form.quantity || "—"}，总成本不变，现金不变；保存后需更新折算后价格。`;
     try {
       const input = BigInt(yuanToFen(form.amount));
       const fee = BigInt(yuanToFen(form.costs));
+      if (form.action === "cash_dividend")
+        return `实际净到账 ${money(input.toString())}，份额与总成本不变，只计投资分红。`;
+      if (form.action === "reinvest")
+        return `净分红 ${money(input.toString())} 再投，新增 ${form.quantity || "—"} 份；另扣现金费用 ${money(fee.toString())}，分红收益与成本同步记录。`;
       const net =
         form.amount_mode === "net"
           ? input
@@ -251,7 +309,6 @@ export function InvestmentsPage({
       return "填写金额和份额后可查看本次资金变化。";
     }
   }
-
   return (
     <div className="investment-workspace">
       {error && (
@@ -278,7 +335,9 @@ export function InvestmentsPage({
       </div>
       <p className="footnote">
         已实现卖出盈亏 {amount(page?.realized_fen, "—")}
-        ；已实现盈亏从录入期初之后计算，持仓盈亏按带入的总成本核算。手动价格可能来自不同日期。
+        ；现金分红 {amount(page?.cash_dividends_fen, "—")} · 再投分红{" "}
+        {amount(page?.reinvested_dividends_fen, "—")}
+        。已实现与分红从录入期初之后计算，持仓盈亏按带入成本核算，费用不重复扣除。手动价格可能来自不同日期。
         {!!page?.missing_price_count &&
           ` ${page.missing_price_count} 项待估值，市值仅为已知小计。`}
         {!!page?.unknown_cost_count &&
@@ -337,17 +396,26 @@ export function InvestmentsPage({
                   value={form.action}
                   disabled={!!editing}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      action: e.target.value as Trade["action"],
-                    })
+                    changeAction(e.target.value as Trade["action"])
                   }
                 >
-                  {Object.entries(actions).map(([id, label]) => (
-                    <option key={id} value={id}>
-                      {label}
-                    </option>
-                  ))}
+                  <optgroup label="买卖与期初">
+                    {(["opening", "buy", "sell"] as const).map((id) => (
+                      <option key={id} value={id}>
+                        {actions[id]}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="分红">
+                    {(["cash_dividend", "reinvest"] as const).map((id) => (
+                      <option key={id} value={id}>
+                        {actions[id]}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="更多：份额事件">
+                    <option value="split">{actions.split}</option>
+                  </optgroup>
                 </select>
               </label>
               <label>
@@ -357,22 +425,22 @@ export function InvestmentsPage({
                   value={form.account_id}
                   disabled={!!editing}
                   onChange={(e) =>
-                    setForm({ ...form, account_id: e.target.value })
+                    setForm({
+                      ...form,
+                      account_id: e.target.value,
+                      split_from_quantity:
+                        form.action === "split"
+                          ? heldQuantity(e.target.value, form.instrument_id)
+                          : form.split_from_quantity,
+                    })
                   }
                 >
                   <option value="">请选择账户</option>
-                  {accounts
-                    .filter(
-                      (a) =>
-                        !a.archived &&
-                        a.kind !== "liability" &&
-                        a.kind !== "receivable",
-                    )
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {money(a.balance_fen)}
-                      </option>
-                    ))}
+                  {cashAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {money(a.balance_fen)}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>
@@ -382,7 +450,14 @@ export function InvestmentsPage({
                   disabled={!!editing}
                   value={form.instrument_id}
                   onChange={(e) =>
-                    setForm({ ...form, instrument_id: e.target.value })
+                    setForm({
+                      ...form,
+                      instrument_id: e.target.value,
+                      split_from_quantity:
+                        form.action === "split"
+                          ? heldQuantity(form.account_id, e.target.value)
+                          : form.split_from_quantity,
+                    })
                   }
                 >
                   <option value="">请选择标的</option>
@@ -394,7 +469,13 @@ export function InvestmentsPage({
                 </select>
               </label>
               <label>
-                {form.action === "opening" ? "期初日期" : "成交／确认日期"}
+                {form.action === "opening"
+                  ? "期初日期"
+                  : form.action === "cash_dividend"
+                    ? "实际到账日期"
+                    : ["reinvest", "split"].includes(form.action)
+                      ? "确认日期"
+                      : "成交／确认日期"}
                 <input
                   type="date"
                   required
@@ -405,19 +486,59 @@ export function InvestmentsPage({
                   }
                 />
               </label>
-              <label>
-                数量（份／股）
-                <input
-                  required
-                  inputMode="decimal"
-                  placeholder="最多八位小数"
-                  value={form.quantity}
-                  onChange={(e) =>
-                    setForm({ ...form, quantity: e.target.value })
-                  }
-                />
-              </label>
-              {form.action === "opening" ? (
+              {form.action === "split" && (
+                <label>
+                  折算前份额（份／股）
+                  <input
+                    required
+                    inputMode="decimal"
+                    value={form.split_from_quantity}
+                    onChange={(e) =>
+                      setForm({ ...form, split_from_quantity: e.target.value })
+                    }
+                  />
+                  <small>
+                    必须与事件发生前的实际持仓一致，历史事件修改后会重新核对。
+                  </small>
+                </label>
+              )}
+              {form.action !== "cash_dividend" && (
+                <label>
+                  {form.action === "split"
+                    ? "折算后份额（份／股）"
+                    : form.action === "reinvest"
+                      ? "新增份额（份）"
+                      : "数量（份／股）"}
+                  <input
+                    required
+                    inputMode="decimal"
+                    placeholder="最多八位小数"
+                    value={form.quantity}
+                    onChange={(e) =>
+                      setForm({ ...form, quantity: e.target.value })
+                    }
+                  />
+                </label>
+              )}
+              {form.action === "cash_dividend" && (
+                <label>
+                  分红到账账户
+                  <select
+                    value={form.cash_account_id}
+                    onChange={(e) =>
+                      setForm({ ...form, cash_account_id: e.target.value })
+                    }
+                  >
+                    <option value="">同持仓资金账户</option>
+                    {cashAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {form.action === "opening" && (
                 <label>
                   剩余总成本（元，选填）
                   <input
@@ -433,66 +554,83 @@ export function InvestmentsPage({
                     当前持有份额对应的成本合计，不是每份成本价，也不是当前市值。未知可留空。
                   </small>
                 </label>
-              ) : (
-                <>
+              )}
+              {["buy", "sell"].includes(form.action) && (
+                <label>
+                  金额口径
+                  <select
+                    value={form.amount_mode}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        amount_mode: e.target.value as "gross" | "net",
+                      })
+                    }
+                  >
+                    <option value="gross">成交金额（不含费用）</option>
+                    <option value="net">实际扣款／到账（已含费用）</option>
+                  </select>
+                </label>
+              )}
+              {!["opening", "split"].includes(form.action) && (
+                <label>
+                  {form.action === "cash_dividend"
+                    ? "实际净到账（元）"
+                    : form.action === "reinvest"
+                      ? "再投分红金额（元）"
+                      : form.amount_mode === "gross"
+                        ? "成交金额（元）"
+                        : form.action === "buy"
+                          ? "实际扣款（元）"
+                          : "实际到账（元）"}
+                  <input
+                    required
+                    inputMode="decimal"
+                    value={form.amount}
+                    onChange={(e) =>
+                      setForm({ ...form, amount: e.target.value })
+                    }
+                  />
+                </label>
+              )}
+              {["buy", "sell", "reinvest"].includes(form.action) && (
+                <details
+                  className="investment-fees"
+                  open={!!editing && form.costs !== "0.00"}
+                >
+                  <summary>费用（选填）</summary>
                   <label>
-                    金额口径
-                    <select
-                      value={form.amount_mode}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          amount_mode: e.target.value as "gross" | "net",
-                        })
-                      }
-                    >
-                      <option value="gross">成交金额（不含费用）</option>
-                      <option value="net">实际扣款／到账（已含费用）</option>
-                    </select>
-                  </label>
-                  <label>
-                    {form.amount_mode === "gross"
-                      ? "成交金额（元）"
-                      : form.action === "buy"
-                        ? "实际扣款（元）"
-                        : "实际到账（元）"}
+                    {form.action === "reinvest"
+                      ? "另付费用（元）"
+                      : "费用合计（元）"}
                     <input
-                      inputMode="decimal"
                       required
-                      value={form.amount}
+                      inputMode="decimal"
+                      value={form.costs}
                       onChange={(e) =>
-                        setForm({ ...form, amount: e.target.value })
+                        setForm({ ...form, costs: e.target.value })
                       }
                     />
-                  </label>
-                  <details
-                    className="investment-fees"
-                    open={!!editing && form.costs !== "0.00"}
-                  >
-                    <summary>费用（选填）</summary>
-                    <label>
-                      费用合计（元）
-                      <input
-                        inputMode="decimal"
-                        required
-                        value={form.costs}
-                        onChange={(e) =>
-                          setForm({ ...form, costs: e.target.value })
-                        }
-                      />
-                      <small>
-                        {form.amount_mode === "net"
+                    <small>
+                      {form.action === "reinvest"
+                        ? "仅填另外从持仓资金账户扣除的费用；已在净分红中扣除的费用不要重复填写。"
+                        : form.amount_mode === "net"
                           ? "已含在实际金额中，此处只拆解，不再加扣。"
                           : "手续费、税费等合计，计入投资成本／净到账。"}
-                      </small>
-                    </label>
-                  </details>
-                </>
+                    </small>
+                  </label>
+                </details>
               )}
               <label className="investment-note">
-                备注
+                {form.action === "split" ? "折算依据（必填）" : "备注"}
                 <input
+                  required={form.action === "split"}
                   maxLength={500}
+                  placeholder={
+                    form.action === "split"
+                      ? "例如：平台确认的份额拆分记录"
+                      : ""
+                  }
                   value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })}
                 />
@@ -656,9 +794,11 @@ export function InvestmentsPage({
                       <td>
                         {p.price ?? "—"}
                         <small>
-                          {p.price_date
-                            ? `${p.price_date}${p.price_date < localDay() ? " · 非今日价格" : ""}`
-                            : "尚未录入价格"}
+                          {p.valuation_required_from && p.value_fen === null
+                            ? `事件后待更新（${p.valuation_required_from} 起）`
+                            : p.price_date
+                              ? `${p.price_date}${p.price_date < localDay() ? " · 非今日价格" : ""}`
+                              : "尚未录入价格"}
                         </small>
                       </td>
                       <td>
@@ -689,7 +829,9 @@ export function InvestmentsPage({
               {accountName(position.account_id)} · {position.quantity} 份／股 ·
               剩余成本 {amount(position.cost_fen, "待补")} · 已实现{" "}
               {money(position.realized_fen)} · 持仓盈亏{" "}
-              {amount(position.unrealized_fen)}
+              {amount(position.unrealized_fen)} · 现金分红{" "}
+              {amount(position.cash_dividends_fen)} · 再投分红{" "}
+              {amount(position.reinvested_dividends_fen)}
             </p>
           )}
           {detail && (
@@ -744,7 +886,7 @@ export function InvestmentsPage({
                     <th>日期／操作</th>
                     <th>标的／账户</th>
                     <th>数量</th>
-                    <th>成交金额／期初成本</th>
+                    <th>金额／期初成本</th>
                     <th>费用</th>
                     <th>备注／状态</th>
                     <th>操作</th>
@@ -759,16 +901,29 @@ export function InvestmentsPage({
                       </td>
                       <td>
                         {instrumentName(t.instrument_id)}
-                        <small>{accountName(t.account_id)}</small>
+                        <small>
+                          {accountName(t.account_id)}
+                          {t.action === "cash_dividend"
+                            ? ` · 到账：${accountName(t.cash_account_id || t.account_id)}`
+                            : ""}
+                        </small>
                       </td>
-                      <td>{t.quantity}</td>
                       <td>
-                        {amount(
-                          t.action === "opening"
-                            ? t.cost_basis_fen
-                            : t.gross_fen,
-                          "成本待补",
-                        )}
+                        {t.action === "cash_dividend"
+                          ? "—"
+                          : t.action === "split"
+                            ? `${t.split_from_quantity} → ${t.quantity}`
+                            : t.quantity}
+                      </td>
+                      <td>
+                        {t.action === "split"
+                          ? "—"
+                          : amount(
+                              t.action === "opening"
+                                ? t.cost_basis_fen
+                                : t.gross_fen,
+                              "成本待补",
+                            )}
                       </td>
                       <td>{money(t.costs_fen)}</td>
                       <td>
@@ -1017,8 +1172,7 @@ export function InvestmentsPage({
         </>
       )}
       <p className="footnote">
-        本阶段支持人民币股票、境内
-        ETF、公募基金的期初、买卖／申赎和手动估值；分红、再投及拆分后续增加。暂不支持的事件不要用普通收支替代。
+        支持期初、买卖／申赎、现金分红、公募基金分红再投及份额拆分／合并。分红和折算后请更新事件日或之后的除息／折算后价格，同日已有价格也需重新保存确认。不支持现金补差、送红股或自动税费计算。
       </p>
     </div>
   );

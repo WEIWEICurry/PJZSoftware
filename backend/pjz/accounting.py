@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import IntegrityError
 
-from pjz.domain import MAX_FEN, Entry, RuleError, check_balance, entries_for
+from pjz.domain import MAX_FEN, RuleError, check_balance, entries_for
 from pjz.history_domain import covered, event_amount, event_direction
 
 
@@ -496,7 +496,7 @@ class Accounting:
                 if refunded[original["id"]] > original["amount_fen"]:
                     raise RuleError("REFUND_EXCEEDS_EXPENSE")
             entries = (
-                [Entry(account["id"], investment_cash[item["id"]])]
+                investment_cash[item["id"]]
                 if kind == "investment"
                 else entries_for(
                     kind,

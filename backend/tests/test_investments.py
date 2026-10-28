@@ -418,7 +418,7 @@ def test_v5_upgrade_failure_backup_then_success(tmp_path, monkeypatch):
         assert not connection.execute(
             "SELECT name FROM sqlite_master WHERE name='instruments'"
         ).fetchall()
-    backups = list((directory / "backups").glob("before-v6-*"))
+    backups = list((directory / "backups").glob("before-v7-*"))
     assert len(backups) == 1
     assert inspect_backup(backups[0].read_bytes())
     monkeypatch.setattr(command, "upgrade", original)

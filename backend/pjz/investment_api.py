@@ -1,11 +1,13 @@
 """Local authenticated investment endpoints; exact decimal strings on the wire."""
 
+from __future__ import annotations
+
 from datetime import date
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pjz.daily_api import (
     CreatedOutput,
@@ -18,6 +20,8 @@ from pjz.daily_api import (
 )
 from pjz.investment_domain import decimal_value
 from pjz.investments import Investments
+
+InvestmentAction = Literal["opening", "buy", "sell", "cash_dividend", "reinvest", "split"]
 
 
 class InstrumentInput(NamedInput):
@@ -35,7 +39,7 @@ class InstrumentOutput(InstrumentInput):
 class TradeInput(StrictInput):
     account_id: UUID
     instrument_id: UUID
-    action: Literal["opening", "buy", "sell"]
+    action: InvestmentAction
     effective_date: date
     quantity: str = Field(max_length=21)
     amount_fen: Fen = "0"
@@ -43,6 +47,8 @@ class TradeInput(StrictInput):
     cost_basis_fen: Fen | None = None
     amount_mode: Literal["gross", "net"] = "gross"
     note: str = Field(default="", max_length=500)
+    cash_account_id: UUID | None = None
+    split_from_quantity: str | None = Field(default=None, max_length=21)
 
     @field_validator("effective_date")
     @classmethod
@@ -52,8 +58,25 @@ class TradeInput(StrictInput):
     @field_validator("quantity")
     @classmethod
     def units(cls, value: str) -> str:
-        decimal_value(value)
+        if value != "0":
+            decimal_value(value)
         return value
+
+    @model_validator(mode="after")
+    def event_fields(self) -> TradeInput:
+        if (self.action == "cash_dividend") != (self.quantity == "0"):
+            raise ValueError("Dividend has no units; other events require positive units")
+        if self.cash_account_id and self.action != "cash_dividend":
+            raise ValueError("Only cash distributions have a receiving account")
+        if self.action == "split":
+            if not self.split_from_quantity or not self.note.strip():
+                raise ValueError("Confirmed old units and evidence required")
+            decimal_value(self.split_from_quantity)
+        elif self.split_from_quantity is not None:
+            raise ValueError("Old units only apply to a unit conversion")
+        if self.action not in ("buy", "sell") and self.amount_mode != "gross":
+            raise ValueError("Net amount mode only applies to purchases and sales")
+        return self
 
     @field_validator("amount_fen", "costs_fen", "cost_basis_fen")
     @classmethod
@@ -72,7 +95,7 @@ class TradeOutput(BaseModel):
     id: str
     account_id: str
     instrument_id: str
-    action: Literal["opening", "buy", "sell"]
+    action: InvestmentAction
     effective_date: str
     sequence: int
     quantity: str
@@ -82,6 +105,8 @@ class TradeOutput(BaseModel):
     note: str
     status: Literal["active", "void"]
     revision: int
+    cash_account_id: str | None
+    split_from_quantity: str | None
 
 
 class PriceInput(StrictInput):
@@ -119,6 +144,9 @@ class PositionOutput(BaseModel):
     share_bps: str | None
     price: str | None
     price_date: str | None
+    cash_dividends_fen: str
+    reinvested_dividends_fen: str
+    valuation_required_from: str | None
 
 
 class InvestmentPage(BaseModel):
@@ -134,6 +162,8 @@ class InvestmentPage(BaseModel):
     total_profit_fen: str | None
     known_net_fen: str
     net_fen: str | None
+    cash_dividends_fen: str
+    reinvested_dividends_fen: str
 
 
 def investment_router(service: Investments) -> APIRouter:

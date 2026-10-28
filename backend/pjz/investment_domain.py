@@ -49,16 +49,32 @@ class Position:
     quantity: Decimal = Decimal(0)
     cost: int | None = 0
     realized: int = 0
+    cash_dividends: int = 0
+    reinvested_dividends: int = 0
+    valuation_required_from: str | None = None
+    valuation_required_at: str | None = None
     started: bool = False
 
-    def apply(self, action: str, quantity: str, gross: int, fee: int, cost: int | None) -> int:
-        units = decimal_value(quantity)
+    def apply(
+        self,
+        action: str,
+        quantity: str,
+        gross: int,
+        fee: int,
+        cost: int | None,
+        split_from: str | None = None,
+    ) -> int:
+        units = (
+            Decimal(0) if action == "cash_dividend" and quantity == "0" else decimal_value(quantity)
+        )
         if any(type(v) is not int or not 0 <= v <= MAX_FEN for v in (gross, fee)):
             raise RuleError("INVALID_AMOUNT")
         if cost is not None and (type(cost) is not int or not 0 <= cost <= MAX_FEN):
             raise RuleError("INVALID_AMOUNT")
         with localcontext() as context:
             context.prec = 64
+            if action != "split" and split_from is not None:
+                raise RuleError("INVALID_EVENT_FIELDS")
             if action == "opening":
                 if self.started or gross or fee:
                     raise RuleError("INVESTMENT_OPENING_ORDER")
@@ -88,6 +104,32 @@ class Position:
                 self.cost -= allocated
                 self.realized += cash - allocated
                 self.quantity -= units
+            elif action == "cash_dividend":
+                if not self.started:
+                    raise RuleError("INVESTMENT_HISTORY_REQUIRED")
+                if units != 0 or gross <= 0 or fee or cost is not None:
+                    raise RuleError("INVALID_EVENT_FIELDS")
+                self.cash_dividends += gross
+                cash = gross
+            elif action == "reinvest":
+                if not self.started:
+                    raise RuleError("INVESTMENT_HISTORY_REQUIRED")
+                if gross <= 0 or cost is not None:
+                    raise RuleError("INVALID_EVENT_FIELDS")
+                self.reinvested_dividends += gross
+                if self.cost is not None:
+                    self.cost += gross + fee
+                self.quantity += units
+                cash = -fee
+            elif action == "split":
+                if not self.started or self.quantity <= 0:
+                    raise RuleError("INVESTMENT_HISTORY_REQUIRED")
+                if split_from is None or decimal_value(split_from) != self.quantity:
+                    raise RuleError("INVESTMENT_SPLIT_MISMATCH")
+                if gross or fee or cost is not None or units == self.quantity:
+                    raise RuleError("INVALID_EVENT_FIELDS")
+                self.quantity = units
+                cash = 0
             else:
                 raise RuleError("INVALID_EVENT")
             self.started = True
@@ -97,9 +139,21 @@ class Position:
                 raise RuleError("AMOUNT_OUT_OF_RANGE")
             if abs(self.realized) > MAX_FEN:
                 raise RuleError("AMOUNT_OUT_OF_RANGE")
+            if self.cash_dividends + self.reinvested_dividends > MAX_FEN:
+                raise RuleError("AMOUNT_OUT_OF_RANGE")
             return cash
 
     def market_value(self, price: str) -> int:
         with localcontext() as context:
             context.prec = 64
             return rounded(self.quantity * decimal_value(price) * 100)
+
+    def price_is_usable(self, price_date: str, updated_at: str) -> bool:
+        return (
+            self.valuation_required_from is None
+            or price_date > self.valuation_required_from
+            or (
+                price_date == self.valuation_required_from
+                and (self.valuation_required_at is None or updated_at >= self.valuation_required_at)
+            )
+        )

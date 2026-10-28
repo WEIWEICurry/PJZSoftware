@@ -5,12 +5,13 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Connection, text
 
 from pjz.accounting import Accounting, fetch_all, now
-from pjz.domain import RuleError
+from pjz.domain import Entry, RuleError
 from pjz.investment_domain import Position, decimal_text, decimal_value, holding_share_bps
 
 
@@ -19,8 +20,11 @@ class Investments:
         self.accounting = accounting
 
     @staticmethod
-    def replay(connection: Connection) -> tuple[dict[tuple[str, str], Position], dict[str, int]]:
-        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() < 6:
+    def replay(
+        connection: Connection,
+    ) -> tuple[dict[tuple[str, str], Position], dict[str, list[Entry]]]:
+        version = connection.exec_driver_sql("PRAGMA user_version").scalar_one()
+        if version < 6:
             return {}, {}
         instruments = {r["id"]: r for r in fetch_all(connection, "SELECT * FROM instruments")}
         for item in instruments.values():
@@ -32,10 +36,16 @@ class Investments:
             decimal_value(item["price"])
             if date.fromisoformat(item["price_date"]) > date.today():
                 raise RuleError("FUTURE_DATE")
+        extra = (
+            ",i.cash_account_id,i.split_from_quantity"
+            if version >= 7
+            else ",NULL AS cash_account_id,NULL AS split_from_quantity"
+        )
+        accounts = {r["id"]: r for r in fetch_all(connection, "SELECT * FROM accounts")}
         rows = fetch_all(
             connection,
             "SELECT f.*,i.instrument_id,i.action,i.quantity,i.gross_fen,i.costs_fen,"
-            "i.cost_basis_fen,a.kind AS account_kind FROM financial_events f "
+            "i.cost_basis_fen,a.kind AS account_kind" + extra + " FROM financial_events f "
             "JOIN investment_events i ON i.event_id=f.id JOIN accounts a ON a.id=f.account_id "
             "ORDER BY f.effective_date,f.sequence,f.id",
         )
@@ -48,7 +58,7 @@ class Investments:
         if expected != {r["id"] for r in rows}:
             raise RuleError("INVESTMENT_INVALID_FACTS")
         positions: dict[tuple[str, str], Position] = {}
-        cash: dict[str, int] = {}
+        cash: dict[str, list[Entry]] = {}
         for row in rows:
             if row["kind"] != "investment" or row["account_kind"] in ("liability", "receivable"):
                 raise RuleError("INVESTMENT_INVALID_FACTS")
@@ -63,7 +73,13 @@ class Investments:
                 )
             ):
                 raise RuleError("INVESTMENT_INVALID_FACTS")
-            units = decimal_value(row["quantity"])
+            units = decimal_value(row["quantity"]) if row["quantity"] != "0" else Decimal(0)
+            if row["action"] == "reinvest" and instruments[row["instrument_id"]]["kind"] != "fund":
+                raise RuleError("INVESTMENT_REINVEST_FUND_ONLY")
+            if row["action"] == "split" and not row["note"].strip():
+                raise RuleError("INVESTMENT_SPLIT_EVIDENCE_REQUIRED")
+            if row["cash_account_id"] is not None and row["action"] != "cash_dividend":
+                raise RuleError("INVALID_EVENT_FIELDS")
             if (
                 instruments[row["instrument_id"]]["kind"] != "fund"
                 and units != units.to_integral_value()
@@ -74,26 +90,42 @@ class Investments:
             key = (row["account_id"], row["instrument_id"])
             position = positions.setdefault(key, Position())
             try:
-                cash[row["id"]] = position.apply(
+                delta = position.apply(
                     row["action"],
                     row["quantity"],
                     row["gross_fen"],
                     row["costs_fen"],
                     row["cost_basis_fen"],
+                    row["split_from_quantity"],
                 )
+                receiving_id = row["cash_account_id"] or row["account_id"]
+                receiving = accounts[receiving_id]
+                if receiving["kind"] in ("liability", "receivable"):
+                    raise RuleError("CASH_ACCOUNT_REQUIRED")
+                if row["effective_date"] < receiving["opening_date"]:
+                    raise RuleError("BEFORE_OPENING")
+                cash[row["id"]] = [Entry(receiving_id, delta)]
+                if row["action"] in ("cash_dividend", "reinvest", "split"):
+                    position.valuation_required_at = (
+                        max(position.valuation_required_at or "", row["updated_at"])
+                        if position.valuation_required_from == row["effective_date"]
+                        else row["updated_at"]
+                    )
+                    position.valuation_required_from = row["effective_date"]
             except RuleError as error:
                 raise RuleError(
                     str(error), row["id"], row["effective_date"], row["sequence"]
                 ) from error
         # A price or later quantity change must not commit an unrenderable valuation.
-        latest_prices: dict[str, str] = {}
+        latest_prices: dict[str, dict[str, Any]] = {}
         for valuation in fetch_all(
             connection, "SELECT * FROM valuations WHERE status='active' ORDER BY price_date DESC"
         ):
-            latest_prices.setdefault(valuation["instrument_id"], valuation["price"])
+            latest_prices.setdefault(valuation["instrument_id"], valuation)
         for (_, instrument_id), position in positions.items():
-            if instrument_id in latest_prices:
-                position.market_value(latest_prices[instrument_id])
+            price = latest_prices.get(instrument_id)
+            if price and position.price_is_usable(price["price_date"], price["updated_at"]):
+                position.market_value(price["price"])
         return positions, cash
 
     def instrument(self, payload: dict[str, Any], key: str) -> dict[str, Any]:
@@ -114,11 +146,18 @@ class Investments:
 
         return self.accounting.command(key, "instrument", payload, action)
 
+    def ensure_receiving_writable(self, connection: Connection, payload: dict[str, Any]) -> None:
+        if payload.get("cash_account_id"):
+            self.accounting.ensure_writable_accounts(
+                connection, {"account_id": payload["cash_account_id"]}
+            )
+
     def trade(
         self, payload: dict[str, Any], key: str, identifier: str | None = None
     ) -> dict[str, Any]:
         def action(connection: Connection) -> dict[str, Any]:
             self.accounting.ensure_writable_accounts(connection, payload)
+            self.ensure_receiving_writable(connection, payload)
             before = None
             if identifier:
                 rows = fetch_all(
@@ -135,6 +174,7 @@ class Investments:
                     raise RuleError("REVISION_CONFLICT")
                 before = rows[0]
                 self.accounting.ensure_writable_accounts(connection, before)
+                self.ensure_receiving_writable(connection, before)
                 # Identity stays stable; correction changes amounts, date or note.
                 if any(payload[k] != before[k] for k in ("account_id", "instrument_id", "action")):
                     raise RuleError("INVESTMENT_IDENTITY_IMMUTABLE")
@@ -167,13 +207,13 @@ class Investments:
                 )["id"]
             gross = int(payload["amount_fen"])
             fee = int(payload["costs_fen"])
-            if payload["amount_mode"] == "net":
+            if payload["amount_mode"] == "net" and payload["action"] in ("buy", "sell"):
                 gross += -fee if payload["action"] == "buy" else fee
             basis = payload["cost_basis_fen"]
             connection.execute(
                 text(
                     "INSERT INTO investment_events VALUES "
-                    "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis)"
+                    "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis,:cash_account,:split_from)"
                 ),
                 {
                     **payload,
@@ -181,6 +221,8 @@ class Investments:
                     "gross": gross,
                     "fee": fee,
                     "basis": None if basis is None else int(basis),
+                    "cash_account": payload.get("cash_account_id"),
+                    "split_from": payload.get("split_from_quantity"),
                 },
             )
             self.accounting.audit(
@@ -204,6 +246,10 @@ class Investments:
             if not rows or rows[0]["status"] != "active" or rows[0]["revision"] != revision:
                 raise RuleError("REVISION_CONFLICT")
             self.accounting.ensure_writable_accounts(connection, rows[0])
+            child = fetch_all(
+                connection, "SELECT * FROM investment_events WHERE event_id=:id", {"id": identifier}
+            )[0]
+            self.ensure_receiving_writable(connection, child)
             connection.execute(
                 text(
                     "UPDATE financial_events SET "
@@ -277,12 +323,19 @@ class Investments:
             unknown_cost = 0
             realized = 0
             unrealized = 0
+            cash_dividends = 0
+            reinvested_dividends = 0
             for (account_id, instrument_id), position in positions.items():
                 price = latest.get(instrument_id)
+                usable = price is not None and position.price_is_usable(
+                    price["price_date"], price["updated_at"]
+                )
                 value = (
-                    position.market_value(price["price"])
-                    if price
-                    else (0 if not position.quantity else None)
+                    0
+                    if not position.quantity
+                    else position.market_value(price["price"])
+                    if usable and price
+                    else None
                 )
                 profit = (
                     value - position.cost
@@ -293,6 +346,8 @@ class Investments:
                 missing += int(value is None)
                 unknown_cost += int(position.cost is None)
                 realized += position.realized
+                cash_dividends += position.cash_dividends
+                reinvested_dividends += position.reinvested_dividends
                 unrealized += profit or 0
                 items.append(
                     {
@@ -305,6 +360,9 @@ class Investments:
                         "unrealized_fen": None if profit is None else str(profit),
                         "price": price["price"] if price else None,
                         "price_date": price["price_date"] if price else None,
+                        "cash_dividends_fen": str(position.cash_dividends),
+                        "reinvested_dividends_fen": str(position.reinvested_dividends),
+                        "valuation_required_from": position.valuation_required_from,
                     }
                 )
             for item in items:
@@ -337,8 +395,12 @@ class Investments:
                 "missing_price_count": missing,
                 "unknown_cost_count": unknown_cost,
                 "realized_fen": str(realized),
+                "cash_dividends_fen": str(cash_dividends),
+                "reinvested_dividends_fen": str(reinvested_dividends),
                 "unrealized_fen": None if missing or unknown_cost else str(unrealized),
-                "total_profit_fen": None if missing or unknown_cost else str(realized + unrealized),
+                "total_profit_fen": None
+                if missing or unknown_cost
+                else str(realized + cash_dividends + reinvested_dividends + unrealized),
                 "known_net_fen": str(net + total),
                 "net_fen": None if missing else str(net + total),
             }

@@ -787,6 +787,165 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(page.getByRole("status")).toContainText("手动价格已保存");
   await page.getByRole("button", { name: "总览", exact: true }).click();
   await expect(page.locator(".investment-assets")).toContainText("¥1,950.00");
+  // M3.2 uses only synthetic fund data; every distribution stays outside daily income.
+  await page.getByRole("button", { name: "投资", exact: true }).click();
+  await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+  await page.getByLabel("标的类型").selectOption("fund");
+  await page.getByLabel("六位代码").fill("000001");
+  await page.getByLabel("标的名称").fill("Synthetic distribution fund");
+  await page.getByRole("button", { name: "添加标的", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("投资标的已添加");
+  async function beginFundEvent(action: string) {
+    await page.getByRole("button", { name: "记一笔投资", exact: true }).click();
+    await investmentForm
+      .getByRole("combobox", { name: "操作", exact: true })
+      .selectOption(action);
+    await investmentForm
+      .getByRole("combobox", { name: "资金账户", exact: true })
+      .selectOption(
+        (await investmentForm
+          .getByRole("combobox", { name: "资金账户", exact: true })
+          .locator("option")
+          .filter({ hasText: "Synthetic investment cash" })
+          .getAttribute("value")) as string,
+      );
+    await investmentForm
+      .getByLabel("投资标的")
+      .selectOption({ label: "Synthetic distribution fund · 000001" });
+  }
+  async function saveFundEvent() {
+    await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+    await expect(page.getByRole("status")).toContainText("投资记录已保存");
+  }
+  await beginFundEvent("opening");
+  await investmentForm.getByLabel("数量（份／股）").fill("1000");
+  await investmentForm.getByLabel("剩余总成本（元，选填）").fill("2100");
+  await saveFundEvent();
+  const fundPrice = page
+    .locator(".investment-price-row")
+    .filter({ hasText: "Synthetic distribution fund" });
+  const previousPriceDay = await page.evaluate(() => {
+    const day = new Date();
+    day.setDate(day.getDate() - 1);
+    return [
+      day.getFullYear(),
+      String(day.getMonth() + 1).padStart(2, "0"),
+      String(day.getDate()).padStart(2, "0"),
+    ].join("-");
+  });
+  await page.getByLabel("价格／净值日期").fill(previousPriceDay);
+  await fundPrice.getByLabel("Synthetic distribution fund价格").fill("2.1");
+  await fundPrice
+    .getByRole("button", { name: "保存价格", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("手动价格已保存");
+  await beginFundEvent("cash_dividend");
+  await investmentForm.getByLabel("实际净到账（元）").fill("100");
+  await expect(investmentForm.getByLabel("数量（份／股）")).toHaveCount(0);
+  let loseDividend = true;
+  await page.route("**/api/v1/investments/trades", async (route) => {
+    if (
+      route.request().method() === "POST" &&
+      route.request().postDataJSON().action === "cash_dividend" &&
+      loseDividend
+    ) {
+      loseDividend = false;
+      await route.fetch();
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "fetch" }),
+  ).toBeVisible();
+  await saveFundEvent();
+  await page.unroute("**/api/v1/investments/trades");
+  await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  const fundHolding = page
+    .locator(".investment-table tbody tr")
+    .filter({ hasText: "Synthetic distribution fund" });
+  await expect(fundHolding).toContainText("事件后待更新");
+  await expect(fundHolding).toContainText("待估值");
+  async function updateFundPrice(value: string) {
+    await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+    await page.getByLabel("价格／净值日期").fill(today);
+    await fundPrice.getByLabel("Synthetic distribution fund价格").fill(value);
+    await fundPrice
+      .getByRole("button", { name: "保存价格", exact: true })
+      .click();
+    await expect(page.getByRole("status")).toContainText("手动价格已保存");
+    await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  }
+  await updateFundPrice("2");
+  await expect(fundHolding).toContainText("¥2,000.00");
+  await expect(
+    page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
+  ).toContainText("¥388.00");
+  await fundHolding.getByRole("button", { name: "查看明细" }).click();
+  const dividendRow = page
+    .locator(".investment-table tbody tr")
+    .filter({ hasText: "现金分红" });
+  await expect(dividendRow).toHaveCount(1);
+  await dividendRow.getByRole("button", { name: "作废", exact: true }).click();
+  await page.getByRole("button", { name: "确认作废投资", exact: true }).click();
+  await expect(dividendRow).toContainText("已作废");
+  await beginFundEvent("reinvest");
+  await investmentForm.getByLabel("新增份额（份）").fill("50");
+  await investmentForm.getByLabel("再投分红金额（元）").fill("100");
+  await investmentForm.getByText("费用（选填）", { exact: true }).click();
+  await investmentForm.getByLabel("另付费用（元）").fill("2");
+  await saveFundEvent();
+  await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  await expect(fundHolding).toContainText("1050");
+  await expect(fundHolding).toContainText("¥2,202.00");
+  await expect(fundHolding).toContainText("事件后待更新");
+  await updateFundPrice("2");
+  await expect(
+    page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
+  ).toContainText("¥386.00");
+  await fundHolding.getByRole("button", { name: "查看明细" }).click();
+  const reinvestRow = page
+    .locator(".investment-table tbody tr")
+    .filter({ hasText: "基金分红再投" });
+  await reinvestRow.getByRole("button", { name: "修改", exact: true }).click();
+  await expect(investmentForm.getByLabel("新增份额（份）")).toHaveValue("50");
+  await investmentForm
+    .getByLabel("备注", { exact: true })
+    .fill("Synthetic confirmed reinvestment");
+  await saveFundEvent();
+  await expect(reinvestRow).toContainText("Synthetic confirmed reinvestment");
+  await beginFundEvent("split");
+  await expect(investmentForm.getByLabel("折算前份额（份／股）")).toHaveValue(
+    "1050",
+  );
+  await investmentForm.getByLabel("折算后份额（份／股）").fill("2100");
+  await investmentForm
+    .getByLabel("折算依据（必填）")
+    .fill("Synthetic confirmed 2:1 split");
+  await saveFundEvent();
+  await page.getByRole("button", { name: "我的持仓", exact: true }).click();
+  await expect(fundHolding).toContainText("2100");
+  await expect(fundHolding).toContainText("事件后待更新");
+  await updateFundPrice("1");
+  await expect(fundHolding).toContainText("¥2,100.00");
+  await expect(fundHolding).toContainText("¥2,202.00");
+  await expect(
+    page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
+  ).toContainText("¥386.00");
+  await page.screenshot({
+    path: "test-results/investment-distributions.png",
+    fullPage: true,
+  });
+  await fundHolding.getByRole("button", { name: "查看明细" }).click();
+  await expect(
+    page.locator(".investment-table tbody tr").filter({ hasText: "份额折算" }),
+  ).toContainText("1050 → 2100");
+  await reinvestRow.getByRole("button", { name: "作废", exact: true }).click();
+  await page.getByRole("button", { name: "确认作废投资", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "折算前份额" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "取消作废", exact: true }).click();
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
   const businessDownloadEvent = page.waitForEvent("download");
   await page.getByRole("button", { name: "下载本地备份" }).click();

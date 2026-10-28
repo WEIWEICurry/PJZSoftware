@@ -11,6 +11,16 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  INVESTMENT_HISTORY_REQUIRED:
+    "该账户标的还没有有效持仓历史，请先录入期初或买入；折算还需要当前有持仓。",
+  INVESTMENT_REINVEST_FUND_ONLY:
+    "分红再投仅支持公募基金，股票送红股请勿用再投代替。",
+  INVESTMENT_SPLIT_MISMATCH:
+    "折算前份额与该事件之前的持仓不一致，请核对日期、先后顺序和前后份额。",
+  INVESTMENT_SPLIT_EVIDENCE_REQUIRED:
+    "请填写平台确认的折算依据，不以任意改份额替代交易。",
+  INVALID_EVENT_FIELDS:
+    "这类投资事件的金额、费用或份额组合不正确，请按对应操作填写。",
   INVESTMENT_WHOLE_SHARES_REQUIRED:
     "股票和 ETF 数量应为整数股／份，基金允许最多八位小数。",
   INVESTMENT_INVALID_DECIMAL:
