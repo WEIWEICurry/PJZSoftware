@@ -11,6 +11,13 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  NAV_DISABLED: "请主动启用本次联网查询。",
+  NAV_INVALID_RANGE: "请选择截至今天且不超过 366 天的日期范围。",
+  NAV_FUND_ONLY: "联网净值目前仅支持公募基金。",
+  NAV_SOURCE_UNAVAILABLE:
+    "净值数据源暂不可用或返回异常，请稍后重试；本地数据未改变。",
+  NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
+
   INVESTMENT_REPORT_INVALID_PERIOD:
     "请选择有效的投资报表期间，起始日期不能晚于结束日期。",
   INVESTMENT_REPORT_INVALID_FILTER:

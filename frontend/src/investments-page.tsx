@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
+import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
 import {
@@ -977,6 +978,13 @@ export function InvestmentsPage({
       )}
       {section === "prices" && (
         <>
+          <FundNavPanel
+            instruments={page?.instruments ?? []}
+            saved={async () => {
+              setPage(await request<Page>("/investments"));
+              changed();
+            }}
+          />
           <section className="card panel">
             <h2>手动估值</h2>
             <label className="investment-price-date">

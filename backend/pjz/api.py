@@ -25,6 +25,7 @@ from pjz.accounting import Accounting
 from pjz.budgets import Budgets
 from pjz.daily_api import router
 from pjz.domain import RuleError
+from pjz.fund_nav import nav_router
 from pjz.history import HistoryImports
 from pjz.history_api import history_router
 from pjz.investment_api import investment_router
@@ -133,7 +134,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.10.0",
+        version="0.11.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -236,6 +237,7 @@ def create_app(
             status_code=status,
         )
 
+    app.include_router(nav_router(Accounting(store.engine)))
     app.include_router(investment_router(Investments(Accounting(store.engine))))
     app.include_router(investment_report_router(InvestmentReports(Accounting(store.engine))))
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
