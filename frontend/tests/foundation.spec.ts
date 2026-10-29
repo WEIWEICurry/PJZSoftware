@@ -947,6 +947,32 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.getByRole("alert").filter({ hasText: "折算前份额" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "取消作废", exact: true }).click();
+  // NAV requests are simulated; the browser never calls an external provider.
+  await page.getByRole("button", { name: "标的与估值", exact: true }).click();
+  const navPanel = page.getByRole("region", { name: "联网基金净值" });
+  await expect(navPanel.getByRole("checkbox")).not.toBeChecked();
+  await page.route("**/api/v1/fund-nav/preview", (route) =>
+    route.fulfill({
+      json: {
+        token: "synthetic-preview",
+        source: "Synthetic source",
+        fetched_at: "2026-01-01T00:00:00Z",
+        rows: [{ price_date: "2026-01-20", price: "1.2345", exists: false }],
+      },
+    }),
+  );
+  await page.route("**/api/v1/fund-nav/import", (route) =>
+    route.fulfill({ json: { imported: 1, skipped: 0 } }),
+  );
+  await navPanel.getByRole("checkbox").check();
+  await navPanel
+    .getByLabel("查询基金")
+    .selectOption({ label: "Synthetic distribution fund · 000001" });
+  await navPanel.getByRole("button", { name: "获取净值预览" }).click();
+  await expect(navPanel.getByRole("table")).toContainText("1.2345");
+  await navPanel.getByRole("button", { name: "确认导入净值" }).click();
+  await expect(navPanel).toContainText("已导入 1 条");
+  await navPanel.getByRole("checkbox").uncheck();
   // M3.3: actual investment reports and allocation are read-only, with four scoped CSVs.
   await page.getByRole("button", { name: "投资报表", exact: true }).click();
   const performance = page.getByRole("region", {

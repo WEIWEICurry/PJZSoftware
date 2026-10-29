@@ -146,7 +146,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>记账与投资版 · v0.10.0</small>
+          仅在本机运行<small>记账与投资版 · v0.11.0</small>
         </div>
       </aside>
       <div className="workspace">

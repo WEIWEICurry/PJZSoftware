@@ -228,6 +228,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fund-nav/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Nav */
+        post: operations["import_nav_api_v1_fund_nav_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fund-nav/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_fund_nav_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/history/batches": {
         parameters: {
             query?: never;
@@ -1508,6 +1542,61 @@ export interface components {
              */
             note: string;
         };
+        /** NavImport */
+        NavImport: {
+            /** Token */
+            token: string;
+        };
+        /** NavImported */
+        NavImported: {
+            /** Imported */
+            imported: number;
+            /** Skipped */
+            skipped: number;
+        };
+        /** NavPreview */
+        NavPreview: {
+            /** Fetched At */
+            fetched_at: string;
+            /** Rows */
+            rows: components["schemas"]["NavRow"][];
+            /** Source */
+            source: string;
+            /** Token */
+            token: string;
+        };
+        /** NavQuery */
+        NavQuery: {
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+        };
+        /** NavRow */
+        NavRow: {
+            /** Exists */
+            exists: boolean;
+            /** Price */
+            price: string;
+            /** Price Date */
+            price_date: string;
+        };
         /** NoteSuggestion */
         NoteSuggestion: {
             /** Count */
@@ -2453,6 +2542,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_nav_api_v1_fund_nav_import_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NavImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NavImported"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_fund_nav_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NavQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NavPreview"];
                 };
             };
             /** @description Validation Error */
