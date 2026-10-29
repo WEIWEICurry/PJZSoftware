@@ -63,4 +63,4 @@ M0 建立 CI 后运行：前端格式／lint／typecheck／测试／静态构建
 ### M3 分段交付
 
 M3.1（0.7.0）：期初持仓、买卖／申赎、费用、手动价格、持仓和资产总览、历史纠错、迁移与备份恢复。验收见 docs/13-investments.md。
-M3.2（0.8.0）：现金分红、分红再投、拆分／合并，验收见 docs/14-investment-distributions.md；M3.3 第一阶段（0.9.0）：投资期间构成、当前配置及四类 CSV，验收见 docs/15-investment-reports.md；历史快照与完整期间绩效留待下一阶段。M3.1 通过不表示整个 M3 已完成。
+M3.2（0.8.0）：现金分红、分红再投、拆分／合并，验收见 docs/14-investment-distributions.md；M3.3 第一阶段（0.9.0）：投资期间构成、当前配置及四类 CSV，验收见 docs/15-investment-reports.md；M3.3 第二阶段（0.10.0）增加历史边界与期间总盈亏，验收见 docs/16-investment-performance.md；收益率与曲线仍待后续。M3.1 通过不表示整个 M3 已完成。

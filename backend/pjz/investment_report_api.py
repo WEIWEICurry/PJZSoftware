@@ -74,12 +74,43 @@ class InvestmentCurrentAllocation(BaseModel):
     groups: list[InvestmentAllocationGroup]
 
 
+class HistoricalPosition(BaseModel):
+    account_id: str
+    account_name: str
+    instrument_id: str
+    instrument_name: str
+    code: str
+    quantity: str
+    cost_fen: str | None
+    value_fen: str | None
+    price_date: str | None
+    status: Literal["ready", "missing_boundary_price", "event_requires_confirmation"]
+
+
+class InvestmentBoundary(BaseModel):
+    as_of_date: str
+    value_fen: str | None
+    known_value_fen: str
+    missing_price_count: int
+    positions: list[HistoricalPosition]
+
+
+class InvestmentPerformance(BaseModel):
+    beginning: InvestmentBoundary
+    ending: InvestmentBoundary
+    cash_delta_fen: str
+    total_profit_fen: str | None
+    status: Literal["ready", "missing_boundary_price", "opening_during_period"]
+    opening_count: int
+
+
 class InvestmentReportOutput(BaseModel):
     period: InvestmentPeriod
     start: str
     end: str
     requested_end: str
     ledger_revision: int
+    performance: InvestmentPerformance
     totals: InvestmentPeriodTotals
     contributions: list[InvestmentContribution]
     current_allocation: InvestmentCurrentAllocation

@@ -1052,6 +1052,90 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HistoricalPosition": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_name": {
+            "title": "Account Name",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "cost_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Fen"
+          },
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "instrument_name": {
+            "title": "Instrument Name",
+            "type": "string"
+          },
+          "price_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Date"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "missing_boundary_price",
+              "event_requires_confirmation"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Fen"
+          }
+        },
+        "required": [
+          "account_id",
+          "account_name",
+          "instrument_id",
+          "instrument_name",
+          "code",
+          "quantity",
+          "cost_fen",
+          "value_fen",
+          "price_date",
+          "status"
+        ],
+        "title": "HistoricalPosition",
+        "type": "object"
+      },
       "HistoryPreview": {
         "properties": {
           "action": {
@@ -1424,6 +1508,49 @@
         "title": "InvestmentAllocationGroup",
         "type": "object"
       },
+      "InvestmentBoundary": {
+        "properties": {
+          "as_of_date": {
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "known_value_fen": {
+            "title": "Known Value Fen",
+            "type": "string"
+          },
+          "missing_price_count": {
+            "title": "Missing Price Count",
+            "type": "integer"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/HistoricalPosition"
+            },
+            "title": "Positions",
+            "type": "array"
+          },
+          "value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Fen"
+          }
+        },
+        "required": [
+          "as_of_date",
+          "value_fen",
+          "known_value_fen",
+          "missing_price_count",
+          "positions"
+        ],
+        "title": "InvestmentBoundary",
+        "type": "object"
+      },
       "InvestmentContribution": {
         "properties": {
           "buy_outflow_fen": {
@@ -1664,6 +1791,54 @@
           "reinvested_dividends_fen"
         ],
         "title": "InvestmentPage",
+        "type": "object"
+      },
+      "InvestmentPerformance": {
+        "properties": {
+          "beginning": {
+            "$ref": "#/components/schemas/InvestmentBoundary"
+          },
+          "cash_delta_fen": {
+            "title": "Cash Delta Fen",
+            "type": "string"
+          },
+          "ending": {
+            "$ref": "#/components/schemas/InvestmentBoundary"
+          },
+          "opening_count": {
+            "title": "Opening Count",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "missing_boundary_price",
+              "opening_during_period"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "total_profit_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Profit Fen"
+          }
+        },
+        "required": [
+          "beginning",
+          "ending",
+          "cash_delta_fen",
+          "total_profit_fen",
+          "status",
+          "opening_count"
+        ],
+        "title": "InvestmentPerformance",
         "type": "object"
       },
       "InvestmentPeriodTotals": {
@@ -1964,6 +2139,9 @@
             "title": "Ledger Revision",
             "type": "integer"
           },
+          "performance": {
+            "$ref": "#/components/schemas/InvestmentPerformance"
+          },
           "period": {
             "enum": [
               "month",
@@ -1991,6 +2169,7 @@
           "end",
           "requested_end",
           "ledger_revision",
+          "performance",
           "totals",
           "contributions",
           "current_allocation",
@@ -3380,7 +3559,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "openapi": "3.1.0",
   "paths": {
