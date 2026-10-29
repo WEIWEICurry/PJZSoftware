@@ -280,6 +280,12 @@ def run() -> None:
         assert investment_report["totals"]["cash_delta_fen"] == "9443"
         assert investment_report["totals"]["realized_and_dividends_fen"] == "20145"
         assert investment_report["current_allocation"]["known_value_fen"] == "210650"
+        assert investment_report["performance"]["status"] == "opening_during_period"
+        assert investment_report["performance"]["beginning"]["value_fen"] == "0"
+        assert investment_report["performance"]["ending"]["value_fen"] is None
+        assert investment_report["performance"]["total_profit_fen"] is None
+        empty_report = report_service.get({"period": "month", "anchor": date(2025, 1, 1)})
+        assert empty_report["performance"]["total_profit_fen"] == "0"
         before_export = store.metadata()["revision"]
         for dataset in ("report", "trades", "positions", "valuations"):
             exported = report_service.export(dataset, query, True)

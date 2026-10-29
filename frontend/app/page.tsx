@@ -22,7 +22,7 @@ const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
   ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
   ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "已实现"],
-  ["M3", "投资资产", "期间构成、当前配置和导出；历史绩效后续", "当前阶段"],
+  ["M3", "投资资产", "期间总盈亏、边界持仓、配置与导出", "当前阶段"],
 ];
 export default function Home() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -146,7 +146,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>记账与投资版 · v0.9.0</small>
+          仅在本机运行<small>记账与投资版 · v0.10.0</small>
         </div>
       </aside>
       <div className="workspace">

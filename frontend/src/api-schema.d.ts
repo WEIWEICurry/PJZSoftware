@@ -1040,6 +1040,32 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HistoricalPosition */
+        HistoricalPosition: {
+            /** Account Id */
+            account_id: string;
+            /** Account Name */
+            account_name: string;
+            /** Code */
+            code: string;
+            /** Cost Fen */
+            cost_fen: string | null;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Instrument Name */
+            instrument_name: string;
+            /** Price Date */
+            price_date: string | null;
+            /** Quantity */
+            quantity: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "missing_boundary_price" | "event_requires_confirmation";
+            /** Value Fen */
+            value_fen: string | null;
+        };
         /** HistoryPreview */
         HistoryPreview: {
             /**
@@ -1176,6 +1202,19 @@ export interface components {
             /** Value Fen */
             value_fen: string | null;
         };
+        /** InvestmentBoundary */
+        InvestmentBoundary: {
+            /** As Of Date */
+            as_of_date: string;
+            /** Known Value Fen */
+            known_value_fen: string;
+            /** Missing Price Count */
+            missing_price_count: number;
+            /** Positions */
+            positions: components["schemas"]["HistoricalPosition"][];
+            /** Value Fen */
+            value_fen: string | null;
+        };
         /** InvestmentContribution */
         InvestmentContribution: {
             /** Buy Outflow Fen */
@@ -1255,6 +1294,22 @@ export interface components {
             unrealized_fen: string | null;
             /** Valuations */
             valuations: components["schemas"]["PriceOutput"][];
+        };
+        /** InvestmentPerformance */
+        InvestmentPerformance: {
+            beginning: components["schemas"]["InvestmentBoundary"];
+            /** Cash Delta Fen */
+            cash_delta_fen: string;
+            ending: components["schemas"]["InvestmentBoundary"];
+            /** Opening Count */
+            opening_count: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ready" | "missing_boundary_price" | "opening_during_period";
+            /** Total Profit Fen */
+            total_profit_fen: string | null;
         };
         /** InvestmentPeriodTotals */
         InvestmentPeriodTotals: {
@@ -1358,6 +1413,7 @@ export interface components {
             instruments: components["schemas"]["InstrumentOutput"][];
             /** Ledger Revision */
             ledger_revision: number;
+            performance: components["schemas"]["InvestmentPerformance"];
             /**
              * Period
              * @enum {string}

@@ -132,3 +132,14 @@ def current_allocation(
             r["id"],
         ),
     )
+
+
+def boundary_profit(
+    beginning: str | None, ending: str | None, cash: int, opening_count: int
+) -> tuple[str, str | None]:
+    """Market values plus external investment cash; never substitute historical cost."""
+    if opening_count:
+        return "opening_during_period", None
+    if beginning is None or ending is None:
+        return "missing_boundary_price", None
+    return "ready", str(int(ending) - int(beginning) + cash)

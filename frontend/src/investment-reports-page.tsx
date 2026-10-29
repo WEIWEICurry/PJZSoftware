@@ -280,6 +280,99 @@ export function InvestmentReportsPage({ available }: { available: boolean }) {
             · 有效记录 {data.totals.record_count} 条 · 账本版本{" "}
             {data.ledger_revision}
           </p>
+          <section className="card panel" aria-label="期间总盈亏与边界持仓">
+            <h2>期间总盈亏</h2>
+            <div className="stat-grid">
+              <div className="card metric">
+                <span>期初持仓市值</span>
+                <strong>{value(data.performance.beginning.value_fen)}</strong>
+              </div>
+              <div className="card metric">
+                <span>期末持仓市值</span>
+                <strong>{value(data.performance.ending.value_fen)}</strong>
+              </div>
+              <div className="card metric">
+                <span>期间总盈亏</span>
+                <strong>{value(data.performance.total_profit_fen)}</strong>
+              </div>
+            </div>
+            <p className="footnote">
+              期间总盈亏＝期末市值－期初市值＋投资现金净变动{" "}
+              {money(data.performance.cash_delta_fen)}
+              。包含持仓市值变化及分红，费用已计入；不含账户现金余额与普通转账。
+            </p>
+            {data.performance.status === "opening_during_period" && (
+              <p className="alert">
+                期间有 {data.performance.opening_count}{" "}
+                条期初持仓记录，缺少注入时的市值，暂不能计算总盈亏。请选择这些期初记录之后的开始日期；剩余成本不能代替市值。
+              </p>
+            )}
+            {data.performance.status === "missing_boundary_price" && (
+              <p className="alert">
+                边界日期估值不齐全，期间总盈亏暂未知。请到投资资产中补录下表所需日期的手动价格；周末也不自动沿用旧价。
+              </p>
+            )}
+            <p className="footnote">
+              按当前有效记录重建历史，后补或修订会重算。以下只显示当时未清仓持仓，非当时冻结的报表。
+            </p>
+            {(
+              [
+                ["期初", data.performance.beginning],
+                ["期末", data.performance.ending],
+              ] as const
+            ).map(([label, boundary]) => (
+              <details key={label} open>
+                <summary>
+                  {label}持仓 · {boundary.as_of_date || "起始日之前"} · 缺估值{" "}
+                  {boundary.missing_price_count} 项 · 已知市值{" "}
+                  {money(boundary.known_value_fen)}
+                </summary>
+                {!boundary.positions.length ? (
+                  <p className="empty-state">当时没有持仓，市值为零。</p>
+                ) : (
+                  <div className="table-scroll">
+                    <table
+                      className="investment-table"
+                      aria-label={label + "边界持仓"}
+                    >
+                      <thead>
+                        <tr>
+                          <th>标的／账户</th>
+                          <th>份额</th>
+                          <th>剩余成本</th>
+                          <th>市值</th>
+                          <th>价格日期／状态</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {boundary.positions.map((p) => (
+                          <tr key={p.account_id + p.instrument_id}>
+                            <td>
+                              {p.instrument_name} · {p.code}
+                              <small>{p.account_name}</small>
+                            </td>
+                            <td>{p.quantity}</td>
+                            <td>{value(p.cost_fen)}</td>
+                            <td>{value(p.value_fen)}</td>
+                            <td>
+                              {p.price_date || "无价格"}
+                              <small>
+                                {p.status === "ready"
+                                  ? "边界估值已确认"
+                                  : p.status === "event_requires_confirmation"
+                                    ? "请重新确认事件后当日价格"
+                                    : `需补录 ${boundary.as_of_date} 价格`}
+                              </small>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </details>
+            ))}
+          </section>
           <div className="stat-grid">
             {[
               ["买入实际扣款", data.totals.buy_outflow_fen],
@@ -568,7 +661,7 @@ export function InvestmentReportsPage({ available }: { available: boolean }) {
             </div>
           </section>
           <p className="footnote">
-            本阶段不计算完整期间总盈亏、年化收益率、回撤或历史收益曲线；不把当前累计盈亏当成本期收益，不做基金穿透分析。CSV
+            本阶段不计算年化收益率、回撤或历史收益曲线；期间总盈亏仅在边界估值齐全且无期初注入时计算，不做基金穿透分析。CSV
             用于核对，完整迁移仍使用账本备份。
           </p>
         </>

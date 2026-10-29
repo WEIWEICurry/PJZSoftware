@@ -949,6 +949,15 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.getByRole("button", { name: "取消作废", exact: true }).click();
   // M3.3: actual investment reports and allocation are read-only, with four scoped CSVs.
   await page.getByRole("button", { name: "投资报表", exact: true }).click();
+  const performance = page.getByRole("region", {
+    name: "期间总盈亏与边界持仓",
+  });
+  await expect(
+    performance.getByRole("heading", { name: "期间总盈亏" }),
+  ).toBeVisible();
+  await expect(performance).toContainText("期初持仓记录");
+  await expect(performance).toContainText("期末持仓");
+
   const investmentReports = page.locator(".investment-report-page");
   await expect(
     investmentReports.locator(".metric").filter({ hasText: "买入实际扣款" }),
@@ -1019,6 +1028,18 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     investmentReports.locator(".metric").filter({ hasText: "已计入费用" }),
   ).toContainText("¥2.00");
   await expect(allocation.getByRole("table")).toContainText("51.85%");
+  await investmentReports
+    .getByRole("combobox", { name: "投资标的筛选", exact: true })
+    .selectOption({ label: "Synthetic stock · 600001" });
+  await expect(
+    performance.locator(".metric").filter({ hasText: "期间总盈亏" }),
+  ).toContainText("¥388.00");
+  await expect(
+    performance.getByRole("table", { name: "期末边界持仓" }),
+  ).toContainText("150");
+  await investmentReports
+    .getByRole("combobox", { name: "投资标的筛选", exact: true })
+    .selectOption({ label: "Synthetic distribution fund · 000001" });
   for (const label of [
     "期间报表 CSV",
     "投资记录 CSV",

@@ -11,6 +11,7 @@ from sqlalchemy import Connection, text
 
 from pjz.accounting import Accounting
 from pjz.domain import RuleError
+from pjz.investment_performance import period_performance
 from pjz.investment_report_domain import (
     ACTION_LABELS,
     KIND_LABELS,
@@ -167,6 +168,9 @@ class InvestmentReports:
             "end": last.isoformat(),
             "requested_end": requested_end.isoformat(),
             "ledger_revision": connection.execute(text("SELECT revision FROM ledger")).scalar_one(),
+            "performance": period_performance(
+                self.investments, connection, first, last, matches, active, accounts, assets
+            ),
             "totals": period_totals(active),
             "contributions": contributions,
             "current_allocation": {
@@ -248,6 +252,31 @@ class InvestmentReports:
                         item["record_count"],
                         *[yuan(item[k]) for k in METRIC_KEYS],
                         *[item[k] for k in METRIC_KEYS],
+                    ]
+                )
+            perf = result["performance"]
+            headers += [
+                "期初边界",
+                "期初市值（分）",
+                "期末边界",
+                "期末市值（分）",
+                "期间总盈亏（分）",
+                "期间盈亏状态",
+                "期间期初记录数",
+            ]
+            for row in rows:
+                if row[6] != "期间汇总":
+                    row.extend([None] * 7)
+                    continue
+                row.extend(
+                    [
+                        perf["beginning"]["as_of_date"],
+                        perf["beginning"]["value_fen"],
+                        perf["ending"]["as_of_date"],
+                        perf["ending"]["value_fen"],
+                        perf["total_profit_fen"],
+                        perf["status"],
+                        perf["opening_count"],
                     ]
                 )
         elif dataset == "trades":

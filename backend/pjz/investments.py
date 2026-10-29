@@ -22,6 +22,7 @@ class Investments:
     @staticmethod
     def replay_details(
         connection: Connection,
+        as_of: str | None = None,
     ) -> tuple[dict[tuple[str, str], Position], dict[str, list[Entry]], dict[str, dict[str, Any]]]:
         version = connection.exec_driver_sql("PRAGMA user_version").scalar_one()
         if version < 6:
@@ -61,6 +62,8 @@ class Investments:
         cash: dict[str, list[Entry]] = {}
         effects: dict[str, dict[str, Any]] = {}
         for row in rows:
+            if as_of is not None and row["effective_date"] > as_of:
+                continue
             if row["kind"] != "investment" or row["account_kind"] in ("liability", "receivable"):
                 raise RuleError("INVESTMENT_INVALID_FACTS")
             if any(
@@ -132,7 +135,10 @@ class Investments:
         # A price or later quantity change must not commit an unrenderable valuation.
         latest_prices: dict[str, dict[str, Any]] = {}
         for valuation in fetch_all(
-            connection, "SELECT * FROM valuations WHERE status='active' ORDER BY price_date DESC"
+            connection,
+            "SELECT * FROM valuations WHERE status='active' "
+            "AND (:as_of IS NULL OR price_date<=:as_of) ORDER BY price_date DESC",
+            {"as_of": as_of},
         ):
             latest_prices.setdefault(valuation["instrument_id"], valuation)
         for (_, instrument_id), position in positions.items():
@@ -331,12 +337,20 @@ class Investments:
             return self.snapshot(connection)
 
     def snapshot(
-        self, connection: Connection, positions: dict[tuple[str, str], Position] | None = None
+        self,
+        connection: Connection,
+        positions: dict[tuple[str, str], Position] | None = None,
+        as_of: str | None = None,
     ) -> dict[str, Any]:
         if positions is None:
-            positions, _ = self.replay(connection)
+            positions, _, _ = self.replay_details(connection, as_of)
         instruments = fetch_all(connection, "SELECT * FROM instruments ORDER BY kind,market,code")
-        prices = fetch_all(connection, "SELECT * FROM valuations ORDER BY price_date DESC,id")
+        prices = fetch_all(
+            connection,
+            "SELECT * FROM valuations "
+            "WHERE (:as_of IS NULL OR price_date<=:as_of) ORDER BY price_date DESC,id",
+            {"as_of": as_of},
+        )
         latest: dict[str, dict[str, Any]] = {}
         for valuation in prices:
             if valuation["status"] == "active":
