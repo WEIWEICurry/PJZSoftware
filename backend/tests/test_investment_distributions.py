@@ -501,7 +501,7 @@ def test_v6_upgrade_failure_and_restore_preserve_legacy_trades(tmp_path, monkeyp
         assert "cash_account_id" not in {
             r[1] for r in connection.execute("PRAGMA table_info(investment_events)")
         }
-    backup = next((directory / "backups").glob("before-v7-*"))
+    backup = next((directory / "backups").glob("before-v9-*"))
     assert inspect_backup(backup.read_bytes())
     monkeypatch.setattr(command, "upgrade", original)
     store = LedgerStore(directory)

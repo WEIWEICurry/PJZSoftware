@@ -32,6 +32,7 @@ from pjz.investment_api import investment_router
 from pjz.investment_report_api import investment_report_router
 from pjz.investment_reports import InvestmentReports
 from pjz.investments import Investments
+from pjz.recurring import recurring_router
 from pjz.report_api import report_router
 from pjz.reports import Reports
 from pjz.storage import MAX_PACKAGE, SCHEMA_VERSION, DataError, LedgerStore
@@ -134,7 +135,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.11.2",
+        version="0.13.0",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -237,6 +238,7 @@ def create_app(
             status_code=status,
         )
 
+    app.include_router(recurring_router(Accounting(store.engine)))
     app.include_router(nav_router(Accounting(store.engine)))
     app.include_router(investment_router(Investments(Accounting(store.engine))))
     app.include_router(investment_report_router(InvestmentReports(Accounting(store.engine))))

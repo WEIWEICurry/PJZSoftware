@@ -11,6 +11,7 @@ import urllib.request
 import uuid
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import uvicorn
 from filelock import FileLock, Timeout
@@ -332,9 +333,107 @@ def run() -> None:
             )
             with urllib.request.urlopen(request, timeout=5) as response:
                 cookie = response.headers["Set-Cookie"].split(";")[0]
+                csrf = json.load(response)["csrf_token"]
             request = urllib.request.Request(origin + "/api/v1/ledger", headers={"Cookie": cookie})
             with urllib.request.urlopen(request, timeout=5) as response:
                 assert json.load(response)["name"] == "Synthetic acceptance ledger"
+
+            def post_local(
+                path: str, value: dict[str, Any], method: str = "POST"
+            ) -> dict[str, Any]:
+                req = urllib.request.Request(
+                    origin + "/api/v1" + path,
+                    data=json.dumps(value).encode(),
+                    method=method,
+                    headers={
+                        "Cookie": cookie,
+                        "Origin": origin,
+                        "X-CSRF-Token": csrf,
+                        "Idempotency-Key": str(uuid.uuid4()),
+                        "Content-Type": "application/json",
+                    },
+                )
+                with urllib.request.urlopen(req, timeout=10) as result:
+                    return dict(json.load(result))
+
+            recurring = post_local(
+                "/recurring",
+                {
+                    "name": "Synthetic recurring probe",
+                    "account_id": account["id"],
+                    "instrument_id": fund,
+                    "start_date": "2026-01-31",
+                    "frequency": "daily",
+                    "amount_fen": "1000",
+                    "costs_fen": "1",
+                },
+            )
+            assert (
+                post_local(
+                    "/recurring/" + recurring["id"] + "/generate",
+                    {"start": "2026-01-31", "end": "2026-01-31"},
+                )["count"]
+                == 1
+            )
+            req = urllib.request.Request(
+                origin
+                + "/api/v1/recurring/"
+                + recurring["id"]
+                + "/drafts?start=2026-01-31&end=2026-01-31",
+                headers={"Cookie": cookie},
+            )
+            with urllib.request.urlopen(req, timeout=5) as result:
+                draft = json.load(result)[0]
+            assert investments.page() == investment_result
+            assert (
+                post_local(
+                    "/recurring/review",
+                    {
+                        "rows": [
+                            {
+                                "id": draft["id"],
+                                "revision": 1,
+                                "decision": "confirm",
+                                "confirmation_date": "2026-01-31",
+                                "nav_date": "2026-01-31",
+                                "quantity": "1",
+                                "amount_fen": "1000",
+                                "costs_fen": "1",
+                            }
+                        ]
+                    },
+                )["count"]
+                == 1
+            )
+            latest_fund = next(
+                p for p in investments.page()["positions"] if p["instrument_id"] == fund
+            )
+            assert latest_fund["quantity"] == "2101" and latest_fund["cost_fen"] == "221200"
+            after_confirm = investments.page()
+            managed = post_local(
+                "/recurring/" + recurring["id"],
+                {
+                    "name": "Synthetic edited plan",
+                    "account_id": account["id"],
+                    "instrument_id": fund,
+                    "start_date": "2026-01-31",
+                    "frequency": "daily",
+                    "weekday": 0,
+                    "amount_fen": "2000",
+                    "costs_fen": "1",
+                    "revision": 1,
+                },
+                "PUT",
+            )
+            assert managed["revision"] == 2 and managed["confirmed_count"] == 1
+            post_local("/recurring/" + recurring["id"] + "/pause", {"revision": 2, "paused": True})
+            post_local("/recurring/" + recurring["id"] + "/delete", {"revision": 3})
+            with urllib.request.urlopen(
+                urllib.request.Request(origin + "/api/v1/recurring", headers={"Cookie": cookie}),
+                timeout=5,
+            ) as result:
+                assert json.load(result) == []
+            assert investments.page() == after_confirm
             lock = FileLock(directory / "probe.lock")
             with lock:
                 try:

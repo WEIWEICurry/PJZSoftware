@@ -518,6 +518,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Plans */
+        get: operations["plans_api_v1_recurring_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_api_v1_recurring_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review */
+        post: operations["review_api_v1_recurring_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change */
+        put: operations["change_api_v1_recurring__identifier__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{identifier}/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete */
+        post: operations["delete_api_v1_recurring__identifier__delete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{identifier}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Drafts */
+        get: operations["drafts_api_v1_recurring__identifier__drafts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{identifier}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate */
+        post: operations["generate_api_v1_recurring__identifier__generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{identifier}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pause */
+        post: operations["pause_api_v1_recurring__identifier__pause_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/reports": {
         parameters: {
             query?: never;
@@ -905,6 +1025,11 @@ export interface components {
             /** Ledger Revision */
             ledger_revision: number;
         };
+        /** CountOutput */
+        CountOutput: {
+            /** Count */
+            count: number;
+        };
         /** CreatedOutput */
         CreatedOutput: {
             /** Id */
@@ -957,6 +1082,38 @@ export interface components {
             refund_count: number;
             /** Transfer Count */
             transfer_count: number;
+        };
+        /** DraftOutput */
+        DraftOutput: {
+            /** Amount Fen */
+            amount_fen: string;
+            /** Costs Fen */
+            costs_fen: string;
+            /** Effective Date */
+            effective_date: string | null;
+            /** Event Id */
+            event_id: string | null;
+            /** Event Status */
+            event_status: string | null;
+            /** Id */
+            id: string;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Nav Price */
+            nav_price: string | null;
+            /** Plan Id */
+            plan_id: string;
+            /** Quantity */
+            quantity: string | null;
+            /** Revision */
+            revision: number;
+            /** Scheduled Date */
+            scheduled_date: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "skipped" | "confirmed";
         };
         /** EventChange */
         EventChange: {
@@ -1604,6 +1761,155 @@ export interface components {
             /** Note */
             note: string;
         };
+        /** PauseInput */
+        PauseInput: {
+            /** Paused */
+            paused: boolean;
+            /** Revision */
+            revision: number;
+        };
+        /** PlanChange */
+        PlanChange: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** Amount Fen */
+            amount_fen: string;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Frequency
+             * @default weekdays
+             * @enum {string}
+             */
+            frequency: "daily" | "weekdays" | "weekly";
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Weekday
+             * @default 0
+             */
+            weekday: number;
+        };
+        /** PlanInput */
+        PlanInput: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** Amount Fen */
+            amount_fen: string;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Frequency
+             * @default weekdays
+             * @enum {string}
+             */
+            frequency: "daily" | "weekdays" | "weekly";
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Weekday
+             * @default 0
+             */
+            weekday: number;
+        };
+        /** PlanOutput */
+        PlanOutput: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /** Amount Fen */
+            amount_fen: string;
+            /**
+             * Confirmed Count
+             * @default 0
+             */
+            confirmed_count: number;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Deleted
+             * @default false
+             */
+            deleted: boolean;
+            /**
+             * Frequency
+             * @default weekdays
+             * @enum {string}
+             */
+            frequency: "daily" | "weekdays" | "weekly";
+            /**
+             * Has Drafts
+             * @default false
+             */
+            has_drafts: boolean;
+            /** Id */
+            id: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Name */
+            name: string;
+            /** Paused */
+            paused: boolean;
+            /**
+             * Pending Count
+             * @default 0
+             */
+            pending_count: number;
+            /** Revision */
+            revision: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Weekday
+             * @default 0
+             */
+            weekday: number;
+        };
         /** PositionOutput */
         PositionOutput: {
             /** Account Id */
@@ -1690,6 +1996,19 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "void";
+        };
+        /** RangeInput */
+        RangeInput: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
         };
         /** RenameInput */
         RenameInput: {
@@ -1821,6 +2140,50 @@ export interface components {
         RestoreInput: {
             /** Preview Token */
             preview_token: string;
+        };
+        /** ReviewInput */
+        ReviewInput: {
+            /**
+             * Allow Possible Duplicate
+             * @default false
+             */
+            allow_possible_duplicate: boolean;
+            /** Rows */
+            rows: components["schemas"]["ReviewRow"][];
+        };
+        /** ReviewRow */
+        ReviewRow: {
+            /**
+             * Amount Fen
+             * @default 0
+             */
+            amount_fen: string;
+            /** Confirmation Date */
+            confirmation_date?: string | null;
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirm" | "skip";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nav Date */
+            nav_date?: string | null;
+            /**
+             * Quantity
+             * @default 0
+             */
+            quantity: string;
+            /** Revision */
+            revision: number;
         };
         /** RevisionInput */
         RevisionInput: {
@@ -3131,6 +3494,289 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    plans_api_v1_recurring_get: {
+        parameters: {
+            query?: {
+                include_deleted?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOutput"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_api_v1_recurring_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_api_v1_recurring_review_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_api_v1_recurring__identifier__put: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_api_v1_recurring__identifier__delete_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevisionInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    drafts_api_v1_recurring__identifier__drafts_get: {
+        parameters: {
+            query: {
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DraftOutput"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_api_v1_recurring__identifier__generate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RangeInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pause_api_v1_recurring__identifier__pause_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PauseInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CountOutput"];
                 };
             };
             /** @description Validation Error */
