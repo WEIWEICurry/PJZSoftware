@@ -1661,6 +1661,8 @@ export interface components {
         };
         /** PriceOutput */
         PriceOutput: {
+            /** Fetched At */
+            fetched_at: string | null;
             /** Id */
             id: string;
             /**
@@ -1680,6 +1682,8 @@ export interface components {
              * @default 0
              */
             revision: number;
+            /** Source Label */
+            source_label: string;
             /**
              * Status
              * @default active

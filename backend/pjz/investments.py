@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import uuid
 from datetime import date
@@ -351,6 +352,31 @@ class Investments:
             "WHERE (:as_of IS NULL OR price_date<=:as_of) ORDER BY price_date DESC,id",
             {"as_of": as_of},
         )
+        provenance: dict[str, dict[str, Any]] = {}
+        for audit in fetch_all(
+            connection,
+            "SELECT r.entity_id,r.operation,r.after_json FROM operation_revisions r "
+            "JOIN valuations v ON v.id=r.entity_id "
+            "WHERE r.operation IN ('import_public_nav','save_valuation')",
+        ):
+            entry = provenance.setdefault(audit["entity_id"], {})
+            if audit["operation"] == "import_public_nav":
+                entry["import"] = json.loads(audit["after_json"])
+            else:
+                entry["manual"] = True
+        for valuation in prices:
+            evidence = provenance.get(valuation["id"], {})
+            imported = evidence.get("import")
+            valuation["source_label"] = (
+                "手动维护（原联网导入 · 天天基金）"
+                if imported and evidence.get("manual")
+                else "联网导入 · 天天基金"
+                if imported
+                else "手动录入"
+                if evidence.get("manual")
+                else "来源未知"
+            )
+            valuation["fetched_at"] = imported.get("fetched_at") if imported else None
         latest: dict[str, dict[str, Any]] = {}
         for valuation in prices:
             if valuation["status"] == "active":

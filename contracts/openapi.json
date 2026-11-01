@@ -2697,6 +2697,17 @@
       },
       "PriceOutput": {
         "properties": {
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2722,6 +2733,10 @@
             "title": "Revision",
             "type": "integer"
           },
+          "source_label": {
+            "title": "Source Label",
+            "type": "string"
+          },
           "status": {
             "default": "active",
             "enum": [
@@ -2736,6 +2751,8 @@
           "instrument_id",
           "price_date",
           "price",
+          "source_label",
+          "fetched_at",
           "id"
         ],
         "title": "PriceOutput",
@@ -3677,7 +3694,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.11.1"
+    "version": "0.11.2"
   },
   "openapi": "3.1.0",
   "paths": {

@@ -1071,7 +1071,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     "期间报表 CSV",
     "投资记录 CSV",
     "当前持仓 CSV",
-    "手动估值 CSV（含作废）",
+    "估值记录 CSV（含作废）",
   ]) {
     const downloaded = page.waitForEvent("download");
     await investmentReports

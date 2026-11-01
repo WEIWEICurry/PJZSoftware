@@ -309,7 +309,7 @@ export function InvestmentReportsPage({ available }: { available: boolean }) {
             )}
             {data.performance.status === "missing_boundary_price" && (
               <p className="alert">
-                边界日期估值不齐全，期间总盈亏暂未知。请到投资资产中补录下表所需日期的手动价格；周末也不自动沿用旧价。
+                边界日期估值不齐全，期间总盈亏暂未知。请到投资资产中补齐下表所需日期的价格；周末也不自动沿用旧价。
               </p>
             )}
             <p className="footnote">
@@ -470,7 +470,7 @@ export function InvestmentReportsPage({ available }: { available: boolean }) {
             </p>
             <p className="footnote">
               当前已录持仓（{data.current_allocation.as_of_date}
-              ），不是所选期间的期末快照，不随报表日期回溯。按各自手动价格计价；筛选只改变显示，占比分母仍为全部持仓市值，不含现金。当前选中{" "}
+              ），不是所选期间的期末快照，不随报表日期回溯。按各自有效价格计价；筛选只改变显示，占比分母仍为全部持仓市值，不含现金。当前选中{" "}
               {data.current_allocation.selected_position_count} 项未清仓持仓。
             </p>
             {!data.current_allocation.selected_position_count ? (
@@ -647,7 +647,7 @@ export function InvestmentReportsPage({ available }: { available: boolean }) {
                   ["report", "期间报表 CSV"],
                   ["trades", "投资记录 CSV"],
                   ["positions", "当前持仓 CSV"],
-                  ["valuations", "手动估值 CSV（含作废）"],
+                  ["valuations", "估值记录 CSV（含作废）"],
                 ] as const
               ).map(([id, label]) => (
                 <button

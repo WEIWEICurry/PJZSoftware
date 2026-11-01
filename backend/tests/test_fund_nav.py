@@ -195,3 +195,49 @@ def test_temporary_failure_retries_once(monkeypatch):
     monkeypatch.setattr("pjz.fund_nav.urllib.request.build_opener", lambda *a: opener)
     assert read_response(None) == b"ok"
     assert opener.open.call_count == 2
+
+
+def test_provenance_import_manual_edit_csv_and_restore(ledger, monkeypatch):
+    from pjz.accounting import Accounting
+    from pjz.investments import Investments
+    from pjz.storage import LedgerStore
+    from test_investment_reports import exported
+
+    asset = instrument(ledger, "000001", "fund", "FUND")
+    assert price(ledger, asset, "9", "2026-01-20").status_code == 200
+    monkeypatch.setattr(
+        "pjz.fund_nav.fetch_nav", lambda *a: [{"price_date": "2026-01-21", "price": "2"}]
+    )
+    preview = query(ledger, asset).json()
+    assert send(ledger, "/fund-nav/import", {"token": preview["token"]}).status_code == 200
+    values = page(ledger)["valuations"]
+    manual = next(v for v in values if v["price_date"] == "2026-01-20")
+    network = next(v for v in values if v["price_date"] == "2026-01-21")
+    assert manual["source_label"] == "手动录入" and manual["fetched_at"] is None
+    assert network["source_label"] == "联网导入 · 天天基金"
+    assert network["fetched_at"] == preview["fetched_at"]
+    rows = exported(ledger, "valuations", anchor="2026-01-01")
+    assert rows[0]["来源"] == network["source_label"]
+    assert rows[0]["联网抓取时间"] == preview["fetched_at"]
+    assert price(ledger, asset, "3", "2026-01-21", revision=1).status_code == 200
+    changed = page(ledger)["valuations"][0]
+    assert changed["source_label"] == "手动维护（原联网导入 · 天天基金）"
+    assert changed["fetched_at"] == preview["fetched_at"]
+    assert price(ledger, asset, "3", "2026-01-21", revision=2, status="void").status_code == 200
+    store = ledger[0]
+    before = Investments(Accounting(store.engine)).page()
+    restored = LedgerStore(store.restore(store.backup()))
+    try:
+        assert Investments(Accounting(restored.engine)).page() == before
+    finally:
+        restored.close()
+
+
+def test_absent_audit_does_not_invent_source(ledger):
+    from sqlalchemy import text
+
+    asset = instrument(ledger)
+    assert price(ledger, asset).status_code == 200
+    with ledger[0].engine.begin() as connection:
+        connection.execute(text("DELETE FROM operation_revisions WHERE operation='save_valuation'"))
+    assert page(ledger)["valuations"][0]["source_label"] == "来源未知"
