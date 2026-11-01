@@ -11,6 +11,20 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  NAV_TIMEOUT:
+    "净值查询超时，已重试一次。请稍后重试或缩小日期范围；本地数据未改变。",
+  NAV_CONNECTION_ERROR:
+    "无法连接净值数据源，已重试一次。请检查网络或代理设置；本地数据未改变。",
+  NAV_TLS_ERROR:
+    "净值数据源的安全证书校验失败。请检查电脑时间、系统证书或代理，软件未降低证书校验要求。",
+  NAV_SOURCE_HTTP_ERROR: "净值数据源拒绝请求、限流或服务暂不可用，请稍后重试。",
+  NAV_DISABLED: "请主动启用本次联网查询。",
+  NAV_INVALID_RANGE: "请选择截至今天且不超过 366 天的日期范围。",
+  NAV_FUND_ONLY: "联网净值目前仅支持公募基金。",
+  NAV_SOURCE_UNAVAILABLE:
+    "净值数据源暂不可用或返回异常，请稍后重试；本地数据未改变。",
+  NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
+
   INVESTMENT_REPORT_INVALID_PERIOD:
     "请选择有效的投资报表期间，起始日期不能晚于结束日期。",
   INVESTMENT_REPORT_INVALID_FILTER:

@@ -437,6 +437,7 @@ class InvestmentReports:
                 "价格日期",
                 "价格（元／份或股）",
                 "来源",
+                "联网抓取时间",
                 "创建时间",
                 "更新时间",
             ]
@@ -455,7 +456,8 @@ class InvestmentReports:
                         KIND_LABELS[a["kind"]],
                         v["price_date"],
                         v["price"],
-                        "手动",
+                        safe_text(v["source_label"]),
+                        v["fetched_at"],
                         v["created_at"],
                         v["updated_at"],
                     ]

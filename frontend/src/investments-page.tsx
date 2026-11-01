@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
+import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
 import {
@@ -59,7 +60,7 @@ export function InvestmentAssets({ connected }: { connected: boolean }) {
   }, [connected]);
   return (
     <section className="card panel investment-assets">
-      <span className="section-label">资产总览 · 手动估值</span>
+      <span className="section-label">资产总览 · 本地估值</span>
       <h2>
         {page?.missing_price_count ? "已知净资产小计" : "净资产"}{" "}
         {amount(page?.known_net_fen, "—")}
@@ -70,7 +71,7 @@ export function InvestmentAssets({ connected }: { connected: boolean }) {
           持仓已估值合计 {money(page.known_value_fen)} ·{" "}
           {page.missing_price_count
             ? `${page.missing_price_count} 项持仓待估值，总净资产未知。`
-            : "全部持仓已有手动估值；各价格日期见投资页。"}
+            : "全部持仓已有估值；各价格日期见投资页。"}
         </p>
       )}
       {error && <p role="alert">{error}</p>}
@@ -337,7 +338,7 @@ export function InvestmentsPage({
         已实现卖出盈亏 {amount(page?.realized_fen, "—")}
         ；现金分红 {amount(page?.cash_dividends_fen, "—")} · 再投分红{" "}
         {amount(page?.reinvested_dividends_fen, "—")}
-        。已实现与分红从录入期初之后计算，持仓盈亏按带入成本核算，费用不重复扣除。手动价格可能来自不同日期。
+        。已实现与分红从录入期初之后计算，持仓盈亏按带入成本核算，费用不重复扣除。估值价格可能来自不同日期。
         {!!page?.missing_price_count &&
           ` ${page.missing_price_count} 项待估值，市值仅为已知小计。`}
         {!!page?.unknown_cost_count &&
@@ -766,7 +767,7 @@ export function InvestmentsPage({
                         </button>
                       </th>
                     ))}
-                    <th>手动估值</th>
+                    <th>估值价格</th>
                     <th>操作</th>
                   </tr>
                 </thead>
@@ -977,6 +978,13 @@ export function InvestmentsPage({
       )}
       {section === "prices" && (
         <>
+          <FundNavPanel
+            instruments={page?.instruments ?? []}
+            saved={async () => {
+              setPage(await request<Page>("/investments"));
+              changed();
+            }}
+          />
           <section className="card panel">
             <h2>手动估值</h2>
             <label className="investment-price-date">
@@ -1073,9 +1081,10 @@ export function InvestmentsPage({
                 {page?.valuations.map((v) => (
                   <li key={v.id}>
                     {instrumentName(v.instrument_id)} · {v.price_date} ·{" "}
-                    {v.price} 元 · 手动录入 ·{" "}
+                    {v.price} 元 · {v.source_label} ·{" "}
                     {v.status === "void" ? "已作废" : "有效"} · 修订{" "}
                     {v.revision}
+                    {v.fetched_at && <> · 联网获取时间 {v.fetched_at}</>}
                   </li>
                 ))}
               </ul>

@@ -129,6 +129,8 @@ class PriceInput(StrictInput):
 
 
 class PriceOutput(PriceInput):
+    source_label: str
+    fetched_at: str | None
     model_config = ConfigDict(extra="ignore")
     id: str
 
