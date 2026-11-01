@@ -160,3 +160,38 @@ def test_remote_pagination_preserves_all_rows(monkeypatch):
     monkeypatch.setattr("pjz.fund_nav.urllib.request.build_opener", lambda *a: opener)
     assert len(fetch_nav("000001", date(2026, 1, 1), date(2026, 1, 31))) == 2
     assert opener.open.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "kind,expected",
+    [("timeout", "NAV_TIMEOUT"), ("tls", "NAV_TLS_ERROR"), ("http", "NAV_SOURCE_HTTP_ERROR")],
+)
+def test_transport_error_categories(kind, expected, monkeypatch):
+    import ssl
+    import urllib.error
+
+    from pjz.fund_nav import read_response
+
+    errors = {
+        "timeout": TimeoutError(),
+        "tls": urllib.error.URLError(ssl.SSLError("synthetic")),
+        "http": urllib.error.HTTPError("https://example.invalid", 429, "synthetic", {}, None),
+    }
+    opener = MagicMock()
+    opener.open.side_effect = errors[kind]
+    monkeypatch.setattr("pjz.fund_nav.urllib.request.build_opener", lambda *a: opener)
+    with pytest.raises(RuleError, match=expected):
+        read_response(None)
+    assert opener.open.call_count == (1 if kind == "tls" else 2)
+
+
+def test_temporary_failure_retries_once(monkeypatch):
+    from pjz.fund_nav import read_response
+
+    opener = MagicMock()
+    response = MagicMock()
+    response.__enter__.return_value.read.return_value = b"ok"
+    opener.open.side_effect = [TimeoutError(), response]
+    monkeypatch.setattr("pjz.fund_nav.urllib.request.build_opener", lambda *a: opener)
+    assert read_response(None) == b"ok"
+    assert opener.open.call_count == 2

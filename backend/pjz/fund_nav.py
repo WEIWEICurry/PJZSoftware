@@ -2,6 +2,7 @@
 
 import json
 import secrets
+import ssl
 import time
 import urllib.error
 import urllib.parse
@@ -29,6 +30,26 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def read_response(request: urllib.request.Request) -> bytes:
+    for attempt in range(2):
+        try:
+            with urllib.request.build_opener(NoRedirect).open(request, timeout=10) as response:
+                return bytes(response.read(1000001))
+        except urllib.error.HTTPError as error:
+            if attempt == 0 and (error.code in (403, 429) or error.code >= 500):
+                continue
+            raise RuleError("NAV_SOURCE_HTTP_ERROR") from error
+        except (ssl.SSLError, urllib.error.URLError, OSError) as error:
+            reason = getattr(error, "reason", error)
+            if isinstance(reason, ssl.SSLError):
+                raise RuleError("NAV_TLS_ERROR") from error
+            if attempt == 0:
+                continue
+            code = "NAV_TIMEOUT" if isinstance(reason, TimeoutError) else "NAV_CONNECTION_ERROR"
+            raise RuleError(code) from error
+    raise RuleError("NAV_CONNECTION_ERROR")
+
+
 def fetch_nav(code: str, start: date, end: date) -> list[dict[str, str]]:
     try:
         rows = []
@@ -46,8 +67,7 @@ def fetch_nav(code: str, start: date, end: date) -> list[dict[str, str]]:
                 "https://api.fund.eastmoney.com/f10/lsjz?" + query,
                 headers={"Referer": "https://fundf10.eastmoney.com/", "User-Agent": "Mozilla/5.0"},
             )
-            with urllib.request.build_opener(NoRedirect).open(request, timeout=10) as response:
-                raw = response.read(1000001)
+            raw = read_response(request)
             if len(raw) > 1000000:
                 raise ValueError("size")
             obj = json.loads(raw, parse_float=str)
@@ -78,7 +98,11 @@ def fetch_nav(code: str, start: date, end: date) -> list[dict[str, str]]:
                 }
             )
         return sorted(result, key=lambda r: r["price_date"], reverse=True)
-    except (OSError, ValueError, TypeError, KeyError, RuleError) as error:
+    except RuleError as error:
+        if str(error).startswith("NAV_"):
+            raise
+        raise RuleError("NAV_SOURCE_UNAVAILABLE") from error
+    except (OSError, ValueError, TypeError, KeyError) as error:
         raise RuleError("NAV_SOURCE_UNAVAILABLE") from error
 
 

@@ -65,19 +65,20 @@ export function FundNavPanel({
         获取最新已公布单位净值及历史净值，非盘中实时估值。仅向天天基金发送基金代码与日期范围，数据源可见
         IP；不发送账户、余额或份额。无后台自动请求，离开此页后默认关闭。
       </p>
-      <label>
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={busy}
-          onChange={(e) => {
-            setEnabled(e.target.checked);
-            setPreview(null);
-            setMessage("");
-          }}
-        />
-        启用本次联网查询
-      </label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        disabled={busy}
+        className={enabled ? "" : "secondary"}
+        onClick={() => {
+          setEnabled(!enabled);
+          setPreview(null);
+          setMessage("");
+        }}
+      >
+        {enabled ? "本次联网已启用 · 点击关闭" : "启用本次联网查询"}
+      </button>
       {enabled && (
         <>
           <fieldset disabled={busy} className="investment-report-controls">
@@ -141,6 +142,12 @@ export function FundNavPanel({
                 来源：{preview.source} · 获取时间：{preview.fetched_at} ·{" "}
                 {preview.rows.length} 条 · 预览 5 分钟内有效
               </p>
+              {!preview.rows.length && (
+                <p role="status">
+                  所选日期范围内暂无已公布净值，请扩大日期范围或稍后查询；非交易日或
+                  QDII 净值披露延迟时可能没有数据。
+                </p>
+              )}
               <div className="table-scroll">
                 <table aria-label="净值导入预览">
                   <thead>
