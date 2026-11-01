@@ -8,7 +8,8 @@ import re
 import secrets
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -23,6 +24,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from pjz import __version__
 from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
+from pjz.automatic_backups import AutomaticBackups
 from pjz.budgets import Budgets
 from pjz.daily_api import router
 from pjz.domain import RuleError
@@ -88,6 +90,25 @@ class LedgerOutput(BaseModel):
     stage: str
 
 
+class AutomaticBackupFile(BaseModel):
+    id: str
+    created_at: str
+    revision: int
+    size: int
+
+
+class AutomaticBackupStatus(BaseModel):
+    directory: str
+    retention: int
+    last_success_at: str | None
+    last_revision: int | None
+    current_revision: int
+    pending: bool
+    error: str | None
+    invalid_count: int
+    files: list[AutomaticBackupFile]
+
+
 class BootstrapInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: str = Field(min_length=20, max_length=128)
@@ -134,8 +155,21 @@ def create_app(
     assets: Path | None = None,
     shutdown: Callable[[], None] | None = None,
 ) -> FastAPI:
+    automatic = AutomaticBackups(store)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        automatic.start()
+        try:
+            yield
+        finally:
+            from starlette.concurrency import run_in_threadpool
+
+            await run_in_threadpool(automatic.stop)
+
     app = FastAPI(
         title="PJZSoftware",
+        lifespan=lifespan,
         version=__version__,
         docs_url=None,
         redoc_url=None,
@@ -160,6 +194,7 @@ def create_app(
     script_policy = "script-src 'self' " + " ".join(sorted(inline_hashes)) + "; "
     session = Session()
     app.state.session = session
+    app.state.automatic_backups = automatic
     previews: dict[str, tuple[bytes, int, float]] = {}
     mutation_lock = threading.Lock()
 
@@ -289,6 +324,23 @@ def create_app(
             headers={"Content-Disposition": 'attachment; filename="ledger.pjzbackup"'},
         )
 
+    @app.get("/api/v1/automatic-backups", response_model=AutomaticBackupStatus)
+    def backup_status() -> dict[str, Any]:
+        return automatic.status()
+
+    @app.post("/api/v1/automatic-backups/retry", response_model=AutomaticBackupStatus)
+    def retry_backup() -> dict[str, Any]:
+        automatic.check(force=True)
+        return automatic.status()
+
+    @app.get("/api/v1/automatic-backups/{identifier}")
+    def download_automatic_backup(identifier: str) -> Response:
+        return Response(
+            automatic.download(identifier),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="daily-{identifier}.pjzbackup"'},
+        )
+
     @app.post("/api/v1/restores/preview")
     async def preview(file: Annotated[UploadFile, File()]) -> dict[str, Any]:
         from pjz.storage import inspect_backup
@@ -314,7 +366,10 @@ def create_app(
                 raise HTTPException(409, "PREVIEW_EXPIRED")
             if item[1] != store.metadata()["revision"]:
                 raise HTTPException(409, "REVISION_CONFLICT")
-            destination = store.restore(item[0])
+            try:
+                destination = store.restore(item[0])
+            except OSError:
+                raise DataError("BACKUP_WRITE_FAILED") from None
         return {"directory": str(destination), "message": "已验证并恢复至新目录；未切换当前账本。"}
 
     @app.post("/api/v1/shutdown")

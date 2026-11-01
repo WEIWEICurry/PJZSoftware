@@ -73,6 +73,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automatic-backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backup Status */
+        get: operations["backup_status_api_v1_automatic_backups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automatic-backups/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Backup */
+        post: operations["retry_backup_api_v1_automatic_backups_retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/automatic-backups/{identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download Automatic Backup */
+        get: operations["download_automatic_backup_api_v1_automatic_backups__identifier__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/backups": {
         parameters: {
             query?: never;
@@ -860,6 +911,38 @@ export interface components {
             opening_date: string;
             /** Revision */
             revision: number;
+        };
+        /** AutomaticBackupFile */
+        AutomaticBackupFile: {
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Revision */
+            revision: number;
+            /** Size */
+            size: number;
+        };
+        /** AutomaticBackupStatus */
+        AutomaticBackupStatus: {
+            /** Current Revision */
+            current_revision: number;
+            /** Directory */
+            directory: string;
+            /** Error */
+            error: string | null;
+            /** Files */
+            files: components["schemas"]["AutomaticBackupFile"][];
+            /** Invalid Count */
+            invalid_count: number;
+            /** Last Revision */
+            last_revision: number | null;
+            /** Last Success At */
+            last_success_at: string | null;
+            /** Pending */
+            pending: boolean;
+            /** Retention */
+            retention: number;
         };
         /** BatchDetail */
         BatchDetail: {
@@ -2560,6 +2643,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeletePreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    backup_status_api_v1_automatic_backups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomaticBackupStatus"];
+                };
+            };
+        };
+    };
+    retry_backup_api_v1_automatic_backups_retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomaticBackupStatus"];
+                };
+            };
+        };
+    };
+    download_automatic_backup_api_v1_automatic_backups__identifier__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

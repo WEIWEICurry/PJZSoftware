@@ -60,6 +60,15 @@ with tempfile.TemporaryDirectory(prefix="PJZ-launch-中文-") as temporary:
             raise AssertionError("Anonymous ledger access")
         except urllib.error.HTTPError as error:
             assert error.code == 401
+        deadline = time.monotonic() + 10
+        automatic = directory / "backups" / "automatic"
+        while not list(automatic.glob("daily-*.pjzbackup")) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        from pjz.storage import inspect_backup
+
+        daily = list(automatic.glob("daily-*.pjzbackup"))
+        assert len(daily) == 1, "Packaged automatic backup missing"
+        inspect_backup(daily[0].read_bytes())
         subprocess.run(
             [str(executable), "--headless", "--no-browser", "--data-dir", str(directory)],
             env=environment,
@@ -82,4 +91,7 @@ with tempfile.TemporaryDirectory(prefix="PJZ-launch-中文-") as temporary:
     store = LedgerStore(directory)
     assert store.metadata()["revision"] == 1
     store.close()
-print("PASS: packaged assets/minimal PATH/loopback/auth/duplicate launch/crash recovery")
+print(
+    "PASS: packaged assets/minimal PATH/loopback/auth/automatic backup/"
+    "duplicate launch/crash recovery"
+)

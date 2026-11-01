@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  AutomaticBackupPanel,
+  type BackupStatus,
+} from "../src/automatic-backup-panel";
 import { InvestmentAssets, InvestmentsPage } from "../src/investments-page";
 import { DailyOverview, DailyWorkspace } from "../src/daily";
 import { HistoryImport } from "../src/history-import";
@@ -25,6 +29,8 @@ const stages = [
   ["M3", "投资资产", "期间总盈亏、边界持仓、配置与导出", "当前阶段"],
 ];
 export default function Home() {
+  const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
+  const [backupUnavailable, setBackupUnavailable] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [error, setError] = useState("");
@@ -43,6 +49,28 @@ export default function Home() {
       })
       .catch((e: Error) => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (!ledger || stopped) return;
+    let active = true;
+    const refresh = () => {
+      void request<BackupStatus>("/automatic-backups")
+        .then((value) => {
+          if (active) {
+            setBackupStatus(value);
+            setBackupUnavailable(false);
+          }
+        })
+        .catch(() => {
+          if (active) setBackupUnavailable(true);
+        });
+    };
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [ledger, stopped]);
   async function act(operation: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -105,7 +133,11 @@ export default function Home() {
       );
       setPreview(null);
       setNotice(
-        "恢复成功，新账本位于：" + result.directory + "。当前账本未切换。",
+        "恢复成功，新账本位于：" +
+          result.directory +
+          '。当前账本未切换。退出软件后，可使用启动器参数打开副本：PJZSoftware.exe --data-dir "' +
+          result.directory +
+          '"。',
       );
     });
   }
@@ -146,7 +178,7 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>记账与投资版 · v0.14.0</small>
+          仅在本机运行<small>记账与投资版 · v0.15.0</small>
         </div>
       </aside>
       <div className="workspace">
@@ -226,6 +258,11 @@ export default function Home() {
           {!ledger && !error && (
             <div role="status" className="card">
               正在连接本地账本…
+            </div>
+          )}
+          {(backupStatus?.error || backupUnavailable) && !stopped && (
+            <div className="alert" role="alert">
+              自动备份尚未成功或状态无法读取，现有账本不受影响。请到数据管理检查磁盘空间、目录权限并重试。
             </div>
           )}
           {tab === "overview" && (
@@ -333,6 +370,10 @@ export default function Home() {
                 </button>
                 <p className="footnote">备份未加密，请保存在你信任的位置。</p>
               </section>
+              <AutomaticBackupPanel
+                status={backupStatus}
+                updated={setBackupStatus}
+              />
               <section className="card panel full">
                 <span className="section-label">03 / 恢复验证</span>
                 <h2>先核验，再恢复</h2>

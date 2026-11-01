@@ -75,7 +75,7 @@ def serve(directory: Path, headless: bool, no_browser: bool) -> None:
             host="127.0.0.1",
             port=port,
             ws="none",
-            lifespan="off",
+            lifespan="on",
         )
     )
     worker = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
