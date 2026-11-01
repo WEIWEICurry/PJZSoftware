@@ -179,89 +179,96 @@ class Investments:
                 connection, {"account_id": payload["cash_account_id"]}
             )
 
+    def save_trade(
+        self, connection: Connection, payload: dict[str, Any], identifier: str | None = None
+    ) -> dict[str, Any]:
+        self.accounting.ensure_writable_accounts(connection, payload)
+        self.ensure_receiving_writable(connection, payload)
+        before = None
+        if identifier:
+            rows = fetch_all(
+                connection,
+                "SELECT f.*,i.* FROM financial_events f JOIN "
+                "investment_events i ON i.event_id=f.id WHERE f.id=:id",
+                {"id": identifier},
+            )
+            if (
+                not rows
+                or rows[0]["revision"] != payload["revision"]
+                or rows[0]["status"] != "active"
+            ):
+                raise RuleError("REVISION_CONFLICT")
+            before = rows[0]
+            self.accounting.ensure_writable_accounts(connection, before)
+            self.ensure_receiving_writable(connection, before)
+            # Identity stays stable; correction changes amounts, date or note.
+            if any(payload[k] != before[k] for k in ("account_id", "instrument_id", "action")):
+                raise RuleError("INVESTMENT_IDENTITY_IMMUTABLE")
+            event_id = identifier
+            connection.execute(
+                text(
+                    "UPDATE financial_events SET "
+                    "effective_date=:effective_date,note=:note,"
+                    "revision=revision+1,updated_at=:at WHERE id=:id"
+                ),
+                {**payload, "at": now(), "id": identifier},
+            )
+            connection.execute(
+                text("DELETE FROM investment_events WHERE event_id=:id"), {"id": identifier}
+            )
+        else:
+            event_id = self.accounting.insert_event(
+                connection,
+                {
+                    "kind": "investment",
+                    "account_id": payload["account_id"],
+                    "effective_date": payload["effective_date"],
+                    "amount_fen": "0",
+                    "fee_fen": "0",
+                    "target_account_id": None,
+                    "category_id": None,
+                    "original_event_id": None,
+                    "note": payload["note"],
+                },
+            )["id"]
+        gross = int(payload["amount_fen"])
+        fee = int(payload["costs_fen"])
+        if payload["amount_mode"] == "net" and payload["action"] in ("buy", "sell"):
+            gross += -fee if payload["action"] == "buy" else fee
+        basis = payload["cost_basis_fen"]
+        connection.execute(
+            text(
+                "INSERT INTO investment_events VALUES "
+                "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis,:cash_account,:split_from)"
+            ),
+            {
+                **payload,
+                "id": event_id,
+                "gross": gross,
+                "fee": fee,
+                "basis": None if basis is None else int(basis),
+                "cash_account": payload.get("cash_account_id"),
+                "split_from": payload.get("split_from_quantity"),
+            },
+        )
+        self.accounting.audit(
+            connection,
+            event_id,
+            "update_investment" if identifier else "create_investment",
+            before,
+            payload,
+        )
+        return {"id": event_id}
+
     def trade(
         self, payload: dict[str, Any], key: str, identifier: str | None = None
     ) -> dict[str, Any]:
-        def action(connection: Connection) -> dict[str, Any]:
-            self.accounting.ensure_writable_accounts(connection, payload)
-            self.ensure_receiving_writable(connection, payload)
-            before = None
-            if identifier:
-                rows = fetch_all(
-                    connection,
-                    "SELECT f.*,i.* FROM financial_events f JOIN "
-                    "investment_events i ON i.event_id=f.id WHERE f.id=:id",
-                    {"id": identifier},
-                )
-                if (
-                    not rows
-                    or rows[0]["revision"] != payload["revision"]
-                    or rows[0]["status"] != "active"
-                ):
-                    raise RuleError("REVISION_CONFLICT")
-                before = rows[0]
-                self.accounting.ensure_writable_accounts(connection, before)
-                self.ensure_receiving_writable(connection, before)
-                # Identity stays stable; correction changes amounts, date or note.
-                if any(payload[k] != before[k] for k in ("account_id", "instrument_id", "action")):
-                    raise RuleError("INVESTMENT_IDENTITY_IMMUTABLE")
-                event_id = identifier
-                connection.execute(
-                    text(
-                        "UPDATE financial_events SET "
-                        "effective_date=:effective_date,note=:note,"
-                        "revision=revision+1,updated_at=:at WHERE id=:id"
-                    ),
-                    {**payload, "at": now(), "id": identifier},
-                )
-                connection.execute(
-                    text("DELETE FROM investment_events WHERE event_id=:id"), {"id": identifier}
-                )
-            else:
-                event_id = self.accounting.insert_event(
-                    connection,
-                    {
-                        "kind": "investment",
-                        "account_id": payload["account_id"],
-                        "effective_date": payload["effective_date"],
-                        "amount_fen": "0",
-                        "fee_fen": "0",
-                        "target_account_id": None,
-                        "category_id": None,
-                        "original_event_id": None,
-                        "note": payload["note"],
-                    },
-                )["id"]
-            gross = int(payload["amount_fen"])
-            fee = int(payload["costs_fen"])
-            if payload["amount_mode"] == "net" and payload["action"] in ("buy", "sell"):
-                gross += -fee if payload["action"] == "buy" else fee
-            basis = payload["cost_basis_fen"]
-            connection.execute(
-                text(
-                    "INSERT INTO investment_events VALUES "
-                    "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis,:cash_account,:split_from)"
-                ),
-                {
-                    **payload,
-                    "id": event_id,
-                    "gross": gross,
-                    "fee": fee,
-                    "basis": None if basis is None else int(basis),
-                    "cash_account": payload.get("cash_account_id"),
-                    "split_from": payload.get("split_from_quantity"),
-                },
-            )
-            self.accounting.audit(
-                connection,
-                event_id,
-                "update_investment" if identifier else "create_investment",
-                before,
-                payload,
-            )
-            return {"id": event_id}
-
-        return self.accounting.command(key, "trade:" + (identifier or "new"), payload, action)
+        return self.accounting.command(
+            key,
+            "trade:" + (identifier or "new"),
+            payload,
+            lambda connection: self.save_trade(connection, payload, identifier),
+        )
 
     def void_trade(self, identifier: str, revision: int, key: str) -> dict[str, Any]:
         def action(connection: Connection) -> dict[str, Any]:

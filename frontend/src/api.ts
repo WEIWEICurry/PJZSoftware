@@ -11,6 +11,23 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  RECURRING_INVALID_RANGE: "请选择有效范围，一次最多 366 天。",
+  RECURRING_INVALID_PLAN: "请检查计划名称、扣款与费用，费用必须小于实际扣款。",
+  RECURRING_NOT_FOUND: "计划不存在，请刷新后重试。",
+  RECURRING_PAUSED: "计划已暂停，请先恢复后再生成。",
+  RECURRING_FUND_CASH_REQUIRED:
+    "定投仅支持公募基金与普通资金账户，不支持借还账户。",
+  RECURRING_CONFLICT: "所选草稿已处理或版本已变化，请重新查看待核对项。",
+  RECURRING_CONFIRMATION_REQUIRED: "请填写实际确认日期，不能早于计划日期。",
+  RECURRING_INVALID_CONFIRMATION:
+    "请核对实际确认日期、份额、扣款及费用，不能使用未来日期或零份额。",
+  RECURRING_INVALID_NAV_DATE: "净值所属日不能晚于确认日期。",
+  RECURRING_POSSIBLE_DUPLICATE:
+    "已有日期、标的、账户、份额与扣款相同的买入。请返回修改并核对，确为不同交易再勾选允许相同买入。",
+  RECURRING_ACCOUNT_HAS_PLANS:
+    "账户含定投计划，暂不能彻底删除，可归档保留关联。",
+  RECURRING_INVALID_FACTS: "定投计划或关联记录异常，请保留备份并检查。",
+
   NAV_TIMEOUT:
     "净值查询超时，已重试一次。请稍后重试或缩小日期范围；本地数据未改变。",
   NAV_CONNECTION_ERROR:

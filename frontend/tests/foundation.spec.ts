@@ -974,6 +974,62 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await navPanel.getByRole("button", { name: "确认导入净值" }).click();
   await expect(navPanel).toContainText("已导入 1 条");
   await navPanel.getByRole("switch").click();
+  // Recurring drafts are nonfinancial until an explicit batch confirmation.
+  await page.getByRole("button", { name: "定投计划", exact: true }).click();
+  const recurring = page.getByRole("region", { name: "定投计划与批量确认" });
+  await recurring.getByText("添加定投计划", { exact: true }).click();
+  await recurring
+    .getByLabel("计划名称", { exact: true })
+    .fill("Synthetic recurring plan");
+  await recurring
+    .getByRole("combobox", { name: "计划资金账户", exact: true })
+    .selectOption({ label: "Synthetic investment cash" });
+  await recurring
+    .getByRole("combobox", { name: "定投基金", exact: true })
+    .selectOption({ label: "Synthetic distribution fund · 000001" });
+  await recurring
+    .getByRole("combobox", { name: "生成频率", exact: true })
+    .selectOption("daily");
+  await recurring
+    .getByRole("button", { name: "保存定投计划", exact: true })
+    .click();
+  await expect(recurring).toContainText("计划已保存");
+  await recurring.getByLabel("核对开始日期", { exact: true }).fill(today);
+  await recurring.getByLabel("核对结束日期", { exact: true }).fill(today);
+  await recurring
+    .getByRole("button", { name: "生成待核对项", exact: true })
+    .click();
+  await expect(recurring).toContainText("新增 1 项");
+  await recurring.getByLabel(`选择 ${today}`, { exact: true }).check();
+  await recurring.getByLabel(`${today} 份额`, { exact: true }).fill("10");
+  await recurring
+    .getByRole("button", { name: "预览所选确认／跳过", exact: true })
+    .click();
+  await expect(
+    recurring.getByRole("group", { name: "定投批量确认预览" }),
+  ).toContainText("¥10.00");
+  await recurring
+    .getByRole("button", { name: "确认处理所选记录", exact: true })
+    .click();
+  await expect(recurring).toContainText("已处理 1 项");
+  await expect(recurring.getByRole("table")).toContainText("已确认");
+  await page.screenshot({
+    path: "test-results/recurring.png",
+    fullPage: false,
+  });
+  // Remove the synthetic financial effect so the existing report expectations remain independent.
+  const recurringResponse = await page.request.get("/api/v1/investments");
+  const recurringTrade = (await recurringResponse.json()).trades.find(
+    (t: { note: string }) => t.note === "定投计划：Synthetic recurring plan",
+  );
+  await page.getByRole("button", { name: "投资记录", exact: true }).click();
+  const recurringRow = page
+    .getByRole("row")
+    .filter({ hasText: "定投计划：Synthetic recurring plan" });
+  await recurringRow.getByRole("button", { name: "作废", exact: true }).click();
+  await page.getByRole("button", { name: "确认作废投资", exact: true }).click();
+  await expect(recurringRow).toContainText("已作废");
+  expect(recurringTrade.action).toBe("buy");
   // M3.3: actual investment reports and allocation are read-only, with four scoped CSVs.
   await page.getByRole("button", { name: "投资报表", exact: true }).click();
   const performance = page.getByRole("region", {
@@ -1011,7 +1067,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     investmentReports
       .getByRole("table", { name: "投资事件明细", exact: true })
       .locator("tbody tr"),
-  ).toHaveCount(7);
+  ).toHaveCount(8);
   const allocation = investmentReports.getByRole("region", {
     name: "当前资产配置",
     exact: true,

@@ -49,6 +49,13 @@ class AccountDeletion:
                 {"id": identifier},
             ):
                 raise RuleError("INVESTMENT_ACCOUNT_HAS_HISTORY")
+        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 8:
+            if fetch_all(
+                connection,
+                "SELECT id FROM investment_plans WHERE account_id=:id",
+                {"id": identifier},
+            ):
+                raise RuleError("RECURRING_ACCOUNT_HAS_PLANS")
         events = fetch_all(connection, "SELECT * FROM financial_events")
         removed = {
             item["id"]

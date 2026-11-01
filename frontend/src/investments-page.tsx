@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
+import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
@@ -88,9 +89,9 @@ export function InvestmentsPage({
 }) {
   const [page, setPage] = useState<Page | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [section, setSection] = useState<"positions" | "trades" | "prices">(
-    "positions",
-  );
+  const [section, setSection] = useState<
+    "positions" | "trades" | "prices" | "recurring"
+  >("positions");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -351,6 +352,7 @@ export function InvestmentsPage({
               ["positions", "我的持仓"],
               ["trades", "投资记录"],
               ["prices", "标的与估值"],
+              ["recurring", "定投计划"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -658,7 +660,7 @@ export function InvestmentsPage({
           </form>
         </section>
       )}
-      {section !== "prices" && (
+      {section !== "prices" && section !== "recurring" && (
         <div className="investment-filters">
           <label>
             账户筛选
@@ -975,6 +977,16 @@ export function InvestmentsPage({
             </button>
           </div>
         </section>
+      )}
+      {section === "recurring" && (
+        <RecurringPanel
+          accounts={accounts}
+          instruments={page?.instruments ?? []}
+          changed={async () => {
+            setPage(await request<Page>("/investments"));
+            changed();
+          }}
+        />
       )}
       {section === "prices" && (
         <>

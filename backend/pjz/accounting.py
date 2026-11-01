@@ -428,6 +428,24 @@ class Accounting:
         return {**event, "amount_fen": str(event["amount_fen"]), "fee_fen": str(event["fee_fen"])}
 
     def rebuild(self, connection: Connection, persist: bool = True) -> None:
+        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 8:
+            from pjz.recurring_domain import validate_recurring_rows
+
+            validate_recurring_rows(
+                fetch_all(
+                    connection,
+                    "SELECT p.*,a.kind AS account_kind,a.opening_date,i.kind AS asset_kind "
+                    "FROM investment_plans p JOIN accounts a ON a.id=p.account_id "
+                    "JOIN instruments i ON i.id=p.instrument_id",
+                ),
+                fetch_all(
+                    connection,
+                    "SELECT d.*,f.account_id AS event_account,f.effective_date,"
+                    "i.instrument_id AS event_asset,i.action FROM investment_drafts d "
+                    "LEFT JOIN financial_events f ON f.id=d.event_id "
+                    "LEFT JOIN investment_events i ON i.event_id=d.event_id",
+                ),
+            )
         from pjz.investments import Investments
 
         _, investment_cash = Investments.replay(connection)
