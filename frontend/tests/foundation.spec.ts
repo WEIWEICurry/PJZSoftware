@@ -1013,6 +1013,11 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(
     recurring.getByRole("group", { name: "定投批量确认预览" }),
   ).toContainText("¥10.00");
+  await recurring.getByText("添加定投计划", { exact: true }).click();
+  await expect(
+    recurring.getByRole("button", { name: "保存定投计划", exact: true }),
+  ).toBeDisabled();
+  await recurring.getByText("添加定投计划", { exact: true }).click();
   await recurring
     .getByRole("button", { name: "确认处理所选记录", exact: true })
     .click();

@@ -384,7 +384,10 @@ export function RecurringPanel({
             });
           }}
         >
-          <fieldset disabled={busy} className="investment-report-controls">
+          <fieldset
+            disabled={busy || !!review}
+            className="investment-report-controls"
+          >
             <label>
               计划名称
               <input
@@ -502,7 +505,7 @@ export function RecurringPanel({
               </label>
             )}
           </fieldset>
-          <button disabled={busy}>保存定投计划</button>
+          <button disabled={busy || !!review}>保存定投计划</button>
           {editing && (
             <button
               type="button"
@@ -686,7 +689,7 @@ export function RecurringPanel({
                   <th>实际扣款（元）</th>
                   <th>费用（元）</th>
                   <th>成交净值所属日</th>
-                  <th>该日公布净值（核对用）</th>
+                  <th>该日已录净值（核对用）</th>
                 </tr>
               </thead>
               <tbody>
