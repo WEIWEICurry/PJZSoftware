@@ -100,6 +100,8 @@ def test_independent_hand_example_full_cash_and_restore(ledger):
         position["value_fen"],
         position["unrealized_fen"],
     ) == ("150", "165750", "9550", "195000", "29250")
+    assert result["holding_return_bps"] == "1765"
+    assert result["total_return_bps"] == "1756"
     assert result["total_profit_fen"] == "38800"
     assert result["net_fen"] == "1038800"
     assert summary(ledger)["assets_fen"] == "843800"
@@ -596,3 +598,53 @@ def test_holding_share_zero_total_closed_and_single_position(ledger):
         stock: "0",
         other: "10000",
     }
+
+
+def test_return_denominators_turnover_and_internal_dividends():
+    from pjz.investment_domain import return_bps
+
+    p = Position()
+    p.apply("opening", "100", 0, 0, 10000)
+    p.apply("buy", "100", 9900, 100, None)
+    p.apply("sell", "100", 12000, 100, None)
+    p.apply("cash_dividend", "0", 500, 0, None)
+    p.apply("reinvest", "5", 500, 10, None)
+    p.apply("split", "210", 0, 0, None, "105")
+    # Remaining cost 10000 + 500 reinvested + 10 cash fee.
+    assert p.cost == 10510
+    assert p.invested_cost == 20010
+    assert p.realized == 1900
+    value = p.market_value("0.6")
+    assert value == 12600
+    assert return_bps(value - p.cost, p.cost) == "1989"
+    assert return_bps(value - p.cost + p.realized + 1000, p.invested_cost) == "2494"
+    p.apply("sell", "210", 12600, 0, None)
+    assert p.cost == 0 and p.invested_cost == 20010
+    assert return_bps(0, p.cost) is None
+    p.apply("buy", "10", 1000, 0, None)
+    assert p.invested_cost == 21010  # Recovered principal is not subtracted.
+    assert return_bps(-1, 32) == "-313"
+    assert return_bps(1, 32) == "313"
+    assert return_bps(-1, 100000) == "0"
+    for profit, base in [(None, 100), (10, None), (0, 0)]:
+        assert return_bps(profit, base) is None
+    unknown = Position()
+    unknown.apply("opening", "10", 0, 0, None)
+    unknown.apply("buy", "10", 1000, 0, None)
+    assert unknown.invested_cost is None
+
+
+def test_return_unknown_zero_and_void_replay(ledger):
+    cash = account(ledger, "Synthetic cash", "1000000")
+    stock = instrument(ledger)
+    assert page(ledger)["holding_return_bps"] is None
+    assert page(ledger)["total_return_bps"] is None
+    bought = trade(ledger, cash, stock).json()["id"]
+    assert page(ledger)["holding_return_bps"] is None  # Missing price.
+    assert price(ledger, stock, "9").status_code == 200
+    result = page(ledger)
+    assert result["holding_return_bps"] == "-1045"
+    assert result["total_return_bps"] == "-1045"
+    assert send(ledger, f"/investments/trades/{bought}/void", {"revision": 1}).status_code == 200
+    assert page(ledger)["holding_return_bps"] is None
+    assert page(ledger)["total_return_bps"] is None

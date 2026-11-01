@@ -162,6 +162,8 @@ class InvestmentPage(BaseModel):
     realized_fen: str
     unrealized_fen: str | None
     total_profit_fen: str | None
+    holding_return_bps: str | None
+    total_return_bps: str | None
     known_net_fen: str
     net_fen: str | None
     cash_dividends_fen: str

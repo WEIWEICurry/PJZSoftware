@@ -1821,6 +1821,17 @@
             "title": "Cash Dividends Fen",
             "type": "string"
           },
+          "holding_return_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holding Return Bps"
+          },
           "instruments": {
             "items": {
               "$ref": "#/components/schemas/InstrumentOutput"
@@ -1877,6 +1888,17 @@
             ],
             "title": "Total Profit Fen"
           },
+          "total_return_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Return Bps"
+          },
           "trades": {
             "items": {
               "$ref": "#/components/schemas/TradeOutput"
@@ -1918,6 +1940,8 @@
           "realized_fen",
           "unrealized_fen",
           "total_profit_fen",
+          "holding_return_bps",
+          "total_return_bps",
           "known_net_fen",
           "net_fen",
           "cash_dividends_fen",
@@ -2636,6 +2660,11 @@
           "price_date": {
             "title": "Price Date",
             "type": "string"
+          },
+          "restore_void": {
+            "default": false,
+            "title": "Restore Void",
+            "type": "boolean"
           }
         },
         "required": [
@@ -4192,7 +4221,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.13.0"
+    "version": "0.14.0"
   },
   "openapi": "3.1.0",
   "paths": {

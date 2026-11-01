@@ -1459,6 +1459,8 @@ export interface components {
         InvestmentPage: {
             /** Cash Dividends Fen */
             cash_dividends_fen: string;
+            /** Holding Return Bps */
+            holding_return_bps: string | null;
             /** Instruments */
             instruments: components["schemas"]["InstrumentOutput"][];
             /** Known Net Fen */
@@ -1477,6 +1479,8 @@ export interface components {
             reinvested_dividends_fen: string;
             /** Total Profit Fen */
             total_profit_fen: string | null;
+            /** Total Return Bps */
+            total_return_bps: string | null;
             /** Trades */
             trades: components["schemas"]["TradeOutput"][];
             /** Unknown Cost Count */
@@ -1753,6 +1757,11 @@ export interface components {
             price: string;
             /** Price Date */
             price_date: string;
+            /**
+             * Restore Void
+             * @default false
+             */
+            restore_void: boolean;
         };
         /** NoteSuggestion */
         NoteSuggestion: {

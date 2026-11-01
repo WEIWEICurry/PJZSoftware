@@ -754,6 +754,12 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(
     page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
   ).toContainText("¥388.00");
+  await expect(
+    page.locator(".metric").filter({ hasText: "持仓盈亏" }),
+  ).toContainText("+17.65%");
+  await expect(
+    page.locator(".metric").filter({ hasText: "累计投资盈亏" }),
+  ).toContainText("+17.56%");
   await page.screenshot({
     path: "test-results/investments.png",
     fullPage: true,
@@ -957,7 +963,14 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
         token: "synthetic-preview",
         source: "Synthetic source",
         fetched_at: "2026-01-01T00:00:00Z",
-        rows: [{ price_date: "2026-01-20", price: "1.2345", exists: false }],
+        rows: [
+          {
+            price_date: "2026-01-20",
+            price: "1.2345",
+            exists: false,
+            restore_void: true,
+          },
+        ],
       },
     }),
   );
@@ -969,6 +982,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByLabel("查询基金")
     .selectOption({ label: "Synthetic distribution fund · 000001" });
   await navPanel.getByRole("button", { name: "获取净值预览" }).click();
+  await expect(navPanel).toContainText("恢复已作废记录");
   await expect(navPanel.getByRole("table")).toContainText("1.2345");
   await page.screenshot({ path: "test-results/fund-nav.png", fullPage: false });
   await navPanel.getByRole("button", { name: "确认导入净值" }).click();

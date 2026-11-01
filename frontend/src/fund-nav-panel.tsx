@@ -134,7 +134,7 @@ export function FundNavPanel({
           </button>
           <p className="footnote">
             一次最多 366
-            天。已有日期（含手动和作废价格）全部跳过，不覆盖。来源与抓取时间保留在本地审计中；成功后仍可在手动估值中修正。
+            天。有效价格跳过；已作废记录确认后恢复为联网净值，保留修订历史。来源与抓取时间保留在本地审计中；成功后仍可在手动估值中修正。
           </p>
           {preview && (
             <>
@@ -162,7 +162,13 @@ export function FundNavPanel({
                       <tr key={r.price_date}>
                         <td>{r.price_date}</td>
                         <td>{r.price}</td>
-                        <td>{r.exists ? "已有，将跳过" : "可导入"}</td>
+                        <td>
+                          {r.exists
+                            ? "已有有效价格，将跳过"
+                            : r.restore_void
+                              ? "恢复已作废记录"
+                              : "可导入"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
