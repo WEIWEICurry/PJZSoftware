@@ -18,8 +18,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
 
-SCHEMA_VERSION = 8
-SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6, 7, 8)
+SCHEMA_VERSION = 9
+SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 

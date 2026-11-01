@@ -11,6 +11,10 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  RECURRING_DELETED: "该计划已删除，历史仅可查看，不能继续生成或确认。",
+  RECURRING_DELETE_REQUIRES_PAUSE: "请先暂停计划，再删除。历史交易将保留。",
+  RECURRING_IDENTITY_LOCKED:
+    "已有核对记录，不能更换账户、基金或起始日；金额和频率可修改用于后续草稿。",
   RECURRING_INVALID_RANGE: "请选择有效范围，一次最多 366 天。",
   RECURRING_INVALID_PLAN: "请检查计划名称、扣款与费用，费用必须小于实际扣款。",
   RECURRING_NOT_FOUND: "计划不存在，请刷新后重试。",
@@ -21,7 +25,8 @@ const messages: Record<string, string> = {
   RECURRING_CONFIRMATION_REQUIRED: "请填写实际确认日期，不能早于计划日期。",
   RECURRING_INVALID_CONFIRMATION:
     "请核对实际确认日期、份额、扣款及费用，不能使用未来日期或零份额。",
-  RECURRING_INVALID_NAV_DATE: "净值所属日不能晚于确认日期。",
+  RECURRING_INVALID_NAV_DATE:
+    "请按回执填写成交净值所属日，不能晚于实际确认日。",
   RECURRING_POSSIBLE_DUPLICATE:
     "已有日期、标的、账户、份额与扣款相同的买入。请返回修改并核对，确为不同交易再勾选允许相同买入。",
   RECURRING_ACCOUNT_HAS_PLANS:

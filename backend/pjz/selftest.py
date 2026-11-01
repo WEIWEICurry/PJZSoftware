@@ -338,10 +338,13 @@ def run() -> None:
             with urllib.request.urlopen(request, timeout=5) as response:
                 assert json.load(response)["name"] == "Synthetic acceptance ledger"
 
-            def post_local(path: str, value: dict[str, Any]) -> dict[str, Any]:
+            def post_local(
+                path: str, value: dict[str, Any], method: str = "POST"
+            ) -> dict[str, Any]:
                 req = urllib.request.Request(
                     origin + "/api/v1" + path,
                     data=json.dumps(value).encode(),
+                    method=method,
                     headers={
                         "Cookie": cookie,
                         "Origin": origin,
@@ -392,6 +395,7 @@ def run() -> None:
                                 "revision": 1,
                                 "decision": "confirm",
                                 "confirmation_date": "2026-01-31",
+                                "nav_date": "2026-01-31",
                                 "quantity": "1",
                                 "amount_fen": "1000",
                                 "costs_fen": "1",
@@ -405,6 +409,31 @@ def run() -> None:
                 p for p in investments.page()["positions"] if p["instrument_id"] == fund
             )
             assert latest_fund["quantity"] == "2101" and latest_fund["cost_fen"] == "221200"
+            after_confirm = investments.page()
+            managed = post_local(
+                "/recurring/" + recurring["id"],
+                {
+                    "name": "Synthetic edited plan",
+                    "account_id": account["id"],
+                    "instrument_id": fund,
+                    "start_date": "2026-01-31",
+                    "frequency": "daily",
+                    "weekday": 0,
+                    "amount_fen": "2000",
+                    "costs_fen": "1",
+                    "revision": 1,
+                },
+                "PUT",
+            )
+            assert managed["revision"] == 2 and managed["confirmed_count"] == 1
+            post_local("/recurring/" + recurring["id"] + "/pause", {"revision": 2, "paused": True})
+            post_local("/recurring/" + recurring["id"] + "/delete", {"revision": 3})
+            with urllib.request.urlopen(
+                urllib.request.Request(origin + "/api/v1/recurring", headers={"Cookie": cookie}),
+                timeout=5,
+            ) as result:
+                assert json.load(result) == []
+            assert investments.page() == after_confirm
             lock = FileLock(directory / "probe.lock")
             with lock:
                 try:

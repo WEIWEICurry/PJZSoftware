@@ -982,6 +982,7 @@ export function InvestmentsPage({
         <RecurringPanel
           accounts={accounts}
           instruments={page?.instruments ?? []}
+          valuations={page?.valuations ?? []}
           changed={async () => {
             setPage(await request<Page>("/investments"));
             changed();

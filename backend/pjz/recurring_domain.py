@@ -45,6 +45,8 @@ def validate_recurring_rows(plans: list[dict[str, Any]], drafts: list[dict[str, 
                 or type(p["costs_fen"]) is not int
             ):
                 raise ValueError("types")
+            if p.get("deleted", 0) and not p["paused"]:
+                raise ValueError("deleted plan must be paused")
             first = date.fromisoformat(p["start_date"])
             schedule(first, first, first, p["frequency"], p["weekday"])
             if (

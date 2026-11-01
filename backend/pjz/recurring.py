@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import text
 
 from pjz.accounting import Accounting, fetch_all, now
-from pjz.daily_api import EventInput, Fen, Key, StrictInput
+from pjz.daily_api import EventInput, Fen, Key, RevisionInput, StrictInput
 from pjz.domain import RuleError
 from pjz.investment_api import TradeInput
 from pjz.investments import Investments
@@ -31,7 +31,15 @@ class PlanOutput(PlanInput):
     model_config = ConfigDict(extra="ignore")
     id: str
     paused: bool
+    deleted: bool = False
+    has_drafts: bool = False
+    pending_count: int = 0
+    confirmed_count: int = 0
     revision: int
+
+
+class PlanChange(PlanInput):
+    revision: int = Field(ge=1, strict=True)
 
 
 class PauseInput(StrictInput):
@@ -57,6 +65,7 @@ class DraftOutput(BaseModel):
     effective_date: str | None
     quantity: str | None
     nav_date: str | None
+    nav_price: str | None
 
 
 class ReviewRow(StrictInput):
@@ -83,12 +92,14 @@ def recurring_router(accounting: Accounting) -> APIRouter:
     router = APIRouter(prefix="/api/v1/recurring")
     investments = Investments(accounting)
 
-    def plan(connection: Any, identifier: str) -> dict[str, Any]:
+    def plan(connection: Any, identifier: str, allow_deleted: bool = False) -> dict[str, Any]:
         found = fetch_all(
             connection, "SELECT * FROM investment_plans WHERE id=:id", {"id": identifier}
         )
         if not found:
             raise RuleError("RECURRING_NOT_FOUND")
+        if found[0]["deleted"] and not allow_deleted:
+            raise RuleError("RECURRING_DELETED")
         return found[0]
 
     def writable(connection: Any, item: dict[str, Any]) -> None:
@@ -111,13 +122,102 @@ def recurring_router(accounting: Accounting) -> APIRouter:
             raise RuleError("BEFORE_OPENING")
 
     @router.get("", response_model=list[PlanOutput])
-    def plans() -> object:
+    def plans(include_deleted: bool = False) -> object:
         with accounting.engine.connect() as connection:
-            rows = fetch_all(connection, "SELECT * FROM investment_plans ORDER BY created_at,id")
+            rows = fetch_all(
+                connection,
+                "SELECT p.*,COUNT(d.id)>0 AS has_drafts,"
+                "COALESCE(SUM(d.status='pending'),0) AS pending_count,"
+                "COALESCE(SUM(d.status='confirmed'),0) AS confirmed_count "
+                "FROM investment_plans p LEFT JOIN investment_drafts d ON d.plan_id=p.id "
+                "WHERE (:all=1 OR p.deleted=0) GROUP BY p.id ORDER BY p.created_at,p.id",
+                {"all": int(include_deleted)},
+            )
             return [
                 {**r, "amount_fen": str(r["amount_fen"]), "costs_fen": str(r["costs_fen"])}
                 for r in rows
             ]
+
+    @router.put("/{identifier}", response_model=PlanOutput)
+    def change(identifier: UUID, payload: PlanChange, key: Key) -> object:
+        data = payload.model_dump(mode="json")
+
+        def action(connection: Any) -> dict[str, Any]:
+            old = plan(connection, str(identifier))
+            if old["revision"] != payload.revision:
+                raise RuleError("REVISION_CONFLICT")
+            has_drafts = bool(
+                fetch_all(
+                    connection,
+                    "SELECT id FROM investment_drafts WHERE plan_id=:id LIMIT 1",
+                    {"id": str(identifier)},
+                )
+            )
+            if has_drafts and any(
+                data[k] != old[k] for k in ("account_id", "instrument_id", "start_date")
+            ):
+                raise RuleError("RECURRING_IDENTITY_LOCKED")
+            writable(connection, data)
+            if not data["name"].strip():
+                raise RuleError("RECURRING_INVALID_PLAN")
+            for name in ("amount_fen", "costs_fen"):
+                EventInput.bounded_amount(data[name])
+            if not 0 <= int(data["costs_fen"]) < int(data["amount_fen"]):
+                raise RuleError("RECURRING_INVALID_PLAN")
+            connection.execute(
+                text(
+                    "UPDATE investment_plans SET name=:name,account_id=:account_id,"
+                    "instrument_id=:instrument_id,start_date=:start_date,frequency=:frequency,"
+                    "weekday=:weekday,amount_fen=:amount,costs_fen=:costs,revision=revision+1 "
+                    "WHERE id=:id"
+                ),
+                {
+                    **data,
+                    "id": str(identifier),
+                    "amount": int(data["amount_fen"]),
+                    "costs": int(data["costs_fen"]),
+                },
+            )
+            accounting.audit(connection, str(identifier), "update_recurring_plan", old, data)
+            counts = fetch_all(
+                connection,
+                "SELECT COALESCE(SUM(status='pending'),0) AS pending,"
+                "COALESCE(SUM(status='confirmed'),0) AS confirmed FROM investment_drafts "
+                "WHERE plan_id=:id",
+                {"id": str(identifier)},
+            )[0]
+            return {
+                **data,
+                "pending_count": counts["pending"],
+                "confirmed_count": counts["confirmed"],
+                "id": str(identifier),
+                "paused": bool(old["paused"]),
+                "has_drafts": has_drafts,
+                "revision": old["revision"] + 1,
+            }
+
+        return accounting.command(key, "change_recurring:" + str(identifier), data, action)
+
+    @router.post("/{identifier}/delete", response_model=CountOutput)
+    def delete(identifier: UUID, payload: RevisionInput, key: Key) -> object:
+        def action(connection: Any) -> dict[str, Any]:
+            old = plan(connection, str(identifier))
+            if old["revision"] != payload.revision:
+                raise RuleError("REVISION_CONFLICT")
+            if not old["paused"]:
+                raise RuleError("RECURRING_DELETE_REQUIRES_PAUSE")
+            connection.execute(
+                text("UPDATE investment_plans SET deleted=1,revision=revision+1 WHERE id=:id"),
+                {"id": str(identifier)},
+            )
+            accounting.audit(
+                connection, str(identifier), "delete_recurring_plan", old, {"deleted": True}
+            )
+            return {"count": 1}
+
+        return accounting.command(
+            key, "delete_recurring:" + str(identifier), payload.model_dump(), action
+        )
 
     @router.post("", response_model=PlanOutput)
     def create(payload: PlanInput, key: Key) -> object:
@@ -227,7 +327,16 @@ def recurring_router(accounting: Accounting) -> APIRouter:
     def drafts(identifier: UUID, start: date, end: date) -> object:
         schedule(start, end, start, "daily", 0)
         with accounting.engine.connect() as connection:
-            plan(connection, str(identifier))
+            item = plan(connection, str(identifier), allow_deleted=True)
+            quotes = {
+                r["price_date"]: r["price"]
+                for r in fetch_all(
+                    connection,
+                    "SELECT price_date,price FROM valuations WHERE instrument_id=:id "
+                    "AND status='active'",
+                    {"id": item["instrument_id"]},
+                )
+            }
             rows = fetch_all(
                 connection,
                 (
@@ -243,6 +352,7 @@ def recurring_router(accounting: Accounting) -> APIRouter:
             return [
                 {
                     **r,
+                    "nav_price": quotes.get(r["nav_date"]),
                     "amount_fen": str(
                         r["event_gross"] + r["event_costs"] if r["event_id"] else r["amount_fen"]
                     ),
@@ -279,7 +389,7 @@ def recurring_router(accounting: Accounting) -> APIRouter:
                         or row.confirmation_date.isoformat() < old["scheduled_date"]
                     ):
                         raise RuleError("RECURRING_CONFIRMATION_REQUIRED")
-                    if row.nav_date and row.nav_date > row.confirmation_date:
+                    if row.nav_date is None or row.nav_date > row.confirmation_date:
                         raise RuleError("RECURRING_INVALID_NAV_DATE")
                     try:
                         transaction = TradeInput.model_validate(

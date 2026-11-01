@@ -994,6 +994,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByRole("button", { name: "保存定投计划", exact: true })
     .click();
   await expect(recurring).toContainText("计划已保存");
+  await expect(recurring.locator("details")).toHaveJSProperty("open", false);
   await recurring.getByLabel("核对开始日期", { exact: true }).fill(today);
   await recurring.getByLabel("核对结束日期", { exact: true }).fill(today);
   await recurring
@@ -1001,6 +1002,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .click();
   await expect(recurring).toContainText("新增 1 项");
   await recurring.getByLabel(`选择 ${today}`, { exact: true }).check();
+  await recurring.getByLabel(`${today} 确认日期`, { exact: true }).fill(today);
+  await recurring
+    .getByLabel(`${today} 净值所属日`, { exact: true })
+    .fill(today);
   await recurring.getByLabel(`${today} 份额`, { exact: true }).fill("10");
   await recurring
     .getByRole("button", { name: "预览所选确认／跳过", exact: true })
@@ -1012,7 +1017,9 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByRole("button", { name: "确认处理所选记录", exact: true })
     .click();
   await expect(recurring).toContainText("已处理 1 项");
-  await expect(recurring.getByRole("table")).toContainText("已确认");
+  await expect(
+    recurring.getByRole("table", { name: "定投待核对列表" }),
+  ).toContainText("已确认");
   await page.screenshot({
     path: "test-results/recurring.png",
     fullPage: false,
@@ -1030,6 +1037,66 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.getByRole("button", { name: "确认作废投资", exact: true }).click();
   await expect(recurringRow).toContainText("已作废");
   expect(recurringTrade.action).toBe("buy");
+  await page.getByRole("button", { name: "定投计划", exact: true }).click();
+  const manager = recurring.getByRole("table", { name: "定投计划管理列表" });
+  const originalPlanRow = manager
+    .getByRole("row")
+    .filter({ hasText: "Synthetic recurring plan" });
+  await originalPlanRow
+    .getByRole("button", { name: "修改计划", exact: true })
+    .click();
+  await expect(
+    recurring.getByRole("combobox", { name: "计划资金账户", exact: true }),
+  ).toBeDisabled();
+  await recurring
+    .getByLabel("计划名称", { exact: true })
+    .fill("Synthetic recurring updated");
+  await recurring
+    .getByLabel("每次扣款（元，已含费用）", { exact: true })
+    .fill("20");
+  await recurring
+    .getByRole("button", { name: "保存定投计划", exact: true })
+    .click();
+  await expect(recurring).toContainText("计划已修改");
+  await expect(recurring.locator("details")).toHaveJSProperty("open", false);
+  const updatedPlanRow = manager
+    .getByRole("row")
+    .filter({ hasText: "Synthetic recurring updated" });
+  await expect(updatedPlanRow).toContainText("¥20.00");
+  await updatedPlanRow
+    .getByRole("button", { name: "暂停计划", exact: true })
+    .click();
+  await expect(updatedPlanRow).toContainText("已暂停");
+  await updatedPlanRow
+    .getByRole("button", { name: "删除计划", exact: true })
+    .click();
+  await recurring
+    .getByRole("dialog", { name: "删除定投计划确认" })
+    .getByRole("button", { name: "确认删除计划", exact: true })
+    .click();
+  await expect(recurring).toContainText("计划已删除，历史记录与交易已保留");
+  await expect(updatedPlanRow).toHaveCount(0);
+  await recurring
+    .getByRole("checkbox", { name: "显示已删除计划（只读历史）" })
+    .check();
+  await expect(updatedPlanRow).toContainText("已删除（历史保留）");
+  await expect(
+    updatedPlanRow.getByRole("button", { name: "修改计划", exact: true }),
+  ).toHaveCount(0);
+  await updatedPlanRow
+    .getByRole("button", { name: "选择查看", exact: true })
+    .click();
+  await recurring
+    .getByRole("button", { name: "查看待核对项", exact: true })
+    .click();
+  await expect(
+    recurring.getByRole("table", { name: "定投待核对列表" }),
+  ).toContainText("交易已作废（保留关联）");
+  await page.screenshot({
+    path: "test-results/recurring-management.png",
+    fullPage: false,
+  });
+
   // M3.3: actual investment reports and allocation are read-only, with four scoped CSVs.
   await page.getByRole("button", { name: "投资报表", exact: true }).click();
   const performance = page.getByRole("region", {
