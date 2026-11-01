@@ -326,12 +326,24 @@ export function InvestmentsPage({
       <div className="stat-grid">
         {[
           ["已估值持仓市值", amount(page?.known_value_fen, "—")],
-          ["持仓盈亏", amount(page?.unrealized_fen)],
-          ["累计投资盈亏", amount(page?.total_profit_fen)],
-        ].map(([label, value]) => (
+          ["持仓盈亏", amount(page?.unrealized_fen), page?.holding_return_bps],
+          [
+            "累计投资盈亏",
+            amount(page?.total_profit_fen),
+            page?.total_return_bps,
+          ],
+        ].map(([label, value, rate]) => (
           <div className="card metric" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
+            {label !== "已估值持仓市值" && (
+              <span>
+                收益率{" "}
+                {rate == null
+                  ? "—"
+                  : `${BigInt(rate) > 0n ? "+" : ""}${fenToYuan(rate)}%`}
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -339,7 +351,7 @@ export function InvestmentsPage({
         已实现卖出盈亏 {amount(page?.realized_fen, "—")}
         ；现金分红 {amount(page?.cash_dividends_fen, "—")} · 再投分红{" "}
         {amount(page?.reinvested_dividends_fen, "—")}
-        。已实现与分红从录入期初之后计算，持仓盈亏按带入成本核算，费用不重复扣除。估值价格可能来自不同日期。
+        。已实现与分红从录入期初之后计算，持仓盈亏按带入成本核算，费用不重复扣除。估值价格可能来自不同日期。持仓收益率以剩余成本为分母；累计收益率以期初成本及后续累计投入（含费用、不减卖出回款、不重复计再投分红）为分母，均非年化。
         {!!page?.missing_price_count &&
           ` ${page.missing_price_count} 项待估值，市值仅为已知小计。`}
         {!!page?.unknown_cost_count &&

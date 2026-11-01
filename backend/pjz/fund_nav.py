@@ -121,6 +121,7 @@ class NavRow(BaseModel):
     price_date: str
     price: str
     exists: bool
+    restore_void: bool = False
 
 
 class NavPreview(BaseModel):
@@ -164,26 +165,34 @@ def nav_router(accounting: Accounting) -> APIRouter:
         if len(cache) >= 10:
             del cache[next(iter(cache))]
         token = secrets.token_urlsafe(32)
+        with accounting.engine.connect() as connection:
+            existing = {
+                r["price_date"]: r
+                for r in fetch_all(
+                    connection,
+                    "SELECT * FROM valuations WHERE instrument_id=:id",
+                    {"id": str(payload.instrument_id)},
+                )
+            }
         cache[token] = {
             "rows": rows,
+            "existing": existing,
             "instrument_id": str(payload.instrument_id),
             "fetched_at": stamp,
             "expires": time.monotonic() + 300,
         }
-        with accounting.engine.connect() as connection:
-            existing = {
-                r["price_date"]
-                for r in fetch_all(
-                    connection,
-                    "SELECT price_date FROM valuations WHERE instrument_id=:id",
-                    {"id": str(payload.instrument_id)},
-                )
-            }
         return {
             "token": token,
             "source": SOURCE,
             "fetched_at": stamp,
-            "rows": [{**r, "exists": r["price_date"] in existing} for r in rows],
+            "rows": [
+                {
+                    **r,
+                    "exists": existing.get(r["price_date"], {}).get("status") == "active",
+                    "restore_void": existing.get(r["price_date"], {}).get("status") == "void",
+                }
+                for r in rows
+            ],
         }
 
     @router.post("/import", response_model=NavImported)
@@ -194,34 +203,63 @@ def nav_router(accounting: Accounting) -> APIRouter:
                 raise RuleError("NAV_PREVIEW_EXPIRED")
             imported = 0
             for row in item["rows"]:
-                if fetch_all(
+                found = fetch_all(
                     connection,
-                    "SELECT id FROM valuations WHERE instrument_id=:id AND price_date=:day",
+                    "SELECT * FROM valuations WHERE instrument_id=:id AND price_date=:day",
                     {"id": item["instrument_id"], "day": row["price_date"]},
-                ):
-                    continue
-                identifier = str(uuid.uuid4())
-                connection.execute(
-                    text(
-                        "INSERT INTO valuations "
-                        "(id,ledger_id,instrument_id,price_date,price,status,"
-                        "created_at,updated_at) "
-                        "VALUES (:id,(SELECT id FROM ledger),:asset,:day,:price,'active',:at,:at)"
-                    ),
-                    {
-                        "id": identifier,
-                        "asset": item["instrument_id"],
-                        "day": row["price_date"],
-                        "price": row["price"],
-                        "at": now(),
-                    },
                 )
+                before = found[0] if found else None
+                expected = item["existing"].get(row["price_date"])
+                if before and before["status"] == "active":
+                    continue
+                if expected and expected["status"] == "active":
+                    continue
+                if (before is None) != (expected is None) or (
+                    before
+                    and expected
+                    and (before["id"], before["revision"]) != (expected["id"], expected["revision"])
+                ):
+                    raise RuleError("NAV_PREVIEW_CHANGED")
+                identifier = before["id"] if before else str(uuid.uuid4())
+                revision = before["revision"] + 1 if before else 1
+                values = {
+                    "id": identifier,
+                    "asset": item["instrument_id"],
+                    "day": row["price_date"],
+                    "price": row["price"],
+                    "at": now(),
+                    "revision": revision,
+                }
+                if before:
+                    connection.execute(
+                        text(
+                            "UPDATE valuations SET price=:price,status='active',revision=:revision,"
+                            "updated_at=:at WHERE id=:id"
+                        ),
+                        values,
+                    )
+                else:
+                    connection.execute(
+                        text(
+                            "INSERT INTO valuations "
+                            "(id,ledger_id,instrument_id,price_date,price,status,"
+                            "created_at,updated_at) "
+                            "VALUES (:id,(SELECT id FROM ledger),:asset,:day,:price,"
+                            "'active',:at,:at)"
+                        ),
+                        values,
+                    )
                 accounting.audit(
                     connection,
                     identifier,
                     "import_public_nav",
-                    None,
-                    {**row, "source": SOURCE, "fetched_at": item["fetched_at"]},
+                    before,
+                    {
+                        **row,
+                        "source": SOURCE,
+                        "fetched_at": item["fetched_at"],
+                        "revision": revision,
+                    },
                 )
                 imported += 1
             return {"imported": imported, "skipped": len(item["rows"]) - imported}

@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from pjz import __version__
 from pjz.account_deletion import AccountDeletion
 from pjz.accounting import Accounting
 from pjz.budgets import Budgets
@@ -135,7 +136,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI(
         title="PJZSoftware",
-        version="0.13.0",
+        version=__version__,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,

@@ -13,7 +13,13 @@ from sqlalchemy import Connection, text
 
 from pjz.accounting import Accounting, fetch_all, now
 from pjz.domain import Entry, RuleError
-from pjz.investment_domain import Position, decimal_text, decimal_value, holding_share_bps
+from pjz.investment_domain import (
+    Position,
+    decimal_text,
+    decimal_value,
+    holding_share_bps,
+    return_bps,
+)
 
 
 class Investments:
@@ -367,20 +373,27 @@ class Investments:
             "WHERE r.operation IN ('import_public_nav','save_valuation')",
         ):
             entry = provenance.setdefault(audit["entity_id"], {})
+            payload = json.loads(audit["after_json"])
             if audit["operation"] == "import_public_nav":
-                entry["import"] = json.loads(audit["after_json"])
+                revision = payload.get("revision", 1)
+                if revision >= entry.get("import_revision", 0):
+                    entry["import"] = payload
+                    entry["import_revision"] = revision
             else:
-                entry["manual"] = True
+                entry["manual_revision"] = max(
+                    entry.get("manual_revision", 0), payload.get("revision", 0) + 1
+                )
         for valuation in prices:
             evidence = provenance.get(valuation["id"], {})
             imported = evidence.get("import")
             valuation["source_label"] = (
                 "手动维护（原联网导入 · 天天基金）"
-                if imported and evidence.get("manual")
+                if imported
+                and evidence.get("manual_revision", 0) > evidence.get("import_revision", 0)
                 else "联网导入 · 天天基金"
                 if imported
                 else "手动录入"
-                if evidence.get("manual")
+                if evidence.get("manual_revision")
                 else "来源未知"
             )
             valuation["fetched_at"] = imported.get("fetched_at") if imported else None
@@ -394,6 +407,9 @@ class Investments:
         unknown_cost = 0
         realized = 0
         unrealized = 0
+        remaining_cost = 0
+        invested_cost = 0
+        unknown_invested = False
         cash_dividends = 0
         reinvested_dividends = 0
         for (account_id, instrument_id), position in positions.items():
@@ -418,6 +434,9 @@ class Investments:
             cash_dividends += position.cash_dividends
             reinvested_dividends += position.reinvested_dividends
             unrealized += profit or 0
+            remaining_cost += position.cost or 0
+            invested_cost += position.invested_cost or 0
+            unknown_invested |= position.invested_cost is None
             items.append(
                 {
                     "account_id": account_id,
@@ -468,6 +487,15 @@ class Investments:
             "total_profit_fen": None
             if missing or unknown_cost
             else str(realized + cash_dividends + reinvested_dividends + unrealized),
+            "holding_return_bps": return_bps(
+                None if missing or unknown_cost else unrealized, remaining_cost
+            ),
+            "total_return_bps": return_bps(
+                None
+                if missing or unknown_cost
+                else realized + cash_dividends + reinvested_dividends + unrealized,
+                None if unknown_invested else invested_cost,
+            ),
             "known_net_fen": str(net + total),
             "net_fen": None if missing else str(net + total),
         }

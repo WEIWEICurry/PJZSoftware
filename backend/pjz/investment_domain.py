@@ -44,10 +44,26 @@ def holding_share_bps(value: int | None, total: int, complete: bool) -> str | No
         )
 
 
+def return_bps(profit: int | None, base: int | None) -> str | None:
+    """Non-annualized return, rounded to hundredths of a percent."""
+    if profit is None or base is None or base <= 0:
+        return None
+    with localcontext() as context:
+        context.prec = 64
+        return str(
+            int(
+                (Decimal(profit) * 10000 / Decimal(base)).quantize(
+                    Decimal(1), rounding=ROUND_HALF_UP
+                )
+            )
+        )
+
+
 @dataclass
 class Position:
     quantity: Decimal = Decimal(0)
     cost: int | None = 0
+    invested_cost: int | None = 0
     realized: int = 0
     cash_dividends: int = 0
     reinvested_dividends: int = 0
@@ -78,6 +94,7 @@ class Position:
             if action == "opening":
                 if self.started or gross or fee:
                     raise RuleError("INVESTMENT_OPENING_ORDER")
+                self.invested_cost = cost
                 self.cost = cost
                 self.quantity = units
                 cash = 0
@@ -85,6 +102,8 @@ class Position:
                 if gross <= 0 or cost is not None:
                     raise RuleError("INVALID_AMOUNT")
                 cash = -(gross + fee)
+                if self.invested_cost is not None:
+                    self.invested_cost += gross + fee
                 if self.cost is not None:
                     self.cost += gross + fee
                 self.quantity += units
@@ -117,6 +136,8 @@ class Position:
                 if gross <= 0 or cost is not None:
                     raise RuleError("INVALID_EVENT_FIELDS")
                 self.reinvested_dividends += gross
+                if self.invested_cost is not None:
+                    self.invested_cost += fee
                 if self.cost is not None:
                     self.cost += gross + fee
                 self.quantity += units

@@ -121,18 +121,50 @@ def test_bad_or_excess_remote_response(payload, monkeypatch):
         fetch_nav("000001", date(2026, 1, 1), date(2026, 1, 31))
 
 
-def test_expired_preview_and_void_price_protected(ledger, monkeypatch):
+def test_expired_preview_and_void_price_restored(ledger, monkeypatch):
     asset = instrument(ledger, "000001", "fund", "FUND")
     assert price(ledger, asset, "9", "2026-01-20").status_code == 200
     assert price(ledger, asset, "9", "2026-01-20", revision=1, status="void").status_code == 200
     monkeypatch.setattr(
         "pjz.fund_nav.fetch_nav", lambda *a: [{"price_date": "2026-01-20", "price": "1"}]
     )
-    token = query(ledger, asset).json()["token"]
-    assert send(ledger, "/fund-nav/import", {"token": token}).json() == {
-        "imported": 0,
-        "skipped": 1,
+    before = page(ledger)["valuations"][0]
+    preview = query(ledger, asset).json()
+    assert preview["rows"][0] == {
+        "price_date": "2026-01-20",
+        "price": "1",
+        "exists": False,
+        "restore_void": True,
     }
+    token = preview["token"]
+    key = str(uuid.uuid4())
+    assert send(ledger, "/fund-nav/import", {"token": token}, key=key).json() == {
+        "imported": 1,
+        "skipped": 0,
+    }
+    restored = page(ledger)["valuations"][0]
+    assert restored["id"] == before["id"]
+    assert (restored["revision"], restored["status"], restored["price"]) == (3, "active", "1")
+    assert restored["source_label"] == "联网导入 · 天天基金"
+    assert restored["fetched_at"] == preview["fetched_at"]
+    assert send(ledger, "/fund-nav/import", {"token": token}, key=key).json()["imported"] == 1
+    assert send(ledger, "/fund-nav/import", {"token": token}).json()["skipped"] == 1
+    from pjz.accounting import Accounting
+    from pjz.investments import Investments
+    from pjz.storage import LedgerStore
+
+    store = ledger[0]
+    backup = store.backup()
+    recovered = LedgerStore(store.restore(backup))
+    try:
+        assert (
+            Investments(Accounting(recovered.engine)).page()["valuations"]
+            == Investments(Accounting(store.engine)).page()["valuations"]
+        )
+    finally:
+        recovered.close()
+    assert price(ledger, asset, "2", "2026-01-20", revision=3).status_code == 200
+    assert page(ledger)["valuations"][0]["source_label"].startswith("手动维护")
     monkeypatch.setattr("pjz.fund_nav.time.monotonic", lambda: 99999999999)
     assert send(ledger, "/fund-nav/import", {"token": token}).status_code == 422
 
@@ -241,3 +273,52 @@ def test_absent_audit_does_not_invent_source(ledger):
     with ledger[0].engine.begin() as connection:
         connection.execute(text("DELETE FROM operation_revisions WHERE operation='save_valuation'"))
     assert page(ledger)["valuations"][0]["source_label"] == "来源未知"
+
+
+@pytest.mark.parametrize("initial", ["absent", "void", "active"])
+def test_nav_preview_changes_do_not_silently_overwrite(ledger, monkeypatch, initial):
+    asset = instrument(ledger, "000001", "fund", "FUND")
+    if initial != "absent":
+        assert price(ledger, asset, "9").status_code == 200
+    if initial == "void":
+        assert price(ledger, asset, "9", revision=1, status="void").status_code == 200
+    monkeypatch.setattr(
+        "pjz.fund_nav.fetch_nav",
+        lambda *a: [
+            {"price_date": "2026-01-21", "price": "2"},
+            {"price_date": "2026-01-20", "price": "1"},
+        ],
+    )
+    token = query(ledger, asset).json()["token"]
+    if initial == "absent":
+        assert price(ledger, asset, "8").status_code == 200
+    revision = {"absent": 1, "void": 2, "active": 1}[initial]
+    assert price(ledger, asset, "8", revision=revision, status="void").status_code == 200
+    before = page(ledger)
+    response = send(ledger, "/fund-nav/import", {"token": token})
+    if initial == "active":
+        assert response.json() == {"imported": 1, "skipped": 1}
+        assert (
+            next(v for v in page(ledger)["valuations"] if v["price_date"] == "2026-01-20")["status"]
+            == "void"
+        )
+    else:
+        assert response.status_code == 422
+        assert "NAV_PREVIEW_CHANGED" in response.text
+        assert page(ledger) == before  # Earlier row in this batch rolled back too.
+
+
+def test_void_preview_concurrent_manual_restore_is_protected(ledger, monkeypatch):
+    asset = instrument(ledger, "000001", "fund", "FUND")
+    assert price(ledger, asset, "9").status_code == 200
+    assert price(ledger, asset, "9", revision=1, status="void").status_code == 200
+    monkeypatch.setattr(
+        "pjz.fund_nav.fetch_nav", lambda *a: [{"price_date": "2026-01-20", "price": "1"}]
+    )
+    token = query(ledger, asset).json()["token"]
+    assert price(ledger, asset, "8", revision=2).status_code == 200
+    assert send(ledger, "/fund-nav/import", {"token": token}).json() == {
+        "imported": 0,
+        "skipped": 1,
+    }
+    assert page(ledger)["valuations"][0]["price"] == "8"

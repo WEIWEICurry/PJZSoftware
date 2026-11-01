@@ -45,6 +45,7 @@ const messages: Record<string, string> = {
   NAV_FUND_ONLY: "联网净值目前仅支持公募基金。",
   NAV_SOURCE_UNAVAILABLE:
     "净值数据源暂不可用或返回异常，请稍后重试；本地数据未改变。",
+  NAV_PREVIEW_CHANGED: "预览后价格记录已变化，请重新获取净值预览。",
   NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
 
   INVESTMENT_REPORT_INVALID_PERIOD:
