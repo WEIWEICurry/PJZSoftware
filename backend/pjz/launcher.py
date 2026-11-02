@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
 
 import uvicorn
@@ -36,6 +37,7 @@ def main() -> None:
     parser.add_argument("--managed-root", type=Path)
     parser.add_argument("--ready-id")
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument("--show-service", action="store_true")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
@@ -103,7 +105,9 @@ def main() -> None:
                     "executable": str(Path(sys.executable).resolve()),
                 },
             )
-        restart = serve(directory, args.headless, args.no_browser, management, args.ready_id)
+        restart = serve(
+            directory, args.headless, args.no_browser, management, args.ready_id, args.show_service
+        )
     finally:
         (directory / "runtime.json").unlink(missing_ok=True)
         if root:
@@ -123,6 +127,7 @@ def serve(
     no_browser: bool,
     management: LaunchManagement | None = None,
     ready_id: str | None = None,
+    show_service: bool = False,
 ) -> Path | None:
     management = management or LaunchManagement(directory, interactive=not headless)
     assets = asset_directory()
@@ -166,13 +171,13 @@ def serve(
             {"pid": os.getpid(), "version": __version__, "id": ready_id},
         )
 
-    def open_page() -> None:
+    def open_page() -> bool:
         token = app.state.session.issue_bootstrap()
-        webbrowser.open(origin + "/#bootstrap=" + token)
+        return webbrowser.open(origin + "/#bootstrap=" + token)
 
     request_file = directory / "reopen.request"
     if not no_browser:
-        open_page()
+        show_service = not open_page() or show_service
     try:
         if headless:
             while worker.is_alive():
@@ -182,66 +187,9 @@ def serve(
                         open_page()
                 time.sleep(0.1)
         else:
-            import tkinter as tk
-            from tkinter import ttk
-
-            root = tk.Tk()
-            root.title(f"PJZSoftware v{__version__} · 本地服务")
-            root.geometry("620x360")
-            root.resizable(False, False)
-            ttk.Label(root, text="PJZSoftware", font=("Microsoft YaHei UI", 18)).pack(pady=15)
-            ttk.Label(root, text="服务仅运行在本机。关闭浏览器不会退出软件。").pack(pady=5)
-            ttk.Label(
-                root,
-                text=f"当前版本：v{__version__}\n程序：{Path(sys.executable).resolve()}",
-                wraplength=580,
-            ).pack(pady=8)
-            ttk.Button(root, text="打开软件", command=open_page).pack(pady=8)
-
-            def manage() -> None:
-                try:
-                    management.manage(root, stop)
-                except Exception:
-                    from tkinter import messagebox
-
-                    messagebox.showerror(
-                        "设置未完成",
-                        "固定入口保存失败，请检查磁盘空间和权限。原程序与账本仍保留。",
-                        parent=root,
-                    )
-
-            ttk.Button(root, text="启动与更新管理", command=manage).pack(pady=8)
-            ttk.Button(root, text="退出软件", command=stop).pack(pady=8)
-            root.protocol("WM_DELETE_WINDOW", stop)
-
-            def poll() -> None:
-                if not worker.is_alive():
-                    root.destroy()
-                    return
-                if request_file.exists():
-                    request_file.unlink(missing_ok=True)
-                    open_page()
-                    root.lift()
-                if management.attention.is_set():
-                    management.attention.clear()
-                    root.lift()
-                    if management.switches:
-                        from tkinter import messagebox
-
-                        destination = management.switches.pop(0)
-                        if messagebox.askyesno(
-                            "打开恢复副本",
-                            "将先退出并备份当前账本，再打开刚验证的恢复副本。继续？",
-                            parent=root,
-                        ):
-                            management.prepare_switch(destination)
-                            stop()
-                    else:
-                        manage()
-                root.after(200, poll)
-
-            poll()
-            root.mainloop()
+            run_service_window(
+                management, worker, request_file, open_page, stop, show_service, no_browser
+            )
     except KeyboardInterrupt:
         stop()
     finally:
@@ -265,3 +213,90 @@ def serve(
             sock.close()
             request_file.unlink(missing_ok=True)
     return restart
+
+
+def run_service_window(
+    management: LaunchManagement,
+    worker: threading.Thread,
+    request_file: Path,
+    open_page: Callable[[], bool],
+    stop: Callable[[], None],
+    show_service: bool = False,
+    no_browser: bool = False,
+) -> None:
+    """Keep the event loop available while normal launches show only the ledger."""
+    import tkinter as tk
+    from tkinter import ttk
+
+    root = tk.Tk()
+    root.withdraw()
+    root.title(f"PJZSoftware v{__version__} · 本地服务")
+    root.geometry("620x360")
+    root.resizable(False, False)
+    ttk.Label(root, text="PJZSoftware", font=("Microsoft YaHei UI", 18)).pack(pady=15)
+    ttk.Label(
+        root,
+        text="服务仅运行在本机，关闭浏览器或管理窗口不会退出软件。\n请用页面或下方的“退出软件”按钮结束运行。",
+    ).pack(pady=5)
+    ttk.Label(
+        root,
+        text=f"当前版本：v{__version__}\n程序：{Path(sys.executable).resolve()}",
+        wraplength=580,
+    ).pack(pady=8)
+    ttk.Button(root, text="打开软件", command=open_page).pack(pady=8)
+
+    def reveal() -> None:
+        root.deiconify()
+        root.lift()
+        root.focus_set()
+
+    def manage() -> None:
+        reveal()
+        try:
+            management.manage(root, stop)
+        except Exception:
+            from tkinter import messagebox
+
+            messagebox.showerror(
+                "设置未完成",
+                "固定入口保存失败，请检查磁盘空间和权限。原程序与账本仍保留。",
+                parent=root,
+            )
+
+    ttk.Button(root, text="启动与更新管理", command=manage).pack(pady=8)
+    ttk.Button(root, text="退出软件", command=stop).pack(pady=8)
+    root.protocol("WM_DELETE_WINDOW", root.withdraw)
+
+    def poll() -> None:
+        if not worker.is_alive():
+            root.destroy()
+            return
+        if request_file.exists():
+            request_file.unlink(missing_ok=True)
+            if not no_browser and not open_page():
+                reveal()
+        if management.attention.is_set():
+            management.attention.clear()
+            if management.switches:
+                was_hidden = root.state() == "withdrawn"
+                reveal()
+                from tkinter import messagebox
+
+                destination = management.switches.pop(0)
+                if messagebox.askyesno(
+                    "打开恢复副本",
+                    "将先退出并备份当前账本，再打开刚验证的恢复副本。继续？",
+                    parent=root,
+                ):
+                    management.prepare_switch(destination)
+                    stop()
+                elif was_hidden:
+                    root.withdraw()
+            else:
+                manage()
+        root.after(200, poll)
+
+    if show_service:
+        reveal()
+    poll()
+    root.mainloop()

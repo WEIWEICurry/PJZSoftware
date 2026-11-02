@@ -484,6 +484,7 @@ def test_managed_runtime_metadata_records_program_image(installed, monkeypatch):
     from pjz.launcher import main
 
     store, root, source, _ = installed
+    release(source, __version__)
     monkeypatch.setattr("sys.executable", str(source / "PJZSoftware.exe"))
     monkeypatch.setattr(
         "sys.argv",
