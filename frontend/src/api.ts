@@ -11,6 +11,10 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  PACKAGED_ONLY: "请使用 Windows 便携程序，在本机启动窗口管理固定入口与更新。",
+  MANAGED_ENTRY_REQUIRED:
+    "请先在启动窗口设置固定入口，再使用该入口启动后切换恢复副本。",
+
   BACKUP_WRITE_FAILED:
     "恢复前保护备份保存失败，请检查磁盘空间和目录权限；当前账本未改变。",
   BACKUP_UNSAFE_PATH: "备份目录或文件存在不安全链接，请使用普通本地目录。",

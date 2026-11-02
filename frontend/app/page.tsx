@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LaunchPanel, type RuntimeInfo } from "../src/launch-panel";
 import {
   AutomaticBackupPanel,
   type BackupStatus,
@@ -29,6 +30,8 @@ const stages = [
   ["M3", "投资资产", "期间总盈亏、边界持仓、配置与导出", "当前阶段"],
 ];
 export default function Home() {
+  const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
+  const [restoredToken, setRestoredToken] = useState<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [backupUnavailable, setBackupUnavailable] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -46,6 +49,9 @@ export default function Home() {
       .then((data) => {
         setLedger(data);
         setName(data.name);
+        void request<RuntimeInfo>("/runtime")
+          .then(setRuntime)
+          .catch(() => setRuntime(null));
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -124,14 +130,14 @@ export default function Home() {
   async function restore() {
     if (!preview) return;
     await act(async () => {
-      const result = await request<{ directory: string }>(
-        "/restores/commit",
-        "POST",
-        {
-          preview_token: preview.preview_token,
-        },
-      );
+      const result = await request<{
+        directory: string;
+        restore_token: string;
+      }>("/restores/commit", "POST", {
+        preview_token: preview.preview_token,
+      });
       setPreview(null);
+      setRestoredToken(result.restore_token);
       setNotice(
         "恢复成功，新账本位于：" +
           result.directory +
@@ -178,7 +184,10 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <span className="status-dot" />
-          仅在本机运行<small>记账与投资版 · v0.15.0</small>
+          仅在本机运行
+          <small>
+            记账与投资版 · {runtime ? `v${runtime.version}` : "版本待确认"}
+          </small>
         </div>
       </aside>
       <div className="workspace">
@@ -370,6 +379,7 @@ export default function Home() {
                 </button>
                 <p className="footnote">备份未加密，请保存在你信任的位置。</p>
               </section>
+              <LaunchPanel runtime={runtime} updated={setRuntime} />
               <AutomaticBackupPanel
                 status={backupStatus}
                 updated={setBackupStatus}
@@ -403,8 +413,26 @@ export default function Home() {
                     </button>
                   </div>
                 )}
+                {restoredToken && runtime?.can_switch && (
+                  <button
+                    disabled={!available}
+                    onClick={() =>
+                      void act(async () => {
+                        await request("/runtime/open-restored", "POST", {
+                          restore_token: restoredToken,
+                        });
+                        setRestoredToken(null);
+                        setNotice(
+                          "请在本机启动窗口确认，随后将退出并打开恢复副本；当前账本会保留保护备份。",
+                        );
+                      })
+                    }
+                  >
+                    退出并打开恢复副本
+                  </button>
+                )}
                 <p className="footnote">
-                  当前恢复只验证独立副本，切换账本功能后续开放。基础版本文件上限
+                  恢复到独立目录；固定入口模式可退出并打开恢复副本，便携模式仍可用启动参数打开。基础版本文件上限
                   8 MB。
                 </p>
               </section>

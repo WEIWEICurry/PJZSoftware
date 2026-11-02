@@ -10,6 +10,27 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     if (!request.url().startsWith("http://127.0.0.1:8765"))
       external.push(request.url());
   });
+  await page.route("**/api/v1/runtime", async (route) => {
+    const response = await route.fetch();
+    const runtime = await response.json();
+    await route.fulfill({
+      json: {
+        ...runtime,
+        can_manage: true,
+        can_switch: true,
+        entry: "Synthetic/PJZStart.exe",
+      },
+    });
+  });
+  await page.route("**/api/v1/runtime/manage", (route) =>
+    route.fulfill({ json: { requested: true } }),
+  );
+  await page.route("**/api/v1/runtime/open-restored", (route) => {
+    const body = route.request().postDataJSON();
+    expect(Object.keys(body)).toEqual(["restore_token"]);
+    expect(body.restore_token.length).toBeGreaterThan(20);
+    return route.fulfill({ json: { requested: true } });
+  });
   await page.goto("/#bootstrap=synthetic-browser-bootstrap");
   await expect(page.getByText("已连接本机服务")).toBeVisible();
   await expect(page).toHaveURL("http://127.0.0.1:8765/");
@@ -1232,6 +1253,16 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     fullPage: true,
   });
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
+  const launchPanel = page.getByRole("region", {
+    name: "启动与更新",
+    exact: true,
+  });
+  await expect(launchPanel).toContainText("当前运行版本");
+  await expect(launchPanel).toContainText("Synthetic/PJZStart.exe");
+  await launchPanel.getByRole("button", { name: "打开启动与更新管理" }).click();
+  await expect(launchPanel.getByRole("status")).toContainText(
+    "请在本机启动窗口",
+  );
   const automaticBackup = page.getByRole("region", { name: "自动备份保障" });
   const currentBackup = await (
     await page.request.get("/api/v1/automatic-backups")
@@ -1266,6 +1297,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.getByRole("button", { name: "确认恢复到新目录" }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "恢复成功" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "退出并打开恢复副本" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "请在本机启动窗口确认" }),
   ).toBeVisible();
   expect(external).toEqual([]);
   await page.context().clearCookies();

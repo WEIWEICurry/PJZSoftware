@@ -35,6 +35,7 @@ from pjz.investment_api import investment_router
 from pjz.investment_report_api import investment_report_router
 from pjz.investment_reports import InvestmentReports
 from pjz.investments import Investments
+from pjz.launch_management import LaunchManagement
 from pjz.recurring import recurring_router
 from pjz.report_api import report_router
 from pjz.reports import Reports
@@ -109,6 +110,19 @@ class AutomaticBackupStatus(BaseModel):
     files: list[AutomaticBackupFile]
 
 
+class RuntimeOutput(BaseModel):
+    version: str
+    executable: str | None
+    entry: str | None
+    can_manage: bool
+    can_switch: bool
+
+
+class OpenRestoredInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    restore_token: str = Field(min_length=20, max_length=128)
+
+
 class BootstrapInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     token: str = Field(min_length=20, max_length=128)
@@ -154,6 +168,7 @@ def create_app(
     origin: str,
     assets: Path | None = None,
     shutdown: Callable[[], None] | None = None,
+    launch: LaunchManagement | None = None,
 ) -> FastAPI:
     automatic = AutomaticBackups(store)
 
@@ -196,6 +211,7 @@ def create_app(
     app.state.session = session
     app.state.automatic_backups = automatic
     previews: dict[str, tuple[bytes, int, float]] = {}
+    restored_targets: dict[str, tuple[Path, float]] = {}
     mutation_lock = threading.Lock()
 
     def failure(code: str, status: int) -> JSONResponse:
@@ -284,6 +300,38 @@ def create_app(
         report_router(Reports(Accounting(store.engine)), Budgets(Accounting(store.engine)))
     )
 
+    @app.get("/api/v1/runtime", response_model=RuntimeOutput)
+    def runtime() -> dict[str, Any]:
+        return (
+            launch.info()
+            if launch
+            else {
+                "version": __version__,
+                "executable": None,
+                "entry": None,
+                "can_manage": False,
+                "can_switch": False,
+            }
+        )
+
+    @app.post("/api/v1/runtime/manage")
+    def manage_launch() -> dict[str, bool]:
+        if not launch or not launch.info()["can_manage"]:
+            raise DataError("PACKAGED_ONLY")
+        launch.attention.set()
+        return {"requested": True}
+
+    @app.post("/api/v1/runtime/open-restored")
+    def open_restored(body: OpenRestoredInput) -> dict[str, bool]:
+        if not launch or not launch.info()["can_switch"]:
+            raise DataError("MANAGED_ENTRY_REQUIRED")
+        with mutation_lock:
+            item = restored_targets.pop(body.restore_token, None)
+            if item is None or item[1] < time.monotonic():
+                raise DataError("PREVIEW_EXPIRED")
+            launch.request_switch(item[0])
+        return {"requested": True}
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ready"}
@@ -370,7 +418,14 @@ def create_app(
                 destination = store.restore(item[0])
             except OSError:
                 raise DataError("BACKUP_WRITE_FAILED") from None
-        return {"directory": str(destination), "message": "已验证并恢复至新目录；未切换当前账本。"}
+            token = secrets.token_urlsafe(32)
+            restored_targets.clear()
+            restored_targets[token] = (destination, time.monotonic() + 300)
+        return {
+            "directory": str(destination),
+            "restore_token": token,
+            "message": "已验证并恢复至新目录；未切换当前账本。",
+        }
 
     @app.post("/api/v1/shutdown")
     def stop() -> dict[str, bool]:
