@@ -31,7 +31,9 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.getByLabel("选择 .pjzbackup 备份").setInputFiles(backupPath!);
   await expect(page.getByText("备份验证通过")).toBeVisible();
   await page.getByRole("button", { name: "确认恢复到新目录" }).click();
-  await expect(page.getByRole("status")).toContainText("恢复成功");
+  await expect(
+    page.getByRole("status").filter({ hasText: "恢复成功" }),
+  ).toBeVisible();
   await page.screenshot({ path: "test-results/data.png", fullPage: true });
   await page.getByRole("button", { name: "账户", exact: true }).click();
   await page.getByLabel("账户名称").fill("Synthetic bank");
@@ -1230,13 +1232,41 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     fullPage: true,
   });
   await page.getByRole("button", { name: "数据管理", exact: true }).click();
+  const automaticBackup = page.getByRole("region", { name: "自动备份保障" });
+  const currentBackup = await (
+    await page.request.get("/api/v1/automatic-backups")
+  ).json();
+  await page.route("**/api/v1/automatic-backups/retry", (route) =>
+    route.fulfill({ json: { ...currentBackup, error: "AUTO_BACKUP_FAILED" } }),
+  );
+  await automaticBackup.getByRole("button", { name: "立即备份／重试" }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "自动备份尚未成功" }),
+  ).toBeVisible();
+  await expect(automaticBackup.getByRole("status")).toContainText("旧副本保留");
+  await page.unroute("**/api/v1/automatic-backups/retry");
+  await automaticBackup.getByRole("button", { name: "立即备份／重试" }).click();
+  await expect(automaticBackup.getByRole("status")).toContainText(
+    "备份已校验并保存",
+  );
+  await expect(automaticBackup).toContainText("当前变更已备份");
+  await automaticBackup.getByText(/查看可用每日备份/).click();
   const businessDownloadEvent = page.waitForEvent("download");
-  await page.getByRole("button", { name: "下载本地备份" }).click();
+  await automaticBackup
+    .getByRole("button", { name: /下载 .* 备份/ })
+    .first()
+    .click();
   const businessBackup = await (await businessDownloadEvent).path();
+  await page.screenshot({
+    path: "test-results/automatic-backups.png",
+    fullPage: true,
+  });
   await page.getByLabel("选择 .pjzbackup 备份").setInputFiles(businessBackup!);
   await expect(page.getByText("备份验证通过")).toBeVisible();
   await page.getByRole("button", { name: "确认恢复到新目录" }).click();
-  await expect(page.getByRole("status")).toContainText("恢复成功");
+  await expect(
+    page.getByRole("status").filter({ hasText: "恢复成功" }),
+  ).toBeVisible();
   expect(external).toEqual([]);
   await page.context().clearCookies();
   await page.reload();

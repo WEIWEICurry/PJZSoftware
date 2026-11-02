@@ -11,6 +11,12 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
+  BACKUP_WRITE_FAILED:
+    "恢复前保护备份保存失败，请检查磁盘空间和目录权限；当前账本未改变。",
+  BACKUP_UNSAFE_PATH: "备份目录或文件存在不安全链接，请使用普通本地目录。",
+  BACKUP_METADATA_MISMATCH: "备份清单与账本内容不一致，已拒绝使用。",
+  BACKUP_NOT_FOUND: "备份不存在或已轮转清理，请刷新后重试。",
+
   RECURRING_DELETED: "该计划已删除，历史仅可查看，不能继续生成或确认。",
   RECURRING_DELETE_REQUIRES_PAUSE: "请先暂停计划，再删除。历史交易将保留。",
   RECURRING_IDENTITY_LOCKED:

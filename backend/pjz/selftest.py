@@ -316,7 +316,7 @@ def run() -> None:
         origin = f"http://127.0.0.1:{sock.getsockname()[1]}"
         app = create_app(store, origin)
         server = uvicorn.Server(
-            uvicorn.Config(app, access_log=False, log_level="critical", ws="none", lifespan="off")
+            uvicorn.Config(app, access_log=False, log_level="critical", ws="none", lifespan="on")
         )
         worker = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
         worker.start()
@@ -355,6 +355,15 @@ def run() -> None:
                 )
                 with urllib.request.urlopen(req, timeout=10) as result:
                     return dict(json.load(result))
+
+            backup_state = post_local("/automatic-backups/retry", {})
+            assert backup_state["error"] is None and not backup_state["pending"]
+            identifier = backup_state["files"][0]["id"]
+            req = urllib.request.Request(
+                origin + "/api/v1/automatic-backups/" + identifier, headers={"Cookie": cookie}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                inspect_backup(response.read())
 
             recurring = post_local(
                 "/recurring",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import sqlite3
 import tempfile
 import uuid
@@ -17,6 +18,8 @@ from typing import Any
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event, text
+
+from pjz import __version__
 
 SCHEMA_VERSION = 9
 SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
@@ -67,12 +70,11 @@ class LedgerStore:
             if existing:
                 backup_dir = self.directory / "backups"
                 backup_dir.mkdir(exist_ok=True)
-                payload = self.backup()
-                inspect_backup(payload)
-                (
+                write_verified_backup(
                     backup_dir
-                    / ("before-v" + str(SCHEMA_VERSION) + "-" + uuid.uuid4().hex + ".pjzbackup")
-                ).write_bytes(payload)
+                    / ("before-v" + str(SCHEMA_VERSION) + "-" + uuid.uuid4().hex + ".pjzbackup"),
+                    self.backup(),
+                )
             config = Config()
             config.set_main_option("script_location", str(Path(__file__).parent / "migrations"))
             with self.engine.connect() as connection:
@@ -131,12 +133,19 @@ class LedgerStore:
             with closing(sqlite3.connect(snapshot)) as compacted:
                 compacted.execute("VACUUM")
             validate_database(snapshot)
+            with closing(sqlite3.connect(snapshot)) as connection:
+                schema = connection.execute("PRAGMA user_version").fetchone()[0]
+                ledger_id, revision = connection.execute(
+                    "SELECT id,revision FROM ledger"
+                ).fetchone()
             payload = snapshot.read_bytes()
         manifest = {
             "format_version": 1,
-            "schema_version": database_version(self.path),
+            "schema_version": schema,
+            "app_version": __version__,
+            "ledger_revision": revision,
             "created_at": datetime.now(UTC).isoformat(),
-            "ledger_id": self.metadata()["id"],
+            "ledger_id": ledger_id,
             "files": {
                 "ledger.sqlite3": {
                     "size": len(payload),
@@ -156,8 +165,8 @@ class LedgerStore:
         # Preserve the current ledger before creating a separate restored ledger.
         backup_dir = self.directory / "backups"
         backup_dir.mkdir(exist_ok=True)
-        safety = backup_dir / (uuid.uuid4().hex + ".pjzbackup")
-        safety.write_bytes(self.backup())
+        safety = backup_dir / ("before-restore-" + uuid.uuid4().hex + ".pjzbackup")
+        write_verified_backup(safety, self.backup())
         with tempfile.TemporaryDirectory(dir=self.directory.parent) as temporary:
             staged = Path(temporary) / "restored"
             staged.mkdir()
@@ -171,6 +180,26 @@ class LedgerStore:
 
     def close(self) -> None:
         self.engine.dispose()
+
+
+def write_verified_backup(destination: Path, payload: bytes) -> None:
+    """Publish only a verified, durable package; failure preserves the previous file."""
+    inspect_backup(payload)
+    if (
+        destination.is_symlink()
+        or destination.parent.is_symlink()
+        or destination.parent.resolve() != destination.parent
+    ):
+        raise DataError("BACKUP_UNSAFE_PATH")
+    temporary = destination.with_name(".pending-" + uuid.uuid4().hex)
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def validate_database(path: Path) -> None:
@@ -279,6 +308,14 @@ def inspect_backup(payload: bytes) -> bytes:
             path = Path(temporary) / "ledger.sqlite3"
             path.write_bytes(snapshot)
             validate_database(path)
+            with closing(sqlite3.connect(path)) as connection:
+                ledger_id, revision = connection.execute(
+                    "SELECT id,revision FROM ledger"
+                ).fetchone()
+            if ledger_id != manifest["ledger_id"] or (
+                "ledger_revision" in manifest and revision != manifest["ledger_revision"]
+            ):
+                raise DataError("BACKUP_METADATA_MISMATCH")
             if database_version(path) != manifest["schema_version"]:
                 raise DataError("BACKUP_SCHEMA_MISMATCH")
         return snapshot
