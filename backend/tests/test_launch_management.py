@@ -506,3 +506,25 @@ def test_managed_runtime_metadata_records_program_image(installed, monkeypatch):
     assert observed[0]["executable"] == str((source / "PJZSoftware.exe").resolve())
     assert observed[0]["ledger_directory"] == str(store.directory)
     assert not (root / "runtime.json").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows 8.3 alias regression")
+def test_windows_short_profile_alias_is_canonicalized(installed):
+    import ctypes
+    from ctypes import wintypes
+
+    store, root, _, state = installed
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.GetShortPathNameW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+    kernel.GetShortPathNameW.restype = wintypes.DWORD
+    buffer = ctypes.create_unicode_buffer(32768)
+    length = kernel.GetShortPathNameW(str(root), buffer, len(buffer))
+    assert 0 < length < len(buffer)
+    alias = Path(buffer.value)
+    if alias == root:
+        pytest.skip("Volume does not create distinct 8.3 aliases")
+    manager = LaunchManagement(store.directory, alias)
+    assert manager.root == root.resolve()
+    manager.prepare_switch(store.directory)
+    assert manager.transition[2] == state
+    assert current_state(manager.root) == state

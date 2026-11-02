@@ -111,7 +111,7 @@ print(
 
 # Real fixed launcher, isolated from the user's profile and desktop.
 with tempfile.TemporaryDirectory(prefix="PJZ-fixed-entry-中文-") as temporary:
-    home = Path(temporary)
+    home = Path(temporary).resolve()
     root = home / "application"
     book = home / "ledger"
     ledger = LedgerStore(book)
@@ -123,10 +123,14 @@ with tempfile.TemporaryDirectory(prefix="PJZ-fixed-entry-中文-") as temporary:
     state = {"format": 1, "active": {"slot": slot, "ledger_directory": str(book)}, "previous": None}
     atomic_json(root / "current.json", state)
 
+    owned_books = {book}
+
     def stop_owned() -> None:
-        runtime = book / "runtime.json"
-        current = current_state(root)["active"]
-        runtime = Path(current["ledger_directory"]) / "runtime.json"
+        for owned_book in owned_books:
+            stop_book(owned_book)
+
+    def stop_book(owned_book: Path) -> None:
+        runtime = owned_book / "runtime.json"
         if not runtime.exists():
             return
         import json
@@ -207,6 +211,7 @@ with tempfile.TemporaryDirectory(prefix="PJZ-fixed-entry-中文-") as temporary:
         old = ledger.backup()
         ledger.rename("Synthetic original after backup", ledger.metadata()["revision"])
         destination = ledger.restore(old)
+        owned_books.add(destination)
         manager.prepare_switch(destination)
         manager.finalize(ledger)
         ledger.close()
