@@ -770,442 +770,452 @@ export function DailyWorkspace({
         </>
       ) : (
         <>
-          <section id="entry-form" className="card panel">
-            <div className="section-heading">
-              <div>
-                <span className="section-label">日常账本</span>
-                <h2>
-                  {editing
-                    ? "修改流水"
-                    : draft.kind === "refund"
-                      ? "记录退款"
-                      : "记一笔"}
-                </h2>
+          <div className="journal-layout">
+            <section id="entry-form" className="card panel">
+              <div className="section-heading">
+                <div>
+                  <span className="section-label">快速录入</span>
+                  <h2>
+                    {editing
+                      ? "修改流水"
+                      : draft.kind === "refund"
+                        ? "记录退款"
+                        : "记一笔"}
+                  </h2>
+                </div>
+                {editing && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setEditing(null);
+                      setShowLoans(false);
+                      setDraft(blankEvent());
+                      setAmount("");
+                    }}
+                  >
+                    取消修改
+                  </button>
+                )}
               </div>
-              {editing && (
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    setEditing(null);
-                    setShowLoans(false);
-                    setDraft(blankEvent());
-                    setAmount("");
-                  }}
+              {showLoans ? (
+                <>
+                  <div className="entry-type">{typeSelector}</div>
+                  {loanForm}
+                </>
+              ) : (
+                <form
+                  onSubmit={saveEvent}
+                  className="form-grid entry-grid"
+                  data-kind={draft.kind}
                 >
-                  取消修改
-                </button>
+                  {typeSelector}
+                  <label>
+                    发生日期
+                    <input
+                      type="date"
+                      value={draft.effective_date}
+                      max={localDay()}
+                      onChange={(e) =>
+                        setDraft({ ...draft, effective_date: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    {draft.kind === "transfer" ? "转出账户" : "记账账户"}
+                    <select
+                      value={
+                        draft.account_id ||
+                        accounts.find(
+                          (item) => !item.archived && !isLoanAccount(item),
+                        )?.id ||
+                        ""
+                      }
+                      onChange={(e) =>
+                        setDraft({ ...draft, account_id: e.target.value })
+                      }
+                      required
+                    >
+                      <option value="" disabled>
+                        请选择账户
+                      </option>
+                      {accounts
+                        .filter(
+                          (item) =>
+                            !item.archived &&
+                            (!isLoanAccount(item) || Boolean(editing)),
+                        )
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} · {money(item.balance_fen)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    {draft.kind === "transfer"
+                      ? "转账本金（元）"
+                      : "金额（元）"}
+                    <input
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder={
+                        draft.kind === "adjustment"
+                          ? "增额填正，减额填负"
+                          : "0.00"
+                      }
+                      required
+                    />
+                  </label>
+                  {draft.kind === "transfer" && (
+                    <>
+                      <label>
+                        转入账户
+                        <select
+                          value={draft.target_account_id ?? ""}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              target_account_id: e.target.value,
+                            })
+                          }
+                          required
+                        >
+                          <option value="" disabled>
+                            请选择账户
+                          </option>
+                          {accounts
+                            .filter(
+                              (item) =>
+                                !item.archived &&
+                                (!isLoanAccount(item) || Boolean(editing)),
+                            )
+                            .map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <label>
+                        手续费（元）
+                        <input
+                          inputMode="decimal"
+                          value={fee}
+                          onChange={(e) => setFee(e.target.value)}
+                          required
+                        />
+                      </label>
+                    </>
+                  )}
+                  {draft.kind !== "adjustment" && (
+                    <label>
+                      {draft.kind === "transfer" ? "手续费分类" : "分类"}
+                      <select
+                        value={draft.category_id || defaultCategory || ""}
+                        disabled={draft.kind === "refund"}
+                        onChange={(e) =>
+                          setDraft({ ...draft, category_id: e.target.value })
+                        }
+                      >
+                        {choices.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  <div className="wide-field note-field">
+                    <label htmlFor="transaction-note">
+                      {draft.kind === "adjustment"
+                        ? "校正原因（必填）"
+                        : "备注"}
+                    </label>
+                    <input
+                      id="transaction-note"
+                      value={draft.note ?? ""}
+                      onChange={(e) =>
+                        setDraft({ ...draft, note: e.target.value })
+                      }
+                      maxLength={500}
+                      required={draft.kind === "adjustment"}
+                    />
+                    {suggestions.length > 0 && (
+                      <div
+                        className="note-suggestions"
+                        role="group"
+                        aria-label="常用备注"
+                      >
+                        <span>常用备注</span>
+                        {suggestions.map((item) => (
+                          <button
+                            key={item.note}
+                            type="button"
+                            className="note-chip"
+                            title={
+                              item.note + "（已使用 " + item.count + " 次）"
+                            }
+                            disabled={!enabled}
+                            onClick={() =>
+                              setDraft({ ...draft, note: item.note })
+                            }
+                          >
+                            {item.note}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {draft.kind === "refund" && (
+                    <p className="footnote wide-field">
+                      {draft.original_event_id
+                        ? "已关联原支出，累计退款不能超过原支出金额。"
+                        : "请先在下方找到原支出，点击该行的“退款”。"}
+                    </p>
+                  )}
+                  <div className="form-footer">
+                    <button
+                      disabled={
+                        !enabled ||
+                        !accounts.some((item) => !item.archived) ||
+                        (draft.kind === "refund" && !draft.original_event_id)
+                      }
+                    >
+                      {editing ? "保存修改" : "保存流水"}
+                    </button>
+                    <small>
+                      {draft.kind === "transfer"
+                        ? "转账本金不计收支，只有手续费计入支出。"
+                        : draft.kind === "adjustment"
+                          ? "余额校正不计收支，并保留校正原因。"
+                          : "记录已发生的交易；期初和转账本金不计入收支。"}
+                    </small>
+                  </div>
+                </form>
               )}
-            </div>
-            {showLoans ? (
-              <>
-                <div className="entry-type">{typeSelector}</div>
-                {loanForm}
-              </>
-            ) : (
-              <form
-                onSubmit={saveEvent}
-                className="form-grid entry-grid"
-                data-kind={draft.kind}
-              >
-                {typeSelector}
+            </section>
+            <section className="card journal-panel">
+              <div className="section-heading">
+                <div>
+                  <span className="section-label">明细查询</span>
+                  <h2>流水记录</h2>
+                </div>
+                <span className="muted-label">共 {page.total} 条</span>
+              </div>
+              <div className="filters">
                 <label>
-                  发生日期
+                  月份
                   <input
-                    type="date"
-                    value={draft.effective_date}
-                    max={localDay()}
-                    onChange={(e) =>
-                      setDraft({ ...draft, effective_date: e.target.value })
-                    }
-                    required
+                    type="month"
+                    value={month}
+                    onChange={(e) => {
+                      setMonth(e.target.value);
+                      setOffset(0);
+                    }}
                   />
                 </label>
                 <label>
-                  {draft.kind === "transfer" ? "转出账户" : "记账账户"}
+                  账户筛选
                   <select
-                    value={
-                      draft.account_id ||
-                      accounts.find(
-                        (item) => !item.archived && !isLoanAccount(item),
-                      )?.id ||
-                      ""
-                    }
-                    onChange={(e) =>
-                      setDraft({ ...draft, account_id: e.target.value })
-                    }
-                    required
+                    value={filterAccount}
+                    onChange={(e) => {
+                      setFilterAccount(e.target.value);
+                      setOffset(0);
+                    }}
                   >
-                    <option value="" disabled>
-                      请选择账户
-                    </option>
-                    {accounts
-                      .filter(
-                        (item) =>
-                          !item.archived &&
-                          (!isLoanAccount(item) || Boolean(editing)),
-                      )
-                      .map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name} · {money(item.balance_fen)}
-                        </option>
-                      ))}
+                    <option value="">全部账户</option>
+                    {accounts.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label>
-                  {draft.kind === "transfer" ? "转账本金（元）" : "金额（元）"}
-                  <input
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder={
-                      draft.kind === "adjustment"
-                        ? "增额填正，减额填负"
-                        : "0.00"
-                    }
-                    required
-                  />
+                  类型筛选
+                  <select
+                    value={filterKind}
+                    onChange={(e) => {
+                      setFilterKind(e.target.value);
+                      setOffset(0);
+                    }}
+                  >
+                    <option value="">全部类型</option>
+                    {Object.entries(eventKinds).map(([id, label]) => (
+                      <option value={id} key={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                {draft.kind === "transfer" && (
-                  <>
-                    <label>
-                      转入账户
-                      <select
-                        value={draft.target_account_id ?? ""}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            target_account_id: e.target.value,
-                          })
-                        }
-                        required
-                      >
-                        <option value="" disabled>
-                          请选择账户
-                        </option>
-                        {accounts
-                          .filter(
-                            (item) =>
-                              !item.archived &&
-                              (!isLoanAccount(item) || Boolean(editing)),
-                          )
-                          .map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                    <label>
-                      手续费（元）
-                      <input
-                        inputMode="decimal"
-                        value={fee}
-                        onChange={(e) => setFee(e.target.value)}
-                        required
-                      />
-                    </label>
-                  </>
-                )}
-                {draft.kind !== "adjustment" && (
-                  <label>
-                    {draft.kind === "transfer" ? "手续费分类" : "分类"}
-                    <select
-                      value={draft.category_id || defaultCategory || ""}
-                      disabled={draft.kind === "refund"}
-                      onChange={(e) =>
-                        setDraft({ ...draft, category_id: e.target.value })
-                      }
-                    >
-                      {choices.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <div className="wide-field note-field">
-                  <label htmlFor="transaction-note">
-                    {draft.kind === "adjustment" ? "校正原因（必填）" : "备注"}
-                  </label>
-                  <input
-                    id="transaction-note"
-                    value={draft.note ?? ""}
-                    onChange={(e) =>
-                      setDraft({ ...draft, note: e.target.value })
-                    }
-                    maxLength={500}
-                    required={draft.kind === "adjustment"}
-                  />
-                  {suggestions.length > 0 && (
-                    <div
-                      className="note-suggestions"
-                      role="group"
-                      aria-label="常用备注"
-                    >
-                      <span>常用备注</span>
-                      {suggestions.map((item) => (
-                        <button
-                          key={item.note}
-                          type="button"
-                          className="note-chip"
-                          title={item.note + "（已使用 " + item.count + " 次）"}
-                          disabled={!enabled}
-                          onClick={() =>
-                            setDraft({ ...draft, note: item.note })
-                          }
-                        >
-                          {item.note}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {draft.kind === "refund" && (
-                  <p className="footnote wide-field">
-                    {draft.original_event_id
-                      ? "已关联原支出，累计退款不能超过原支出金额。"
-                      : "请先在下方找到原支出，点击该行的“退款”。"}
+                <label>
+                  分类筛选
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value);
+                      setOffset(0);
+                    }}
+                  >
+                    <option value="">全部分类</option>
+                    {categories.map((item) => (
+                      <option value={item.id} key={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {pendingVoid && (
+                <div className="alert">
+                  <strong>确认作废这条{eventKinds[pendingVoid.kind]}？</strong>
+                  <p>
+                    {pendingVoid.effective_date} ·{" "}
+                    {money(pendingVoid.amount_fen)}
+                    。原记录会保留，余额将重新核算。
                   </p>
-                )}
-                <div className="form-footer">
                   <button
-                    disabled={
-                      !enabled ||
-                      !accounts.some((item) => !item.archived) ||
-                      (draft.kind === "refund" && !draft.original_event_id)
+                    disabled={!enabled}
+                    onClick={() =>
+                      void act(async () => {
+                        await request(
+                          "/events/" + pendingVoid.id + "/void",
+                          "POST",
+                          { revision: pendingVoid.revision },
+                        );
+                        setPendingVoid(null);
+                        setNotice("流水已作废，余额已重新核算。");
+                      })
                     }
                   >
-                    {editing ? "保存修改" : "保存流水"}
+                    确认作废
                   </button>
-                  <small>
-                    {draft.kind === "transfer"
-                      ? "转账本金不计收支，只有手续费计入支出。"
-                      : draft.kind === "adjustment"
-                        ? "余额校正不计收支，并保留校正原因。"
-                        : "记录已发生的交易；期初和转账本金不计入收支。"}
-                  </small>
+                  <button
+                    className="text-button"
+                    onClick={() => setPendingVoid(null)}
+                  >
+                    取消
+                  </button>
                 </div>
-              </form>
-            )}
-          </section>
-          <section className="card journal-panel">
-            <div className="section-heading">
-              <div>
-                <span className="section-label">流水记录</span>
-                <h2>每一笔，清楚留存</h2>
-              </div>
-              <span className="muted-label">共 {page.total} 条</span>
-            </div>
-            <div className="filters">
-              <label>
-                月份
-                <input
-                  type="month"
-                  value={month}
-                  onChange={(e) => {
-                    setMonth(e.target.value);
-                    setOffset(0);
-                  }}
-                />
-              </label>
-              <label>
-                账户筛选
-                <select
-                  value={filterAccount}
-                  onChange={(e) => {
-                    setFilterAccount(e.target.value);
-                    setOffset(0);
-                  }}
-                >
-                  <option value="">全部账户</option>
-                  {accounts.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                类型筛选
-                <select
-                  value={filterKind}
-                  onChange={(e) => {
-                    setFilterKind(e.target.value);
-                    setOffset(0);
-                  }}
-                >
-                  <option value="">全部类型</option>
-                  {Object.entries(eventKinds).map(([id, label]) => (
-                    <option value={id} key={id}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                分类筛选
-                <select
-                  value={filterCategory}
-                  onChange={(e) => {
-                    setFilterCategory(e.target.value);
-                    setOffset(0);
-                  }}
-                >
-                  <option value="">全部分类</option>
-                  {categories.map((item) => (
-                    <option value={item.id} key={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {pendingVoid && (
-              <div className="alert">
-                <strong>确认作废这条{eventKinds[pendingVoid.kind]}？</strong>
-                <p>
-                  {pendingVoid.effective_date} · {money(pendingVoid.amount_fen)}
-                  。原记录会保留，余额将重新核算。
-                </p>
-                <button
-                  disabled={!enabled}
-                  onClick={() =>
-                    void act(async () => {
-                      await request(
-                        "/events/" + pendingVoid.id + "/void",
-                        "POST",
-                        { revision: pendingVoid.revision },
-                      );
-                      setPendingVoid(null);
-                      setNotice("流水已作废，余额已重新核算。");
-                    })
-                  }
-                >
-                  确认作废
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => setPendingVoid(null)}
-                >
-                  取消
-                </button>
-              </div>
-            )}
-            <div className="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>日期／类型</th>
-                    <th>账户／分类</th>
-                    <th>备注</th>
-                    <th className="amount-column">金额</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.items.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={row.status === "void" ? "void-row" : ""}
-                    >
-                      <td>
-                        {row.effective_date}
-                        <small>
-                          {row.kind === "transfer"
-                            ? (() => {
-                                const source = accounts.find(
-                                  (a) => a.id === row.account_id,
-                                );
-                                const target = accounts.find(
-                                  (a) => a.id === row.target_account_id,
-                                );
-                                return source?.kind === "liability"
-                                  ? "我借入"
-                                  : target?.kind === "liability"
-                                    ? "我还钱"
-                                    : source?.kind === "receivable"
-                                      ? "收回借款"
-                                      : target?.kind === "receivable"
-                                        ? "我借出"
-                                        : "转账";
-                              })()
-                            : eventKinds[row.kind]}{" "}
-                          {row.status === "void" ? "· 已作废" : ""}
-                          {row.covered_by_history
-                            ? " · 历史汇总已覆盖统计"
-                            : ""}
-                        </small>
-                      </td>
-                      <td>
-                        {accountLabel(row.account_id)}
-                        {row.target_account_id
-                          ? " → " + accountLabel(row.target_account_id)
-                          : ""}
-                        <small>{categoryLabel(row.category_id)}</small>
-                      </td>
-                      <td className="note-cell">{row.note || "—"}</td>
-                      <td className="amount-column">
-                        {money(row.amount_fen)}
-                        {row.fee_fen !== "0" && (
-                          <small>手续费 {money(row.fee_fen)}</small>
-                        )}
-                      </td>
-                      <td>
-                        {row.kind !== "opening" && row.status === "active" && (
-                          <div className="row-actions">
-                            <button
-                              className="text-button"
-                              disabled={!enabled}
-                              onClick={() => edit(row)}
-                            >
-                              修改
-                            </button>
-                            {row.kind === "expense" && (
-                              <button
-                                className="text-button"
-                                disabled={!enabled}
-                                onClick={() => startRefund(row)}
-                              >
-                                退款
-                              </button>
-                            )}
-                            <button
-                              className="text-button danger"
-                              disabled={!enabled}
-                              onClick={() => setPendingVoid(row)}
-                            >
-                              作废
-                            </button>
-                          </div>
-                        )}
-                      </td>
+              )}
+              <div className="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>日期／类型</th>
+                      <th>账户／分类</th>
+                      <th>备注</th>
+                      <th className="amount-column">金额</th>
+                      <th>操作</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {!page.items.length && (
-              <div className="empty-state">这个筛选范围还没有流水。</div>
-            )}
-            <div className="pagination">
-              <button
-                className="secondary"
-                disabled={!offset || !enabled}
-                onClick={() => setOffset(Math.max(0, offset - 20))}
-              >
-                上一页
-              </button>
-              <span>第 {Math.floor(offset / 20) + 1} 页</span>
-              <button
-                className="secondary"
-                disabled={offset + 20 >= page.total || !enabled}
-                onClick={() => setOffset(offset + 20)}
-              >
-                下一页
-              </button>
-            </div>
-          </section>
+                  </thead>
+                  <tbody>
+                    {page.items.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={row.status === "void" ? "void-row" : ""}
+                      >
+                        <td>
+                          {row.effective_date}
+                          <small>
+                            {row.kind === "transfer"
+                              ? (() => {
+                                  const source = accounts.find(
+                                    (a) => a.id === row.account_id,
+                                  );
+                                  const target = accounts.find(
+                                    (a) => a.id === row.target_account_id,
+                                  );
+                                  return source?.kind === "liability"
+                                    ? "我借入"
+                                    : target?.kind === "liability"
+                                      ? "我还钱"
+                                      : source?.kind === "receivable"
+                                        ? "收回借款"
+                                        : target?.kind === "receivable"
+                                          ? "我借出"
+                                          : "转账";
+                                })()
+                              : eventKinds[row.kind]}{" "}
+                            {row.status === "void" ? "· 已作废" : ""}
+                            {row.covered_by_history
+                              ? " · 历史汇总已覆盖统计"
+                              : ""}
+                          </small>
+                        </td>
+                        <td>
+                          {accountLabel(row.account_id)}
+                          {row.target_account_id
+                            ? " → " + accountLabel(row.target_account_id)
+                            : ""}
+                          <small>{categoryLabel(row.category_id)}</small>
+                        </td>
+                        <td className="note-cell">{row.note || "—"}</td>
+                        <td className="amount-column">
+                          {money(row.amount_fen)}
+                          {row.fee_fen !== "0" && (
+                            <small>手续费 {money(row.fee_fen)}</small>
+                          )}
+                        </td>
+                        <td>
+                          {row.kind !== "opening" &&
+                            row.status === "active" && (
+                              <div className="row-actions">
+                                <button
+                                  className="text-button"
+                                  disabled={!enabled}
+                                  onClick={() => edit(row)}
+                                >
+                                  修改
+                                </button>
+                                {row.kind === "expense" && (
+                                  <button
+                                    className="text-button"
+                                    disabled={!enabled}
+                                    onClick={() => startRefund(row)}
+                                  >
+                                    退款
+                                  </button>
+                                )}
+                                <button
+                                  className="text-button danger"
+                                  disabled={!enabled}
+                                  onClick={() => setPendingVoid(row)}
+                                >
+                                  作废
+                                </button>
+                              </div>
+                            )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!page.items.length && (
+                <div className="empty-state">这个筛选范围还没有流水。</div>
+              )}
+              <div className="pagination">
+                <button
+                  className="secondary"
+                  disabled={!offset || !enabled}
+                  onClick={() => setOffset(Math.max(0, offset - 20))}
+                >
+                  上一页
+                </button>
+                <span>第 {Math.floor(offset / 20) + 1} 页</span>
+                <button
+                  className="secondary"
+                  disabled={offset + 20 >= page.total || !enabled}
+                  onClick={() => setOffset(offset + 20)}
+                >
+                  下一页
+                </button>
+              </div>
+            </section>
+          </div>
           <details className="card panel">
             <summary>添加自定义分类</summary>
             <form

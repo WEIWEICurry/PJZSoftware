@@ -259,7 +259,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     await page.setViewportSize({ width, height: 900 });
     await expect(page.locator("#entry-form")).toBeVisible();
     const form = await page.locator("#entry-form").boundingBox();
-    expect(form!.height).toBeLessThan(360);
+    const list = await page.locator(".journal-panel").boundingBox();
+    // The entry form is now a narrow column alongside the list, not a wide strip.
+    expect(list!.x).toBeGreaterThan(form!.x + form!.width);
+    expect(Math.abs(list!.y - form!.y)).toBeLessThan(2);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -1302,6 +1305,75 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(
     page.getByRole("status").filter({ hasText: "请在本机启动窗口确认" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  const entry = page.locator("#entry-form");
+  const journal = page.locator(".journal-panel");
+  await expect(entry.getByRole("button", { name: "保存流水" })).toBeVisible();
+  for (const width of [1440, 1280, 900, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const left = (await entry.boundingBox())!;
+    const right = (await journal.boundingBox())!;
+    if (width >= 1280) {
+      expect(right.x).toBeGreaterThan(left.x + left.width);
+      expect(Math.abs(left.y - right.y)).toBeLessThan(2);
+    } else {
+      expect(right.y).toBeGreaterThan(left.y + left.height);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await expect(entry.getByLabel("备注", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: `test-results/forest-journal-${width}.png`,
+      fullPage: true,
+    });
+  }
+  for (const name of [
+    "总览",
+    "账户",
+    "报表与预算",
+    "投资",
+    "投资报表",
+    "数据管理",
+    "开发计划",
+  ]) {
+    const button = page.getByRole("button", { name, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute("aria-current", "page");
+    await expect(page.locator("main h1")).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `test-results/forest-mobile-${name}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const investment = page.getByRole("button", { name: "投资", exact: true });
+  await investment.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: "投资资产", exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 500));
+  expect((await page.locator(".sidebar").boundingBox())!.y).toBe(0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: "test-results/forest-holdings.png",
+    fullPage: true,
+  });
+  const prices = page.getByRole("button", { name: "标的与估值", exact: true });
+  await prices.click();
+  await expect(prices).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({
+    path: "test-results/forest-prices.png",
+    fullPage: true,
+  });
   expect(external).toEqual([]);
   await page.context().clearCookies();
   await page.reload();
