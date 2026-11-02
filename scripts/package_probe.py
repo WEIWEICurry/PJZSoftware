@@ -109,6 +109,59 @@ print(
 )
 
 
+# The interactive launcher must keep its Tk root hidden, including duplicate launches.
+# Enumerate only windows belonging to our synthetic child; never inspect the user's apps.
+if os.name == "nt":
+    import ctypes
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    enum_callback = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    user32.EnumWindows.argtypes = [enum_callback, wintypes.LPARAM]
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    with tempfile.TemporaryDirectory(prefix="PJZ-hidden-window-") as temporary:
+        book = Path(temporary).resolve()
+        args = [str(executable), "--no-browser", "--data-dir", str(book)]
+        interactive = subprocess.Popen(args, env=environment, creationflags=flags)
+        try:
+            visible = []
+
+            @enum_callback
+            def collect_window(handle: int, parameter: int) -> bool:
+                owner = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(handle, ctypes.byref(owner))
+                if owner.value == interactive.pid and user32.IsWindowVisible(handle):
+                    visible.append(handle)
+                return True
+
+            deadline = time.monotonic() + 20
+            while not (book / "runtime.json").exists() and time.monotonic() < deadline:
+                assert interactive.poll() is None, "Interactive child exited before startup"
+                time.sleep(0.05)
+            assert (book / "runtime.json").exists()
+            subprocess.run(args, env=environment, creationflags=flags, check=True, timeout=15)
+            deadline = time.monotonic() + 15
+            while (book / "reopen.request").exists() and time.monotonic() < deadline:
+                user32.EnumWindows(collect_window, 0)
+                assert interactive.poll() is None, "Interactive event loop stopped"
+                time.sleep(0.05)
+            assert not (book / "reopen.request").exists(), "Interactive reopen was not consumed"
+            # Consuming reopen proves Tk's event loop is running even if withdrawn Tk
+            # roots have never created a native top-level wrapper on this Windows build.
+            for _ in range(6):
+                user32.EnumWindows(collect_window, 0)
+                time.sleep(0.05)
+            assert not visible, "Interactive startup or duplicate launch showed a service window"
+            assert interactive.poll() is None
+        finally:
+            if interactive.poll() is None:
+                interactive.terminate()
+            interactive.wait(timeout=10)
+    print("PASS: quiet interactive startup/duplicate remains hidden")
+
+
 # Real fixed launcher, isolated from the user's profile and desktop.
 with tempfile.TemporaryDirectory(prefix="PJZ-fixed-entry-中文-") as temporary:
     home = Path(temporary).resolve()
