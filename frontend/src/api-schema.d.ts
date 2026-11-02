@@ -774,6 +774,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runtime": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Runtime */
+        get: operations["runtime_api_v1_runtime_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runtime/manage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manage Launch */
+        post: operations["manage_launch_api_v1_runtime_manage_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/runtime/open-restored": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open Restored */
+        post: operations["open_restored_api_v1_runtime_open_restored_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -1853,6 +1904,11 @@ export interface components {
             /** Note */
             note: string;
         };
+        /** OpenRestoredInput */
+        OpenRestoredInput: {
+            /** Restore Token */
+            restore_token: string;
+        };
         /** PauseInput */
         PauseInput: {
             /** Paused */
@@ -2281,6 +2337,19 @@ export interface components {
         RevisionInput: {
             /** Revision */
             revision: number;
+        };
+        /** RuntimeOutput */
+        RuntimeOutput: {
+            /** Can Manage */
+            can_manage: boolean;
+            /** Can Switch */
+            can_switch: boolean;
+            /** Entry */
+            entry: string | null;
+            /** Executable */
+            executable: string | null;
+            /** Version */
+            version: string;
         };
         /** SummaryOutput */
         SummaryOutput: {
@@ -4111,6 +4180,83 @@ export interface operations {
                 content: {
                     "application/json": {
                         [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    runtime_api_v1_runtime_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeOutput"];
+                };
+            };
+        };
+    };
+    manage_launch_api_v1_runtime_manage_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
+    open_restored_api_v1_runtime_open_restored_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenRestoredInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
                     };
                 };
             };

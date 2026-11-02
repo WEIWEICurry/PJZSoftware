@@ -1,12 +1,24 @@
 """Exercise the actual packaged launcher without Node/Python on child PATH."""
 
 import os
+import shutil
 import subprocess
 import tempfile
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+from pjz import __version__
+from pjz.installation import (
+    atomic_json,
+    current_state,
+    matching_instance,
+    stage_release,
+    verify_release,
+)
+from pjz.launch_management import LaunchManagement
+from pjz.storage import SCHEMA_VERSION, LedgerStore
 
 executable = Path("dist/PJZSoftware/PJZSoftware.exe").resolve()
 environment = dict(os.environ)
@@ -95,3 +107,115 @@ print(
     "PASS: packaged assets/minimal PATH/loopback/auth/automatic backup/"
     "duplicate launch/crash recovery"
 )
+
+
+# Real fixed launcher, isolated from the user's profile and desktop.
+with tempfile.TemporaryDirectory(prefix="PJZ-fixed-entry-中文-") as temporary:
+    home = Path(temporary)
+    root = home / "application"
+    book = home / "ledger"
+    ledger = LedgerStore(book)
+    ledger.close()
+    source = executable.parent
+    verify_release(source)
+    slot = stage_release(source, root, SCHEMA_VERSION)
+    shutil.copyfile(source / "PJZStart.exe", root / "PJZStart.exe")
+    state = {"format": 1, "active": {"slot": slot, "ledger_directory": str(book)}, "previous": None}
+    atomic_json(root / "current.json", state)
+
+    def stop_owned() -> None:
+        runtime = book / "runtime.json"
+        current = current_state(root)["active"]
+        runtime = Path(current["ledger_directory"]) / "runtime.json"
+        if not runtime.exists():
+            return
+        import json
+
+        metadata = json.loads(runtime.read_text("utf-8"))
+        image = Path(metadata["executable"])
+        assert image.resolve().is_relative_to((root / "versions").resolve())
+        if matching_instance(metadata, __version__, image):
+            import ctypes
+            from ctypes import wintypes
+
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel.OpenProcess.restype = wintypes.HANDLE
+            kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+            kernel.WaitForSingleObject.restype = wintypes.DWORD
+            kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel.OpenProcess(0x100000, False, metadata["pid"])
+            assert handle, "Cannot wait on owned child"
+            try:
+                subprocess.run(
+                    [
+                        str(Path(os.environ["SystemRoot"]) / "System32" / "taskkill.exe"),
+                        "/PID",
+                        str(metadata["pid"]),
+                        "/F",
+                    ],
+                    check=True,
+                    capture_output=True,
+                    creationflags=flags,
+                    timeout=10,
+                )
+                assert kernel.WaitForSingleObject(handle, 10000) == 0, "Owned child has not exited"
+            finally:
+                kernel.CloseHandle(handle)
+
+    def start_fixed() -> None:
+        subprocess.run(
+            [str(root / "PJZStart.exe"), "--headless", "--no-browser"],
+            check=True,
+            env=environment,
+            creationflags=flags,
+            timeout=60,
+        )
+        import json
+
+        selected = current_state(root)["active"]
+        runtime = Path(selected["ledger_directory"]) / "runtime.json"
+        metadata = json.loads(runtime.read_text("utf-8"))
+        assert matching_instance(metadata, __version__, Path(metadata["executable"]))
+
+    try:
+        start_fixed()
+        start_fixed()  # Same-version duplicate reopens; no second writer.
+        stop_owned()
+        second = stage_release(source, root, SCHEMA_VERSION)
+        ledger = LedgerStore(book)
+        manager = LaunchManagement(book, root)
+        manager.transition = root, {**state["active"], "slot": second}, state
+        manager.finalize(ledger)
+        ledger.close()
+        start_fixed()
+        updated = current_state(root)
+        assert updated["active"]["slot"] == second and updated["previous"] == state["active"]
+        stop_owned()
+        broken = stage_release(source, root, SCHEMA_VERSION)
+        with (root / "versions" / broken / "PJZSoftware.exe").open("ab") as stream:
+            stream.write(b"synthetic corruption")
+        ledger = LedgerStore(book)
+        manager.transition = root, {**updated["active"], "slot": broken}, updated
+        manager.finalize(ledger)
+        ledger.close()
+        start_fixed()
+        assert current_state(root) == updated
+        assert list(root.glob("failed-*.json")), "Failed candidate was not retained"
+        stop_owned()
+        ledger = LedgerStore(book)
+        old = ledger.backup()
+        ledger.rename("Synthetic original after backup", ledger.metadata()["revision"])
+        destination = ledger.restore(old)
+        manager.prepare_switch(destination)
+        manager.finalize(ledger)
+        ledger.close()
+        start_fixed()
+        assert current_state(root)["active"]["ledger_directory"] == str(destination)
+        stop_owned()
+        original = LedgerStore(book)
+        assert original.metadata()["name"] == "Synthetic original after backup"
+        original.close()
+    finally:
+        stop_owned()
+print("PASS: fixed entry/managed readiness/local update/failure fallback/restored copy switch")
