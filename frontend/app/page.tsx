@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AppIcon } from "../src/app-icon";
 import { LaunchPanel, type RuntimeInfo } from "../src/launch-panel";
 import {
   AutomaticBackupPanel,
@@ -152,34 +153,55 @@ export default function Home() {
     <div className="shell">
       <aside className="sidebar">
         <Link className="brand" href="/">
-          <span className="brand-mark">记</span>
+          <span className="brand-mark">
+            <AppIcon name="book" />
+          </span>
           <span>
             PJZ<span className="brand-sub">个人资产账本</span>
           </span>
         </Link>
-        <div className="workspace-label">我的工作空间</div>
         <nav aria-label="主导航">
           {(
             [
-              ["overview", "◫", "总览"],
-              ["accounts", "▣", "账户"],
-              ["journal", "≡", "日常账本"],
-              ["reports", "▥", "报表与预算"],
-              ["investments", "◈", "投资"],
-              ["investmentReports", "▦", "投资报表"],
-              ["data", "▤", "数据管理"],
-              ["plan", "◇", "开发计划"],
+              [
+                "生活账本",
+                [
+                  ["overview", "总览"],
+                  ["accounts", "账户"],
+                  ["journal", "日常账本"],
+                  ["reports", "报表与预算"],
+                ],
+              ],
+              [
+                "投资资产",
+                [
+                  ["investments", "投资"],
+                  ["investmentReports", "投资报表"],
+                ],
+              ],
+              [
+                "工作空间",
+                [
+                  ["data", "数据管理"],
+                  ["plan", "开发计划"],
+                ],
+              ],
             ] as const
-          ).map(([id, icon, label]) => (
-            <button
-              key={id}
-              onClick={() => navigate(id)}
-              className={tab === id ? "nav active" : "nav"}
-              aria-current={tab === id ? "page" : undefined}
-            >
-              <span aria-hidden="true">{icon}</span>
-              {label}
-            </button>
+          ).map(([group, items]) => (
+            <div className="nav-group" key={group}>
+              <div className="workspace-label">{group}</div>
+              {items.map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => navigate(id)}
+                  className={tab === id ? "nav active" : "nav"}
+                  aria-current={tab === id ? "page" : undefined}
+                >
+                  <AppIcon name={id} />
+                  {label}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -193,7 +215,7 @@ export default function Home() {
       <div className="workspace">
         <header>
           <span>
-            个人空间 <span className="slash">/</span>{" "}
+            {ledger?.name || "个人空间"} <span className="slash">/</span>{" "}
             {
               {
                 overview: "总览",
@@ -214,18 +236,17 @@ export default function Home() {
         <main>
           <div className="page-heading">
             <div>
-              <div className="eyebrow">YOUR LOCAL LEDGER</div>
               <h1>
                 {
                   {
-                    overview: "把生活与资产，理清楚。",
-                    accounts: "账户清楚，资金有序。",
-                    journal: "把每一笔日常，记下来。",
-                    reports: "看清收支，按需规划。",
-                    investments: "看清持仓，记录每次投资。",
-                    investmentReports: "看清交易，核对投资收益。",
-                    data: "数据由你保管。",
-                    plan: "一步一步，建立可靠的账本。",
+                    overview: "资产总览",
+                    accounts: "账户管理",
+                    journal: "日常账本",
+                    reports: "报表与预算",
+                    investments: "投资资产",
+                    investmentReports: "投资报表",
+                    data: "数据管理",
+                    plan: "开发计划",
                   }[tab]
                 }
               </h1>
@@ -247,7 +268,6 @@ export default function Home() {
                 }
               </p>
             </div>
-            <span className="phase">M3 · 投资管理</span>
           </div>
           {error && (
             <div className="alert error" role="alert">

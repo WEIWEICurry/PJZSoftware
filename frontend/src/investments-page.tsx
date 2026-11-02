@@ -27,6 +27,12 @@ const actions = {
 };
 const amount = (value: string | null | undefined, fallback = "待核算") =>
   value == null ? fallback : money(value);
+const profitTone = (value: string | null | undefined) =>
+  value == null || BigInt(value) === 0n
+    ? undefined
+    : BigInt(value) < 0n
+      ? "return-negative"
+      : "return-positive";
 const blank = () => ({
   account_id: "",
   instrument_id: "",
@@ -333,9 +339,22 @@ export function InvestmentsPage({
             page?.total_return_bps,
           ],
         ].map(([label, value, rate]) => (
-          <div className="card metric" key={label}>
+          <div
+            className={`card metric ${label === "已估值持仓市值" ? "metric-primary" : ""}`}
+            key={label}
+          >
             <span>{label}</span>
-            <strong>{value}</strong>
+            <strong
+              className={profitTone(
+                label === "持仓盈亏"
+                  ? page?.unrealized_fen
+                  : label === "累计投资盈亏"
+                    ? page?.total_profit_fen
+                    : null,
+              )}
+            >
+              {value}
+            </strong>
             {label !== "已估值持仓市值" && (
               <span>
                 收益率{" "}
@@ -369,6 +388,7 @@ export function InvestmentsPage({
           ).map(([id, label]) => (
             <button
               className={section === id ? "" : "secondary"}
+              aria-pressed={section === id}
               key={id}
               onClick={() => {
                 setSection(id);
@@ -745,7 +765,7 @@ export function InvestmentsPage({
                 <thead>
                   <tr>
                     <th>标的／账户</th>
-                    <th>份额／股数</th>
+                    <th className="amount-column">份额／股数</th>
                     {(
                       [
                         ["cost_fen", "剩余成本"],
@@ -755,6 +775,7 @@ export function InvestmentsPage({
                       ] as const
                     ).map(([key, label]) => (
                       <th
+                        className="amount-column"
                         key={key}
                         scope="col"
                         aria-sort={
@@ -795,11 +816,19 @@ export function InvestmentsPage({
                           {p.quantity === "0" ? " · 已清仓" : ""}
                         </small>
                       </td>
-                      <td>{p.quantity}</td>
-                      <td>{amount(p.cost_fen, "成本待补")}</td>
-                      <td>{amount(p.value_fen, "待估值")}</td>
-                      <td>{amount(p.unrealized_fen)}</td>
-                      <td>
+                      <td className="amount-column">{p.quantity}</td>
+                      <td className="amount-column">
+                        {amount(p.cost_fen, "成本待补")}
+                      </td>
+                      <td className="amount-column">
+                        {amount(p.value_fen, "待估值")}
+                      </td>
+                      <td
+                        className={`amount-column ${profitTone(p.unrealized_fen) ?? ""}`}
+                      >
+                        {amount(p.unrealized_fen)}
+                      </td>
+                      <td className="amount-column">
                         {p.share_bps == null
                           ? page?.missing_price_count
                             ? "待估值"
