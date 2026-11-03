@@ -21,8 +21,8 @@ from sqlalchemy import create_engine, event, text
 
 from pjz import __version__
 
-SCHEMA_VERSION = 9
-SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+SCHEMA_VERSION = 10
+SUPPORTED_SCHEMAS = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 MAX_PACKAGE = 8 * 1024 * 1024
 
 

@@ -701,7 +701,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await page.getByRole("button", { name: "记一笔投资", exact: true }).click();
   const investmentForm = page.getByRole("region", { name: "投资记录表单" });
   await investmentForm
-    .getByLabel("资金账户")
+    .getByLabel("持仓账户", { exact: true })
     .selectOption({ label: "Synthetic investment cash · ¥10,000.00" });
   await investmentForm
     .getByLabel("投资标的")
@@ -740,10 +740,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
       .getByRole("combobox", { name: "操作", exact: true })
       .selectOption(action);
     await investmentForm
-      .getByLabel("资金账户")
+      .getByLabel("持仓账户", { exact: true })
       .selectOption(
         (await investmentForm
-          .getByLabel("资金账户")
+          .getByLabel("持仓账户", { exact: true })
           .locator("option")
           .filter({ hasText: "Synthetic investment cash" })
           .getAttribute("value")) as string,
@@ -839,10 +839,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
       .getByRole("combobox", { name: "操作", exact: true })
       .selectOption(action);
     await investmentForm
-      .getByRole("combobox", { name: "资金账户", exact: true })
+      .getByRole("combobox", { name: "持仓账户", exact: true })
       .selectOption(
         (await investmentForm
-          .getByRole("combobox", { name: "资金账户", exact: true })
+          .getByRole("combobox", { name: "持仓账户", exact: true })
           .locator("option")
           .filter({ hasText: "Synthetic investment cash" })
           .getAttribute("value")) as string,
@@ -1027,7 +1027,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByLabel("计划名称", { exact: true })
     .fill("Synthetic recurring plan");
   await recurring
-    .getByRole("combobox", { name: "计划资金账户", exact: true })
+    .getByRole("combobox", { name: "计划持仓账户", exact: true })
     .selectOption({ label: "Synthetic investment cash" });
   await recurring
     .getByRole("combobox", { name: "定投基金", exact: true })
@@ -1096,7 +1096,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByRole("button", { name: "修改计划", exact: true })
     .click();
   await expect(
-    recurring.getByRole("combobox", { name: "计划资金账户", exact: true }),
+    recurring.getByRole("combobox", { name: "计划持仓账户", exact: true }),
   ).toBeDisabled();
   await recurring
     .getByLabel("计划名称", { exact: true })
@@ -1310,6 +1310,44 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(
     page.getByRole("status").filter({ hasText: "请在本机启动窗口确认" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "日常账本", exact: true }).click();
+  await page.getByRole("button", { name: "账户", exact: true }).click();
+  await page
+    .getByLabel("账户名称", { exact: true })
+    .fill("Synthetic Alipay ownership");
+  await page.getByLabel("期初日期", { exact: true }).fill("2026-01-01");
+  await page.getByLabel("期初余额（元）", { exact: true }).fill("0");
+  await page.getByRole("button", { name: "添加账户", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Synthetic Alipay ownership",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "投资", exact: true }).click();
+  const ownership = page.locator("details").filter({
+    has: page.getByText("整理持仓归属（保留原扣款账户）", { exact: true }),
+  });
+  await ownership.locator("summary").click();
+  await ownership
+    .getByLabel("归并标的", { exact: true })
+    .selectOption({ label: "Synthetic stock" });
+  await ownership
+    .getByLabel("目标持仓账户", { exact: true })
+    .selectOption({ label: "Synthetic Alipay ownership" });
+  await ownership
+    .getByRole("checkbox", { name: "Synthetic investment cash", exact: true })
+    .check();
+  await ownership
+    .getByRole("button", { name: "预览持仓归并", exact: true })
+    .click();
+  await expect(
+    ownership.getByRole("button", { name: "备份并确认归并", exact: true }),
+  ).toBeVisible();
+  await ownership
+    .getByRole("button", { name: "备份并确认归并", exact: true })
+    .click();
+  await expect(ownership.getByRole("status")).toContainText("归并完成");
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
   const entry = page.locator("#entry-form");
   await expect(entry.getByRole("button", { name: "保存流水" })).toBeVisible();

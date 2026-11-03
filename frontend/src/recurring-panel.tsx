@@ -44,6 +44,7 @@ export function RecurringPanel({
   const [form, setForm] = useState({
     name: "",
     account_id: "",
+    cash_account_id: "",
     instrument_id: "",
     start_date: localDay(),
     frequency: "weekdays" as Plan["frequency"],
@@ -157,6 +158,7 @@ export function RecurringPanel({
     setForm({
       name: p.name,
       account_id: p.account_id,
+      cash_account_id: p.cash_account_id ?? "",
       instrument_id: p.instrument_id,
       start_date: p.start_date,
       frequency: p.frequency,
@@ -355,7 +357,7 @@ export function RecurringPanel({
         <summary>{editing ? "修改定投计划" : "添加定投计划"}</summary>
         {editing && (
           <p className="footnote">
-            修改只影响新生成的草稿，不改已有草稿或交易。已有核对记录后账户、基金及起始日不可更换。
+            金额和频率修改只影响新草稿；扣款账户用于之后确认的待核对项，已确认交易不变。已有核对记录后账户、基金及起始日不可更换。
           </p>
         )}
         <form
@@ -368,6 +370,7 @@ export function RecurringPanel({
                 {
                   revision: editing ? editingPlan?.revision : undefined,
                   ...form,
+                  cash_account_id: form.cash_account_id || null,
                   amount_fen: yuanToFen(form.amount),
                   costs_fen: yuanToFen(form.costs),
                   amount: undefined,
@@ -398,7 +401,7 @@ export function RecurringPanel({
               />
             </label>
             <label>
-              计划资金账户
+              计划持仓账户
               <select
                 required
                 disabled={!!editingPlan?.has_drafts}
@@ -412,6 +415,28 @@ export function RecurringPanel({
                   .filter(
                     (a) =>
                       (a.id === form.account_id || !a.archived) &&
+                      !["liability", "receivable"].includes(a.kind),
+                  )
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label>
+              计划扣款账户
+              <select
+                value={form.cash_account_id}
+                onChange={(e) =>
+                  setForm({ ...form, cash_account_id: e.target.value })
+                }
+              >
+                <option value="">同持仓账户（含现金）</option>
+                {accounts
+                  .filter(
+                    (a) =>
+                      !a.archived &&
                       !["liability", "receivable"].includes(a.kind),
                   )
                   .map((a) => (

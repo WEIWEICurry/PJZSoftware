@@ -66,8 +66,8 @@ class TradeInput(StrictInput):
     def event_fields(self) -> TradeInput:
         if (self.action == "cash_dividend") != (self.quantity == "0"):
             raise ValueError("Dividend has no units; other events require positive units")
-        if self.cash_account_id and self.action != "cash_dividend":
-            raise ValueError("Only cash distributions have a receiving account")
+        if self.cash_account_id and self.action not in ("buy", "sell", "cash_dividend", "reinvest"):
+            raise ValueError("Only cash-changing trades have a payment account")
         if self.action == "split":
             if not self.split_from_quantity or not self.note.strip():
                 raise ValueError("Confirmed old units and evidence required")

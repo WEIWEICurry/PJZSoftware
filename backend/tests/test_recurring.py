@@ -256,9 +256,9 @@ def test_v7_upgrade_preserves_values_and_creates_backup(tmp_path):
         c.execute("PRAGMA user_version=7")
     upgraded = LedgerStore(directory)
     try:
-        assert list((directory / "backups").glob("before-v9-*.pjzbackup"))
+        assert list((directory / "backups").glob("before-v10-*.pjzbackup"))
         with upgraded.engine.connect() as c:
-            assert c.exec_driver_sql("PRAGMA user_version").scalar_one() == 9
+            assert c.exec_driver_sql("PRAGMA user_version").scalar_one() == 10
             assert c.execute(text("SELECT COUNT(*) FROM investment_plans")).scalar_one() == 0
     finally:
         upgraded.close()
@@ -285,7 +285,7 @@ def test_v8_migration_failure_rolls_back_and_keeps_backup(tmp_path, monkeypatch)
     monkeypatch.setattr(op, "execute", fail)
     with pytest.raises(RuntimeError, match="synthetic"):
         LedgerStore(directory)
-    assert list((directory / "backups").glob("before-v9-*.pjzbackup"))
+    assert list((directory / "backups").glob("before-v10-*.pjzbackup"))
     validate_database(directory / "ledger.sqlite3")
     with sqlite3.connect(directory / "ledger.sqlite3") as c:
         assert c.execute("PRAGMA user_version").fetchone()[0] == 7
@@ -493,14 +493,15 @@ def test_v8_to_v9_upgrade_preserves_populated_plans_and_drafts(ledger):
     directory = store.directory
     store.close()
     with sqlite3.connect(directory / "ledger.sqlite3") as c:
+        c.execute("ALTER TABLE investment_plans DROP COLUMN cash_account_id")
         c.execute("ALTER TABLE investment_plans DROP COLUMN deleted")
         c.execute("UPDATE alembic_version SET version_num='0008'")
         c.execute("PRAGMA user_version=8")
     upgraded = LedgerStore(directory)
     try:
-        assert list((directory / "backups").glob("before-v9-*.pjzbackup"))
+        assert list((directory / "backups").glob("before-v10-*.pjzbackup"))
         with upgraded.engine.connect() as c:
-            assert c.exec_driver_sql("PRAGMA user_version").scalar_one() == 9
+            assert c.exec_driver_sql("PRAGMA user_version").scalar_one() == 10
             assert (
                 c.execute(
                     text("SELECT deleted FROM investment_plans WHERE id=:id"), {"id": plan["id"]}
@@ -519,6 +520,7 @@ def test_v9_migration_failure_rolls_back_added_column(tmp_path, monkeypatch):
     store = LedgerStore(directory)
     store.close()
     with sqlite3.connect(directory / "ledger.sqlite3") as c:
+        c.execute("ALTER TABLE investment_plans DROP COLUMN cash_account_id")
         c.execute("ALTER TABLE investment_plans DROP COLUMN deleted")
         c.execute("UPDATE alembic_version SET version_num='0008'")
         c.execute("PRAGMA user_version=8")

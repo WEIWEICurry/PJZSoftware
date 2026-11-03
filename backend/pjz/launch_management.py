@@ -62,6 +62,12 @@ class LaunchManagement:
             raise InstallError("PACKAGED_ONLY")
         root = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "PJZSoftware" / "application"
         root = root.resolve()
+        if (root / "current.json").exists():
+            old = current_state(root)
+            if verify_release(target_path(root, old["active"]))["schema"] != SCHEMA_VERSION:
+                # Keep the old schema installation intact; a fresh starter must not
+                # dispatch a migrated ledger to the old executable.
+                root = root.with_name("application-schema-" + str(SCHEMA_VERSION))
         root.mkdir(parents=True, exist_ok=True)
         with FileLock(root / "manager.lock", timeout=0):
             if (root / "current.json").exists():

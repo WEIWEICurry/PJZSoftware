@@ -89,7 +89,18 @@ class Investments:
                 raise RuleError("INVESTMENT_REINVEST_FUND_ONLY")
             if row["action"] == "split" and not row["note"].strip():
                 raise RuleError("INVESTMENT_SPLIT_EVIDENCE_REQUIRED")
-            if row["cash_account_id"] is not None and row["action"] != "cash_dividend":
+            if (
+                version < 10
+                and row["cash_account_id"] is not None
+                and row["action"] != "cash_dividend"
+            ):
+                raise RuleError("INVALID_EVENT_FIELDS")
+            if row["cash_account_id"] is not None and row["action"] not in (
+                "buy",
+                "sell",
+                "cash_dividend",
+                "reinvest",
+            ):
                 raise RuleError("INVALID_EVENT_FIELDS")
             if (
                 instruments[row["instrument_id"]]["kind"] != "fund"

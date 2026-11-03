@@ -449,6 +449,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/holding-transfer/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit */
+        post: operations["commit_api_v1_investments_holding_transfer_commit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/holding-transfer/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_v1_investments_holding_transfer_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/instruments": {
         parameters: {
             query?: never;
@@ -1925,6 +1959,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Costs Fen
              * @default 0
@@ -1965,6 +2001,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Costs Fen
              * @default 0
@@ -2003,6 +2041,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Confirmed Count
              * @default 0
@@ -2520,6 +2560,40 @@ export interface components {
              * @enum {string}
              */
             status: "active" | "void";
+        };
+        /** TransferCommit */
+        TransferCommit: {
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Ledger Revision */
+            ledger_revision: number;
+            /** Preview Token */
+            preview_token: string;
+            /** Source Account Ids */
+            source_account_ids: string[];
+            /**
+             * Target Account Id
+             * Format: uuid
+             */
+            target_account_id: string;
+        };
+        /** TransferInput */
+        TransferInput: {
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Source Account Ids */
+            source_account_ids: string[];
+            /**
+             * Target Account Id
+             * Format: uuid
+             */
+            target_account_id: string;
         };
         /** TrendPoint */
         TrendPoint: {
@@ -3466,6 +3540,78 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestmentPage"];
+                };
+            };
+        };
+    };
+    commit_api_v1_investments_holding_transfer_commit_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferCommit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_v1_investments_holding_transfer_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
