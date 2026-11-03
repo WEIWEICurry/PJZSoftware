@@ -293,9 +293,6 @@ def create_app(
     app.include_router(recurring_router(Accounting(store.engine)))
     app.include_router(nav_router(Accounting(store.engine)))
     app.include_router(investment_router(Investments(Accounting(store.engine))))
-    from pjz.holding_transfer import holding_transfer_router
-
-    app.include_router(holding_transfer_router(store))
     app.include_router(investment_report_router(InvestmentReports(Accounting(store.engine))))
     app.include_router(router(Accounting(store.engine), AccountDeletion(store)))
     app.include_router(history_router(HistoryImports(Accounting(store.engine))))

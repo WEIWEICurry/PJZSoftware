@@ -11,9 +11,6 @@ const retryKeys = new Map<string, string>();
 const responseSignatures = new WeakMap<Response, string>();
 let initialization: Promise<void> | undefined;
 const messages: Record<string, string> = {
-  HOLDING_TRANSFER_TARGET_SOURCE: "目标持仓账户不能同时作为来源。",
-  HOLDING_TRANSFER_EMPTY: "所选账户中没有该标的的历史记录。",
-
   PACKAGED_ONLY: "请使用 Windows 便携程序，在本机启动窗口管理固定入口与更新。",
   MANAGED_ENTRY_REQUIRED:
     "请先在启动窗口设置固定入口，再使用该入口启动后切换恢复副本。",

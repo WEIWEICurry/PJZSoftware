@@ -1311,43 +1311,10 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     page.getByRole("status").filter({ hasText: "请在本机启动窗口确认" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
-  await page.getByRole("button", { name: "账户", exact: true }).click();
-  await page
-    .getByLabel("账户名称", { exact: true })
-    .fill("Synthetic Alipay ownership");
-  await page.getByLabel("期初日期", { exact: true }).fill("2026-01-01");
-  await page.getByLabel("期初余额（元）", { exact: true }).fill("0");
-  await page.getByRole("button", { name: "添加账户", exact: true }).click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Synthetic Alipay ownership",
-      exact: true,
-    }),
-  ).toBeVisible();
   await page.getByRole("button", { name: "投资", exact: true }).click();
-  const ownership = page.locator("details").filter({
-    has: page.getByText("整理持仓归属（保留原扣款账户）", { exact: true }),
-  });
-  await ownership.locator("summary").click();
-  await ownership
-    .getByLabel("归并标的", { exact: true })
-    .selectOption({ label: "Synthetic stock" });
-  await ownership
-    .getByLabel("目标持仓账户", { exact: true })
-    .selectOption({ label: "Synthetic Alipay ownership" });
-  await ownership
-    .getByRole("checkbox", { name: "Synthetic investment cash", exact: true })
-    .check();
-  await ownership
-    .getByRole("button", { name: "预览持仓归并", exact: true })
-    .click();
   await expect(
-    ownership.getByRole("button", { name: "备份并确认归并", exact: true }),
-  ).toBeVisible();
-  await ownership
-    .getByRole("button", { name: "备份并确认归并", exact: true })
-    .click();
-  await expect(ownership.getByRole("status")).toContainText("归并完成");
+    page.getByText("整理持仓归属（保留原扣款账户）", { exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
   const entry = page.locator("#entry-form");
   await expect(entry.getByRole("button", { name: "保存流水" })).toBeVisible();

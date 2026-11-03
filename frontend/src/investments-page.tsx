@@ -2,7 +2,6 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
-import { HoldingTransferPanel } from "./holding-transfer-panel";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
@@ -379,14 +378,6 @@ export function InvestmentsPage({
         {!!page?.unknown_cost_count &&
           ` ${page.unknown_cost_count} 项成本待补，相关盈亏未知。`}
       </p>
-      <HoldingTransferPanel
-        accounts={cashAccounts}
-        instruments={page?.instruments ?? []}
-        enabled={enabled}
-        changed={() =>
-          void act(async () => "持仓归属已更新，原扣款和到账账户保留。")
-        }
-      />
       <div className="investment-toolbar">
         <div className="investment-tabs" role="group" aria-label="投资视图">
           {(

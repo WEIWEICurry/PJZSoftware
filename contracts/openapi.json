@@ -4307,83 +4307,6 @@
         "title": "TradeOutput",
         "type": "object"
       },
-      "TransferCommit": {
-        "additionalProperties": false,
-        "properties": {
-          "instrument_id": {
-            "format": "uuid",
-            "title": "Instrument Id",
-            "type": "string"
-          },
-          "ledger_revision": {
-            "minimum": 1.0,
-            "title": "Ledger Revision",
-            "type": "integer"
-          },
-          "preview_token": {
-            "maxLength": 128,
-            "minLength": 20,
-            "title": "Preview Token",
-            "type": "string"
-          },
-          "source_account_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 50,
-            "minItems": 1,
-            "title": "Source Account Ids",
-            "type": "array"
-          },
-          "target_account_id": {
-            "format": "uuid",
-            "title": "Target Account Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "instrument_id",
-          "source_account_ids",
-          "target_account_id",
-          "ledger_revision",
-          "preview_token"
-        ],
-        "title": "TransferCommit",
-        "type": "object"
-      },
-      "TransferInput": {
-        "additionalProperties": false,
-        "properties": {
-          "instrument_id": {
-            "format": "uuid",
-            "title": "Instrument Id",
-            "type": "string"
-          },
-          "source_account_ids": {
-            "items": {
-              "format": "uuid",
-              "type": "string"
-            },
-            "maxItems": 50,
-            "minItems": 1,
-            "title": "Source Account Ids",
-            "type": "array"
-          },
-          "target_account_id": {
-            "format": "uuid",
-            "title": "Target Account Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "instrument_id",
-          "source_account_ids",
-          "target_account_id"
-        ],
-        "title": "TransferInput",
-        "type": "object"
-      },
       "TrendPoint": {
         "properties": {
           "end": {
@@ -4502,7 +4425,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.18.0"
+    "version": "0.18.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6065,100 +5988,6 @@
           }
         },
         "summary": "Page"
-      }
-    },
-    "/api/v1/investments/holding-transfer/commit": {
-      "post": {
-        "operationId": "commit_api_v1_investments_holding_transfer_commit_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": true,
-            "schema": {
-              "maxLength": 128,
-              "minLength": 20,
-              "pattern": "^[A-Za-z0-9_-]+$",
-              "title": "Idempotency-Key",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TransferCommit"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Commit Api V1 Investments Holding Transfer Commit Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Commit"
-      }
-    },
-    "/api/v1/investments/holding-transfer/preview": {
-      "post": {
-        "operationId": "preview_api_v1_investments_holding_transfer_preview_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TransferInput"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Preview Api V1 Investments Holding Transfer Preview Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Preview"
       }
     },
     "/api/v1/investments/instruments": {
