@@ -428,7 +428,19 @@ class Accounting:
         return {**event, "amount_fen": str(event["amount_fen"]), "fee_fen": str(event["fee_fen"])}
 
     def rebuild(self, connection: Connection, persist: bool = True) -> None:
-        if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 8:
+        version = connection.exec_driver_sql("PRAGMA user_version").scalar_one()
+        if version >= 10:
+            for plan in fetch_all(
+                connection,
+                "SELECT p.start_date,a.kind,a.opening_date FROM investment_plans p JOIN "
+                "accounts a ON a.id=p.cash_account_id",
+            ):
+                if (
+                    plan["kind"] in ("liability", "receivable")
+                    or plan["start_date"] < plan["opening_date"]
+                ):
+                    raise RuleError("RECURRING_INVALID_FACTS")
+        if version >= 8:
             from pjz.recurring_domain import validate_recurring_rows
 
             validate_recurring_rows(

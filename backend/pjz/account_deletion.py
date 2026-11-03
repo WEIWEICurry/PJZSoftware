@@ -52,7 +52,12 @@ class AccountDeletion:
         if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 8:
             if fetch_all(
                 connection,
-                "SELECT id FROM investment_plans WHERE account_id=:id",
+                "SELECT id FROM investment_plans WHERE account_id=:id"
+                + (
+                    " OR cash_account_id=:id"
+                    if connection.exec_driver_sql("PRAGMA user_version").scalar_one() >= 10
+                    else ""
+                ),
                 {"id": identifier},
             ):
                 raise RuleError("RECURRING_ACCOUNT_HAS_PLANS")

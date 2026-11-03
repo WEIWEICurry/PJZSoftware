@@ -61,6 +61,31 @@ def archive_release(source, target):
     return target
 
 
+def test_new_schema_installs_separate_entry_and_keeps_old_pointer(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    directory = (tmp_path / "Synthetic ledger").resolve()
+    synthetic_store = LedgerStore(directory)
+    synthetic_store.close()
+    old_root = tmp_path / "PJZSoftware" / "application"
+    old_source = release(tmp_path / "old", schema=SCHEMA_VERSION - 1)
+    old_slot = stage_release(old_source, old_root, SCHEMA_VERSION - 1)
+    old_state = {
+        "format": 1,
+        "active": {"slot": old_slot, "ledger_directory": str(directory)},
+        "previous": None,
+    }
+    atomic_json(old_root / "current.json", old_state)
+    source = release(tmp_path / "new", version=__version__)
+    monkeypatch.setattr(sys, "executable", str(source / "PJZSoftware.exe"))
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    manager = LaunchManagement(directory)
+    root = manager.install_current()
+    assert root != old_root
+    assert current_state(old_root) == old_state
+    active = current_state(root)["active"]
+    assert verify_release(root / "versions" / active["slot"])["schema"] == SCHEMA_VERSION
+
+
 @pytest.fixture
 def installed(tmp_path):
     store = LedgerStore(tmp_path / "合成账本")

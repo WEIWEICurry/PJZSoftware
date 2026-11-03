@@ -253,7 +253,9 @@ export function InvestmentsPage({
             ? form.amount_mode
             : "gross",
           cash_account_id:
-            form.action === "cash_dividend" && form.cash_account_id
+            ["buy", "sell", "cash_dividend", "reinvest"].includes(
+              form.action,
+            ) && form.cash_account_id
               ? form.cash_account_id
               : null,
           split_from_quantity:
@@ -454,9 +456,10 @@ export function InvestmentsPage({
                 </select>
               </label>
               <label>
-                资金账户
+                持仓账户
                 <select
                   required
+                  aria-label="持仓账户"
                   value={form.account_id}
                   disabled={!!editing}
                   onChange={(e) =>
@@ -555,16 +558,25 @@ export function InvestmentsPage({
                   />
                 </label>
               )}
-              {form.action === "cash_dividend" && (
+              {["buy", "sell", "cash_dividend", "reinvest"].includes(
+                form.action,
+              ) && (
                 <label>
-                  分红到账账户
+                  {form.action === "buy" || form.action === "reinvest"
+                    ? "扣款账户"
+                    : "到账账户"}
                   <select
+                    aria-label={
+                      form.action === "buy" || form.action === "reinvest"
+                        ? "扣款账户"
+                        : "到账账户"
+                    }
                     value={form.cash_account_id}
                     onChange={(e) =>
                       setForm({ ...form, cash_account_id: e.target.value })
                     }
                   >
-                    <option value="">同持仓资金账户</option>
+                    <option value="">同持仓账户（含现金）</option>
                     {cashAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -947,8 +959,13 @@ export function InvestmentsPage({
                         {instrumentName(t.instrument_id)}
                         <small>
                           {accountName(t.account_id)}
-                          {t.action === "cash_dividend"
-                            ? ` · 到账：${accountName(t.cash_account_id || t.account_id)}`
+                          {[
+                            "buy",
+                            "sell",
+                            "cash_dividend",
+                            "reinvest",
+                          ].includes(t.action)
+                            ? ` · ${t.action === "buy" || t.action === "reinvest" ? "扣款" : "到账"}：${accountName(t.cash_account_id || t.account_id)}`
                             : ""}
                         </small>
                       </td>

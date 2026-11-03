@@ -19,6 +19,7 @@ from pjz.recurring_domain import schedule
 class PlanInput(StrictInput):
     name: str = Field(min_length=1, max_length=80)
     account_id: UUID
+    cash_account_id: UUID | None = None
     instrument_id: UUID
     start_date: date
     frequency: Literal["daily", "weekdays", "weekly"] = "weekdays"
@@ -104,6 +105,16 @@ def recurring_router(accounting: Accounting) -> APIRouter:
 
     def writable(connection: Any, item: dict[str, Any]) -> None:
         accounting.ensure_writable_accounts(connection, item)
+        if item.get("cash_account_id"):
+            accounting.ensure_writable_accounts(connection, {"account_id": item["cash_account_id"]})
+            cash = fetch_all(
+                connection, "SELECT * FROM accounts WHERE id=:id", {"id": item["cash_account_id"]}
+            )[0]
+            if (
+                cash["kind"] in ("liability", "receivable")
+                or item["start_date"] < cash["opening_date"]
+            ):
+                raise RuleError("RECURRING_FUND_CASH_REQUIRED")
         accounts = fetch_all(
             connection,
             "SELECT kind,opening_date FROM accounts WHERE id=:id",
@@ -168,7 +179,8 @@ def recurring_router(accounting: Accounting) -> APIRouter:
                 text(
                     "UPDATE investment_plans SET name=:name,account_id=:account_id,"
                     "instrument_id=:instrument_id,start_date=:start_date,frequency=:frequency,"
-                    "weekday=:weekday,amount_fen=:amount,costs_fen=:costs,revision=revision+1 "
+                    "cash_account_id=:cash_account_id,weekday=:weekday,"
+                    "amount_fen=:amount,costs_fen=:costs,revision=revision+1 "
                     "WHERE id=:id"
                 ),
                 {
@@ -235,9 +247,10 @@ def recurring_router(accounting: Accounting) -> APIRouter:
             connection.execute(
                 text(
                     "INSERT INTO investment_plans (id,name,account_id,instrument_id,start"
-                    "_date,frequency,weekday,amount_fen,costs_fen,created_at) VALUES (:id"
+                    "_date,frequency,weekday,amount_fen,costs_fen,created_at,cash_account_id) "
+                    "VALUES (:id"
                     ",:name,:account_id,:instrument_id,:start_date,:frequency,:weekday,:a"
-                    "mount,:costs,:at)"
+                    "mount,:costs,:at,:cash_account_id)"
                 ),
                 {
                     **data,
@@ -395,6 +408,7 @@ def recurring_router(accounting: Accounting) -> APIRouter:
                         transaction = TradeInput.model_validate(
                             {
                                 "account_id": item["account_id"],
+                                "cash_account_id": item.get("cash_account_id"),
                                 "instrument_id": item["instrument_id"],
                                 "action": "buy",
                                 "effective_date": row.confirmation_date,

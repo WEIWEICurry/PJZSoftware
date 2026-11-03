@@ -1925,6 +1925,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Costs Fen
              * @default 0
@@ -1965,6 +1967,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Costs Fen
              * @default 0
@@ -2003,6 +2007,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Account Id */
+            cash_account_id?: string | null;
             /**
              * Confirmed Count
              * @default 0
