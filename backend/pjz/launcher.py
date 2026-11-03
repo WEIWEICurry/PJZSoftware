@@ -10,7 +10,6 @@ import subprocess
 import sys
 import threading
 import time
-import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,6 +18,7 @@ from filelock import FileLock, Timeout
 
 from pjz import __version__
 from pjz.api import create_app
+from pjz.browser import open_browser
 from pjz.installation import atomic_json, matching_instance, read_json, verify_release
 from pjz.launch_management import LaunchManagement
 from pjz.storage import SCHEMA_VERSION, LedgerStore
@@ -173,7 +173,7 @@ def serve(
 
     def open_page() -> bool:
         token = app.state.session.issue_bootstrap()
-        return webbrowser.open(origin + "/#bootstrap=" + token)
+        return open_browser(origin + "/#bootstrap=" + token)
 
     request_file = directory / "reopen.request"
     if not no_browser:

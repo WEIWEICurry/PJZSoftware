@@ -1668,3 +1668,62 @@ input.recurring-check[type="checkbox"] {
   padding: 0;
   accent-color: var(--accent);
 }
+
+.startup-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  margin: 0;
+  background: radial-gradient(ellipse at 50% 25%, #e7f1ff, var(--bg) 65%);
+}
+.startup-card {
+  width: min(100%, 520px);
+  text-align: center;
+  padding: 44px 28px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 18px 60px #17365d0d;
+}
+.startup-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--accent);
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 32px;
+}
+.startup-brand svg {
+  width: 40px;
+  height: 40px;
+}
+.startup-card h1 {
+  font-size: 24px;
+}
+.startup-card p,
+.startup-card small {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.startup-spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 28px;
+  border: 4px solid #dfebfb;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: startup-turn 1s linear infinite;
+}
+@keyframes startup-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .startup-spinner {
+    animation: none;
+    border-style: dashed;
+  }
+}
