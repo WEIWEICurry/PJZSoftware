@@ -412,18 +412,20 @@ export function InvestmentsPage({
           </button>{" "}
           <button
             disabled={!enabled}
-            onClick={() => {
-              setForm(blank());
-              setEditing(null);
-              setShowForm(true);
-            }}
+            aria-expanded={showForm}
+            aria-controls="investment-entry-form"
+            onClick={() => setShowForm(!showForm)}
           >
             记一笔投资
           </button>
         </div>
       </div>
       {showForm && (
-        <section className="card panel" aria-label="投资记录表单">
+        <section
+          id="investment-entry-form"
+          className="card panel"
+          aria-label="投资记录表单"
+        >
           <h2>{editing ? "修改投资记录" : "记一笔投资"}</h2>
           <form onSubmit={saveTrade}>
             <fieldset disabled={!enabled} className="investment-fields">
@@ -697,6 +699,7 @@ export function InvestmentsPage({
               onClick={() => {
                 setShowForm(false);
                 setEditing(null);
+                setForm(blank());
               }}
             >
               取消编辑

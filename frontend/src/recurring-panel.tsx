@@ -605,7 +605,7 @@ export function RecurringPanel({
                 ? "已暂停，仅停止生成新草稿"
                 : "运行中，无后台自动执行"}
           </p>
-          <div className="investment-tabs">
+          <div className="recurring-actions">
             <button
               disabled={busy || !!review || !valid}
               onClick={() =>
@@ -666,7 +666,7 @@ export function RecurringPanel({
             此范围共 {drafts.length} 项，一次最多选择 100
             项；填写实际份额与扣款。首版资金在确认日入账，不处理扣款后尚未确认的在途资金。计划参数可在上方管理栏修改，已有草稿金额保持生成时快照。
           </p>
-          <div className="investment-tabs">
+          <div className="recurring-actions">
             <button
               className="secondary"
               disabled={busy || !!review || !!plan?.deleted}

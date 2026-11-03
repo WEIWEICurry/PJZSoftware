@@ -1629,3 +1629,40 @@ input.recurring-check[type="checkbox"] {
   min-width: 110px;
   margin: 0;
 }
+
+.recurring-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.recurring-actions button {
+  border: 1px solid #c7dcd3;
+  border-radius: 8px;
+  background: #edf5f1;
+  color: var(--accent);
+  padding: 10px 16px;
+}
+.recurring-actions button:hover:not(:disabled) {
+  background: #dceee5;
+}
+.nav-fund-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 14px 0;
+}
+.nav-fund-options label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 15px;
+}
+.nav-fund-options input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
