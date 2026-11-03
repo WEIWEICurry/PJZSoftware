@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { AppIcon } from "../src/app-icon";
-import { LaunchPanel, type RuntimeInfo } from "../src/launch-panel";
+import { usePathname, useRouter } from "next/navigation";
+import { AppIcon } from "./app-icon";
+import { LaunchPanel, type RuntimeInfo } from "./launch-panel";
 import {
   AutomaticBackupPanel,
   type BackupStatus,
-} from "../src/automatic-backup-panel";
-import { InvestmentAssets, InvestmentsPage } from "../src/investments-page";
-import { DailyOverview, DailyWorkspace } from "../src/daily";
-import { HistoryImport } from "../src/history-import";
-import { ReportsPage } from "../src/reports-page";
-import { InvestmentReportsPage } from "../src/investment-reports-page";
+} from "./automatic-backup-panel";
+import { InvestmentAssets, InvestmentsPage } from "./investments-page";
+import { DailyOverview, DailyWorkspace } from "./daily";
+import { HistoryImport } from "./history-import";
+import { ReportsPage } from "./reports-page";
+import { InvestmentReportsPage } from "./investment-reports-page";
 import { useEffect, useState, type FormEvent } from "react";
-import { connect, request, raw, type Ledger, type Preview } from "../src/api";
+import { connect, request, raw, type Ledger, type Preview } from "./api";
 
 type Tab =
   | "overview"
@@ -24,18 +25,32 @@ type Tab =
   | "investmentReports"
   | "data"
   | "plan";
+const routes: Record<Tab, string> = {
+  overview: "/",
+  accounts: "/accounts/",
+  journal: "/journal/",
+  reports: "/reports/",
+  investments: "/investments/",
+  investmentReports: "/investment-reports/",
+  data: "/data/",
+  plan: "/plan/",
+};
 const stages = [
   ["M0", "本地基础", "启动、会话保护、SQLite、备份恢复", "已实现"],
   ["M1", "日常记账", "账户、收入支出、转账与退款", "已实现"],
   ["M2", "历史与报表", "历史导入、日周月年报表与可选分类预算", "已实现"],
   ["M3", "投资资产", "期间总盈亏、边界持仓、配置与导出", "当前阶段"],
 ];
-export default function Home() {
+export default function Workspace() {
   const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
   const [restoredToken, setRestoredToken] = useState<string | null>(null);
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [backupUnavailable, setBackupUnavailable] = useState(false);
-  const [tab, setTab] = useState<Tab>("overview");
+  const pathname = usePathname();
+  const router = useRouter();
+  const tab =
+    (Object.keys(routes) as Tab[]).find((key) => routes[key] === pathname) ??
+    "overview";
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -91,7 +106,7 @@ export default function Home() {
     }
   }
   function navigate(next: Tab) {
-    setTab(next);
+    router.push(routes[next]);
     setNotice("");
     if (ledger) setError("");
   }
@@ -191,15 +206,20 @@ export default function Home() {
             <div className="nav-group" key={group}>
               <div className="workspace-label">{group}</div>
               {items.map(([id, label]) => (
-                <button
+                <Link
+                  role="button"
+                  href={routes[id]}
                   key={id}
-                  onClick={() => navigate(id)}
+                  onClick={() => {
+                    setNotice("");
+                    if (ledger) setError("");
+                  }}
                   className={tab === id ? "nav active" : "nav"}
                   aria-current={tab === id ? "page" : undefined}
                 >
                   <AppIcon name={id} />
                   {label}
-                </button>
+                </Link>
               ))}
             </div>
           ))}
