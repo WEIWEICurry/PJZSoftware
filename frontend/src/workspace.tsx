@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { StartupScreen } from "./startup-screen";
 import { AppIcon } from "./app-icon";
 import { LaunchPanel, type RuntimeInfo } from "./launch-panel";
 import {
@@ -163,6 +164,7 @@ export default function Workspace() {
       );
     });
   }
+  if (!ledger) return <StartupScreen error={error} />;
   const available = !!ledger && !busy && !stopped;
   return (
     <div className="shell">
