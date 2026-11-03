@@ -258,8 +258,13 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   for (const width of [1280, 1920]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.locator("#entry-form")).toBeVisible();
-    const form = await page.locator("#entry-form").boundingBox();
-    const list = await page.locator(".journal-panel").boundingBox();
+    const [form, list] = await page.evaluate(() => [
+      document.querySelector("#entry-form")!.getBoundingClientRect().toJSON(),
+      document
+        .querySelector(".journal-panel")!
+        .getBoundingClientRect()
+        .toJSON(),
+    ]);
     // The entry form is now a narrow column alongside the list, not a wide strip.
     expect(list!.x).toBeGreaterThan(form!.x + form!.width);
     expect(Math.abs(list!.y - form!.y)).toBeLessThan(2);
@@ -1307,12 +1312,16 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   ).toBeVisible();
   await page.getByRole("button", { name: "日常账本", exact: true }).click();
   const entry = page.locator("#entry-form");
-  const journal = page.locator(".journal-panel");
   await expect(entry.getByRole("button", { name: "保存流水" })).toBeVisible();
   for (const width of [1440, 1280, 900, 390]) {
     await page.setViewportSize({ width, height: 1000 });
-    const left = (await entry.boundingBox())!;
-    const right = (await journal.boundingBox())!;
+    const [left, right] = await page.evaluate(() => [
+      document.querySelector("#entry-form")!.getBoundingClientRect().toJSON(),
+      document
+        .querySelector(".journal-panel")!
+        .getBoundingClientRect()
+        .toJSON(),
+    ]);
     if (width >= 1280) {
       expect(right.x).toBeGreaterThan(left.x + left.width);
       expect(Math.abs(left.y - right.y)).toBeLessThan(2);
