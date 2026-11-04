@@ -8,6 +8,9 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
       cost_fen: "9007199254740992",
       value_fen: "0",
       unrealized_fen: "-500",
+      holding_return_bps: "-500",
+      total_profit_fen: "-500",
+      total_return_bps: "-500",
       share_bps: "0",
     },
     {
@@ -15,6 +18,9 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
       cost_fen: "9007199254740993",
       value_fen: "1000",
       unrealized_fen: "100",
+      holding_return_bps: "100",
+      total_profit_fen: "100",
+      total_return_bps: "100",
       share_bps: "10000",
     },
     {
@@ -22,6 +28,9 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
       cost_fen: null,
       value_fen: null,
       unrealized_fen: null,
+      holding_return_bps: null,
+      total_profit_fen: null,
+      total_return_bps: null,
       share_bps: null,
     },
     {
@@ -29,6 +38,9 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
       cost_fen: "9007199254740992",
       value_fen: "0",
       unrealized_fen: "-500",
+      holding_return_bps: "-500",
+      total_profit_fen: "-500",
+      total_return_bps: "-500",
       share_bps: "0",
     },
   ];
@@ -51,6 +63,24 @@ test("金额排序保留精度、负数、零值、未知置底与同值原序",
   expect(
     ids(sortPositions(rows, { key: "share_bps", direction: "ascending" })),
   ).toEqual(["low", "equal", "high", "missing"]);
+  for (const key of [
+    "holding_return_bps",
+    "total_profit_fen",
+    "total_return_bps",
+  ] as const) {
+    expect(ids(sortPositions(rows, { key, direction: "descending" }))).toEqual([
+      "high",
+      "low",
+      "equal",
+      "missing",
+    ]);
+    expect(ids(sortPositions(rows, { key, direction: "ascending" }))).toEqual([
+      "low",
+      "equal",
+      "high",
+      "missing",
+    ]);
+  }
   expect(ids(sortPositions(rows, null))).toEqual([
     "low",
     "high",
@@ -89,6 +119,9 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
       cost_fen,
       value_fen,
       unrealized_fen,
+      holding_return_bps: null,
+      total_profit_fen: null,
+      total_return_bps: null,
       share_bps: null,
       realized_fen: "0",
       cash_dividends_fen: "0",
@@ -282,7 +315,7 @@ test("持仓表头点击与键盘切换排序，筛选和视图切换保持方�
   const share = table.getByRole("button", { name: "持仓占比", exact: true });
   await share.click();
   await expect(
-    table.locator("tbody tr td:nth-child(6)").filter({ hasText: "待估值" }),
+    table.locator("tbody tr td:nth-child(9)").filter({ hasText: "待估值" }),
   ).toHaveCount(5);
   complete = true;
   await page.getByRole("button", { name: "刷新投资", exact: true }).click();

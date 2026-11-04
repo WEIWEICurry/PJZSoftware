@@ -1703,6 +1703,8 @@ export interface components {
             instrument_id: string;
             /** Instrument Name */
             instrument_name: string;
+            /** Is Recurring */
+            is_recurring: boolean;
             /**
              * Kind
              * @enum {string}
@@ -1710,6 +1712,10 @@ export interface components {
             kind: "stock" | "etf" | "fund";
             /** Market */
             market: string;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Nav Date Source */
+            nav_date_source: string | null;
             /** Note */
             note: string;
             /** Quantity */
@@ -2072,6 +2078,8 @@ export interface components {
             cash_dividends_fen: string;
             /** Cost Fen */
             cost_fen: string | null;
+            /** Holding Return Bps */
+            holding_return_bps: string | null;
             /** Instrument Id */
             instrument_id: string;
             /** Price */
@@ -2086,6 +2094,10 @@ export interface components {
             reinvested_dividends_fen: string;
             /** Share Bps */
             share_bps: string | null;
+            /** Total Profit Fen */
+            total_profit_fen: string | null;
+            /** Total Return Bps */
+            total_return_bps: string | null;
             /** Unrealized Fen */
             unrealized_fen: string | null;
             /** Valuation Required From */
@@ -2424,6 +2436,8 @@ export interface components {
              * Format: uuid
              */
             instrument_id: string;
+            /** Nav Date */
+            nav_date?: string | null;
             /**
              * Note
              * @default
@@ -2478,6 +2492,8 @@ export interface components {
              * Format: uuid
              */
             instrument_id: string;
+            /** Nav Date */
+            nav_date?: string | null;
             /**
              * Note
              * @default
@@ -2511,6 +2527,12 @@ export interface components {
             id: string;
             /** Instrument Id */
             instrument_id: string;
+            /** Is Recurring */
+            is_recurring: boolean;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Nav Date Source */
+            nav_date_source: string | null;
             /** Note */
             note: string;
             /** Quantity */

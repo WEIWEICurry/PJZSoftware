@@ -113,3 +113,9 @@ valuations 唯一 instrument_id＋price_date，price TEXT，active/void，revisi
 investment_events.action 增加 cash_dividend/reinvest/split；cash_account_id 可空且仅限现金分红，split_from_quantity 仅折算必填。现金分红 quantity="0"、gross_fen=实际净到账、费用零；再投 quantity=实际新增、gross_fen=净再投分红、costs_fen=另付现金费用；折算 quantity=实际确认后份额，现金字段零且成本不变。字段含义由动作约束，不将净分红再转换为假定税前金额。新字段和旧行在事务重建子表时保留，v6 只读备份验证使用空新字段适配。
 
 Position 分别累计 cash_dividends 和 reinvested_dividends，已实现卖出收益保持 realized；累计盈亏为三者加未实现。估值门槛从有效事件的日期／updated_at 重建，不新增数据库余额或快照；同一日以较新的事件更新时间为准。价格及分红数据完整性随财务重放和外键验证检查，含分红收款关联的账户不开放彻底删除。
+
+## schema v11：交易净值所属日
+
+investment_events 新增 nav_date、nav_date_source；买卖日期独立于 financial_events.effective_date，前者不得晚于后者，不参与现金和份额入账顺序。其他事件两字段为 NULL。来源 manual/recurring/default_date/default_backfill 分别表示手工确认、定投核对、新建默认、历史默认补齐。迁移优先读取关联 investment_drafts.nav_date，否则使用确认日，覆盖有效与作废买卖，旧审计不改写。修改定投交易时同事务同步草稿关联净值日，保留原审计及定投关联。
+
+持仓三项收益指标由后端 Decimal 计算、整数分及字符串基点返回；累计分母含期初成本和外部累计投入，不因卖出减少，分红再投本身不重复当外部投入。未知成本/估值不伪造零收益；零剩余成本不计算持仓收益率。

@@ -1,4 +1,6 @@
 "use client";
+
+import { DateStepper } from "./date-stepper";
 import { useEffect, useState } from "react";
 import type { components } from "./api-schema";
 import { request } from "./api";
@@ -468,14 +470,12 @@ export function RecurringPanel({
             </label>
             <label>
               计划起始日
-              <input
-                type="date"
+              <DateStepper
+                stepLabel="计划起始日"
                 required
                 disabled={!!editingPlan?.has_drafts}
                 value={form.start_date}
-                onChange={(e) =>
-                  setForm({ ...form, start_date: e.target.value })
-                }
+                onValueChange={(e) => setForm({ ...form, start_date: e })}
               />
             </label>
             <label>
@@ -571,24 +571,24 @@ export function RecurringPanel({
         </label>
         <label>
           核对开始日期
-          <input
-            type="date"
+          <DateStepper
+            stepLabel="核对开始日期"
             value={start}
             max={localDay()}
-            onChange={(e) => {
-              setStart(e.target.value);
+            onValueChange={(e) => {
+              setStart(e);
               setLoaded("");
             }}
           />
         </label>
         <label>
           核对结束日期
-          <input
-            type="date"
+          <DateStepper
+            stepLabel="核对结束日期"
             value={end}
             max={localDay()}
-            onChange={(e) => {
-              setEnd(e.target.value);
+            onValueChange={(e) => {
+              setEnd(e);
               setLoaded("");
             }}
           />
@@ -765,17 +765,17 @@ export function RecurringPanel({
                       {d.status === "pending" && !plan?.deleted ? (
                         <>
                           <td>
-                            <input
+                            <DateStepper
                               aria-label={`${d.scheduled_date} 确认日期`}
-                              type="date"
+                              stepLabel="实际确认日期"
                               max={localDay()}
                               min={d.scheduled_date}
                               disabled={
                                 busy || !!review || e.decision === "skip"
                               }
                               value={e.confirmation_date}
-                              onChange={(v) =>
-                                update(d, { confirmation_date: v.target.value })
+                              onValueChange={(v) =>
+                                update(d, { confirmation_date: v })
                               }
                             />
                           </td>
@@ -819,17 +819,15 @@ export function RecurringPanel({
                             />
                           </td>
                           <td>
-                            <input
+                            <DateStepper
                               aria-label={`${d.scheduled_date} 净值所属日`}
-                              type="date"
+                              stepLabel="成交净值所属日"
                               max={e.confirmation_date || localDay()}
                               disabled={
                                 busy || !!review || e.decision === "skip"
                               }
                               value={e.nav_date}
-                              onChange={(v) =>
-                                update(d, { nav_date: v.target.value })
-                              }
+                              onValueChange={(v) => update(d, { nav_date: v })}
                             />
                           </td>
                         </>

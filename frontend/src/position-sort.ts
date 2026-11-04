@@ -1,6 +1,12 @@
 /** Compare exact integer fen; missing values stay last in either direction. */
 export type PositionSortKey =
-  "cost_fen" | "value_fen" | "unrealized_fen" | "share_bps";
+  | "cost_fen"
+  | "value_fen"
+  | "unrealized_fen"
+  | "holding_return_bps"
+  | "total_profit_fen"
+  | "total_return_bps"
+  | "share_bps";
 export type PositionSort = {
   key: PositionSortKey;
   direction: "ascending" | "descending";

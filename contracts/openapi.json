@@ -2275,6 +2275,10 @@
             "title": "Instrument Name",
             "type": "string"
           },
+          "is_recurring": {
+            "title": "Is Recurring",
+            "type": "boolean"
+          },
           "kind": {
             "enum": [
               "stock",
@@ -2287,6 +2291,28 @@
           "market": {
             "title": "Market",
             "type": "string"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "nav_date_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date Source"
           },
           "note": {
             "title": "Note",
@@ -2341,6 +2367,9 @@
           "instrument_id",
           "action",
           "effective_date",
+          "nav_date",
+          "nav_date_source",
+          "is_recurring",
           "sequence",
           "quantity",
           "gross_fen",
@@ -3120,6 +3149,17 @@
             ],
             "title": "Cost Fen"
           },
+          "holding_return_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holding Return Bps"
+          },
           "instrument_id": {
             "title": "Instrument Id",
             "type": "string"
@@ -3169,6 +3209,28 @@
             ],
             "title": "Share Bps"
           },
+          "total_profit_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Profit Fen"
+          },
+          "total_return_bps": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Return Bps"
+          },
           "unrealized_fen": {
             "anyOf": [
               {
@@ -3212,6 +3274,9 @@
           "value_fen",
           "unrealized_fen",
           "share_bps",
+          "holding_return_bps",
+          "total_profit_fen",
+          "total_return_bps",
           "price",
           "price_date",
           "cash_dividends_fen",
@@ -4042,6 +4107,18 @@
             "title": "Instrument Id",
             "type": "string"
           },
+          "nav_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
           "note": {
             "default": "",
             "maxLength": 500,
@@ -4157,6 +4234,18 @@
             "title": "Instrument Id",
             "type": "string"
           },
+          "nav_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
           "note": {
             "default": "",
             "maxLength": 500,
@@ -4251,6 +4340,32 @@
             "title": "Instrument Id",
             "type": "string"
           },
+          "is_recurring": {
+            "title": "Is Recurring",
+            "type": "boolean"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "nav_date_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date Source"
+          },
           "note": {
             "title": "Note",
             "type": "string"
@@ -4293,6 +4408,9 @@
           "instrument_id",
           "action",
           "effective_date",
+          "nav_date",
+          "nav_date_source",
+          "is_recurring",
           "sequence",
           "quantity",
           "gross_fen",
@@ -4425,7 +4543,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.20.0"
+    "version": "0.21.0"
   },
   "openapi": "3.1.0",
   "paths": {
