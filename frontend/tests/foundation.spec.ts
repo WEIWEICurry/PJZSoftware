@@ -1067,6 +1067,43 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .click();
   await expect(recurring).toContainText("新增 1 项");
   await recurring.getByLabel(`选择 ${today}`, { exact: true }).check();
+  const reviewTable = recurring.getByRole("table", { name: "定投待核对列表" });
+  for (const width of [1920, 1100]) {
+    await page.setViewportSize({ width, height: 1080 });
+    const firstCell = reviewTable
+      .locator("tbody tr")
+      .first()
+      .locator("td")
+      .first();
+    expect(
+      await firstCell.evaluate((cell) => {
+        const text = document.createRange();
+        text.selectNodeContents(cell);
+        return text.getBoundingClientRect().height;
+      }),
+    ).toBeLessThan(30);
+    const decision = recurring.getByLabel(`${today} 处理方式`, { exact: true });
+    expect((await decision.boundingBox())!.width).toBeGreaterThanOrEqual(140);
+    await expect(decision).toHaveValue("confirm");
+    if (width === 1100) {
+      expect(
+        await reviewTable
+          .locator("..")
+          .evaluate(
+            (container) => container.scrollWidth > container.clientWidth,
+          ),
+      ).toBe(true);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await reviewTable.screenshot({
+      path: `test-results/recurring-review-${width}.png`,
+    });
+  }
+  await page.setViewportSize({ width: 1440, height: 1080 });
   await recurring.getByLabel(`${today} 确认日期`, { exact: true }).fill(today);
   await expect(
     recurring.getByRole("button", { name: "实际确认日期前一天", exact: true }),
