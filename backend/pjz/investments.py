@@ -380,6 +380,16 @@ class Investments:
 
         return self.accounting.command(key, "valuation", payload, action)
 
+    def sell_options(self, account_id: str, effective_date: str) -> list[dict[str, str]]:
+        with self.accounting.engine.connect() as connection:
+            connection.exec_driver_sql("BEGIN")
+            positions, _, _ = self.replay_details(connection, effective_date)
+            return [
+                {"instrument_id": asset, "quantity": decimal_text(position.quantity)}
+                for (account, asset), position in positions.items()
+                if account == account_id and position.quantity > 0
+            ]
+
     def page(self) -> dict[str, Any]:
         with self.accounting.engine.connect() as connection:
             connection.exec_driver_sql("BEGIN")

@@ -3969,6 +3969,24 @@
         "title": "RuntimeOutput",
         "type": "object"
       },
+      "SellOption": {
+        "properties": {
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "quantity"
+        ],
+        "title": "SellOption",
+        "type": "object"
+      },
       "SummaryOutput": {
         "properties": {
           "assets_fen": {
@@ -4543,7 +4561,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.21.1"
+    "version": "0.21.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6158,6 +6176,60 @@
           }
         },
         "summary": "Instrument"
+      }
+    },
+    "/api/v1/investments/sell-options": {
+      "get": {
+        "operationId": "sell_options_api_v1_investments_sell_options_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "effective_date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Effective Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SellOption"
+                  },
+                  "title": "Response Sell Options Api V1 Investments Sell Options Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sell Options"
       }
     },
     "/api/v1/investments/trades": {
