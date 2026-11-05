@@ -466,6 +466,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/sell-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sell Options */
+        get: operations["sell_options_api_v1_investments_sell_options_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/trades": {
         parameters: {
             query?: never;
@@ -2369,6 +2386,13 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** SellOption */
+        SellOption: {
+            /** Instrument Id */
+            instrument_id: string;
+            /** Quantity */
+            quantity: string;
+        };
         /** SummaryOutput */
         SummaryOutput: {
             /** Assets Fen */
@@ -3520,6 +3544,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sell_options_api_v1_investments_sell_options_get: {
+        parameters: {
+            query: {
+                account_id: string;
+                effective_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SellOption"][];
                 };
             };
             /** @description Validation Error */

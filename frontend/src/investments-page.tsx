@@ -14,6 +14,7 @@ import {
 } from "./position-sort";
 
 type Page = components["schemas"]["InvestmentPage"];
+type SellOption = components["schemas"]["SellOption"];
 type Account = components["schemas"]["AccountOutput"];
 type Trade = components["schemas"]["TradeOutput"];
 type Instrument = components["schemas"]["InstrumentInput"];
@@ -126,6 +127,55 @@ export function InvestmentsPage({
   const [priceDate, setPriceDate] = useState(localDay());
   const [prices, setPrices] = useState<Record<string, string>>({});
 
+  const [historicalSell, setHistoricalSell] = useState<{
+    key: string;
+    snapshot: Page | null;
+    rows: SellOption[];
+    error: string;
+  } | null>(null);
+  const [sellRetry, setSellRetry] = useState(0);
+  const historicalSellKey =
+    form.action === "sell" &&
+    !editing &&
+    form.account_id &&
+    form.effective_date &&
+    form.effective_date < localDay()
+      ? `${form.account_id}|${form.effective_date}`
+      : "";
+  useEffect(() => {
+    if (!available || !historicalSellKey) return;
+    let current = true;
+    const [account, day] = historicalSellKey.split("|");
+    request<SellOption[]>(
+      `/investments/sell-options?account_id=${account}&effective_date=${day}`,
+    )
+      .then((rows) => {
+        if (!current) return;
+        setHistoricalSell({
+          key: historicalSellKey,
+          snapshot: page,
+          rows,
+          error: "",
+        });
+        setForm((previous) =>
+          rows.some((r) => r.instrument_id === previous.instrument_id)
+            ? previous
+            : { ...previous, instrument_id: "", quantity: "" },
+        );
+      })
+      .catch((e: Error) => {
+        if (current)
+          setHistoricalSell({
+            key: historicalSellKey,
+            snapshot: page,
+            rows: [],
+            error: e.message,
+          });
+      });
+    return () => {
+      current = false;
+    };
+  }, [available, historicalSellKey, page, sellRetry]);
   useEffect(() => {
     if (!available) return;
     let current = true;
@@ -307,10 +357,42 @@ export function InvestmentsPage({
     page?.positions.find(
       (p) => p.account_id === account && p.instrument_id === asset,
     )?.quantity ?? "";
+  const sellRows: SellOption[] = historicalSellKey
+    ? historicalSell?.key === historicalSellKey &&
+      historicalSell.snapshot === page
+      ? historicalSell.rows
+      : []
+    : (page?.positions ?? []).filter(
+        (p) => p.account_id === form.account_id && /[1-9]/.test(p.quantity),
+      );
+  const sellPending =
+    !!historicalSellKey &&
+    (historicalSell?.key !== historicalSellKey ||
+      historicalSell.snapshot !== page);
+  const sellError =
+    historicalSellKey &&
+    historicalSell?.key === historicalSellKey &&
+    historicalSell.snapshot === page
+      ? historicalSell.error
+      : "";
+  const sellRestricted = form.action === "sell" && !editing;
+  const entryInstruments = (page?.instruments ?? []).filter(
+    (i) => !sellRestricted || sellRows.some((p) => p.instrument_id === i.id),
+  );
+  const saleQuantity = sellRows.find(
+    (p) => p.instrument_id === form.instrument_id,
+  )?.quantity;
+  const sellBlocked =
+    sellRestricted &&
+    (!form.account_id ||
+      sellPending ||
+      !!sellError ||
+      !entryInstruments.length);
   function changeAction(action: Trade["action"]) {
     setForm({
       ...form,
       action,
+      instrument_id: action === "sell" ? "" : form.instrument_id,
       quantity: action === "cash_dividend" ? "0" : "",
       amount: "",
       costs: "",
@@ -493,6 +575,9 @@ export function InvestmentsPage({
                     setForm({
                       ...form,
                       account_id: e.target.value,
+                      ...(form.action === "sell"
+                        ? { instrument_id: "", quantity: "" }
+                        : {}),
                       split_from_quantity:
                         form.action === "split"
                           ? heldQuantity(e.target.value, form.instrument_id)
@@ -513,12 +598,13 @@ export function InvestmentsPage({
                 <select
                   aria-label="投资标的"
                   required
-                  disabled={!!editing}
+                  disabled={!!editing || !!sellBlocked}
                   value={form.instrument_id}
                   onChange={(e) =>
                     setForm({
                       ...form,
                       instrument_id: e.target.value,
+                      ...(form.action === "sell" ? { quantity: "" } : {}),
                       split_from_quantity:
                         form.action === "split"
                           ? heldQuantity(form.account_id, e.target.value)
@@ -527,12 +613,39 @@ export function InvestmentsPage({
                   }
                 >
                   <option value="">请选择标的</option>
-                  {page?.instruments.map((i) => (
+                  {entryInstruments.map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name} · {i.code}
                     </option>
                   ))}
                 </select>
+                {sellRestricted && (
+                  <small role="status">
+                    {!form.account_id
+                      ? "请先选择持仓账户。"
+                      : sellPending
+                        ? "正在读取该日期的持仓…"
+                        : sellError
+                          ? "持仓查询失败，请重试。"
+                          : !entryInstruments.length
+                            ? historicalSellKey
+                              ? "该账户在所选日期暂无可卖出的持仓。"
+                              : "该账户暂无可卖出的持仓。"
+                            : "仅显示该持仓账户有剩余份额的标的。"}
+                  </small>
+                )}
+                {!!sellError && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setHistoricalSell(null);
+                      setSellRetry((n) => n + 1);
+                    }}
+                  >
+                    重试持仓查询
+                  </button>
+                )}
               </label>
               <label>
                 {form.action === "opening"
@@ -559,6 +672,9 @@ export function InvestmentsPage({
                     setForm({
                       ...form,
                       effective_date: value,
+                      ...(form.action === "sell" && !editing
+                        ? { instrument_id: "", quantity: "" }
+                        : {}),
                       nav_date: form.nav_date_manual ? form.nav_date : value,
                     })
                   }
@@ -609,11 +725,27 @@ export function InvestmentsPage({
                     required
                     inputMode="decimal"
                     placeholder="最多八位小数"
+                    aria-label={
+                      form.action === "split"
+                        ? "折算后份额（份／股）"
+                        : form.action === "reinvest"
+                          ? "新增份额（份）"
+                          : "数量（份／股）"
+                    }
                     value={form.quantity}
                     onChange={(e) =>
                       setForm({ ...form, quantity: e.target.value })
                     }
                   />
+                  {form.action === "sell" && form.instrument_id && (
+                    <small>
+                      {editing
+                        ? `当前剩余 ${heldQuantity(form.account_id, form.instrument_id) || "0"} 份／股；历史修改以保存时重算校验为准。`
+                        : historicalSellKey
+                          ? `所选日期剩余 ${saleQuantity ?? "—"} 份／股；保存时还会校验后续交易。`
+                          : `当前持有 ${saleQuantity ?? "0"} 份／股。`}
+                    </small>
+                  )}
                 </label>
               )}
               {["buy", "sell", "cash_dividend", "reinvest"].includes(
@@ -744,7 +876,7 @@ export function InvestmentsPage({
             <p className="footnote">
               基金填写实际确认份额和确认日。期初为该账户标的第一笔记录；成本未知时先补齐成本再卖出。更换账户、标的或操作请作废后重新录入。
             </p>
-            <button disabled={!enabled}>保存投资记录</button>{" "}
+            <button disabled={!enabled || !!sellBlocked}>保存投资记录</button>{" "}
             <button
               type="button"
               className="secondary"

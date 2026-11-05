@@ -18,6 +18,7 @@ from pjz.daily_api import (
     RevisionInput,
     StrictInput,
 )
+from pjz.domain import RuleError
 from pjz.investment_domain import decimal_value
 from pjz.investments import Investments
 
@@ -163,6 +164,11 @@ class PositionOutput(BaseModel):
     valuation_required_from: str | None
 
 
+class SellOption(BaseModel):
+    instrument_id: str
+    quantity: str
+
+
 class InvestmentPage(BaseModel):
     instruments: list[InstrumentOutput]
     positions: list[PositionOutput]
@@ -188,6 +194,12 @@ def investment_router(service: Investments) -> APIRouter:
     @router.get("", response_model=InvestmentPage)
     def page() -> object:
         return service.page()
+
+    @router.get("/sell-options", response_model=list[SellOption])
+    def sell_options(account_id: UUID, effective_date: date) -> object:
+        if effective_date > date.today():
+            raise RuleError("FUTURE_DATE")
+        return service.sell_options(str(account_id), effective_date.isoformat())
 
     @router.post("/instruments", response_model=CreatedOutput)
     def instrument(payload: InstrumentInput, key: Key) -> object:
