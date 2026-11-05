@@ -1039,11 +1039,13 @@ export function InvestmentsPage({
                         {t.effective_date}
                         <small
                           className={
-                            t.is_recurring || t.action === "sell"
-                              ? "trade-red"
-                              : t.action === "buy"
-                                ? "trade-blue"
-                                : undefined
+                            t.is_recurring
+                              ? "trade-recurring"
+                              : t.action === "sell"
+                                ? "trade-red"
+                                : t.action === "buy"
+                                  ? "trade-blue"
+                                  : undefined
                           }
                         >
                           {t.is_recurring ? "定投买入" : actions[t.action]}

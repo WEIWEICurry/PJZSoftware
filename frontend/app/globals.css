@@ -1765,3 +1765,7 @@ input.recurring-check[type="checkbox"] {
 .holdings-table th:not(:first-child) {
   white-space: nowrap;
 }
+
+.investment-table .trade-recurring {
+  color: #7e22ce;
+}

@@ -136,10 +136,20 @@ test("投资默认值、日期跟随和手动独立、状态及收益排序", as
     table.getByRole("columnheader", { name: "净值所属日", exact: true }),
   ).toBeVisible();
   await expect(table.locator(".trade-blue")).toHaveText("买入／申购");
-  await expect(table.locator(".trade-red")).toHaveText([
-    "卖出／赎回",
-    "定投买入",
-  ]);
+  await expect(table.locator(".trade-red")).toHaveText("卖出／赎回");
+  await expect(table.locator(".trade-recurring")).toHaveText("定投买入");
+  await expect(table.locator(".trade-recurring")).toHaveCSS(
+    "color",
+    "rgb(126, 34, 206)",
+  );
+  await expect(table.locator(".trade-red")).toHaveCSS(
+    "color",
+    "rgb(194, 73, 69)",
+  );
+  await expect(table.locator(".trade-blue")).toHaveCSS(
+    "color",
+    "rgb(9, 101, 217)",
+  );
   await expect(table.getByText("已作废", { exact: true })).not.toHaveClass(
     /trade-red/,
   );
