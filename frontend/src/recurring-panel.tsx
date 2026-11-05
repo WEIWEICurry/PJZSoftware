@@ -704,7 +704,17 @@ export function RecurringPanel({
             </button>
           </div>
           <div className="table-scroll">
-            <table className="investment-table" aria-label="定投待核对列表">
+            <table
+              className="investment-table recurring-review-table"
+              aria-label="定投待核对列表"
+            >
+              <colgroup>
+                {[168, 190, 240, 150, 140, 120, 240, 210].map(
+                  (width, index) => (
+                    <col key={index} style={{ width }} />
+                  ),
+                )}
+              </colgroup>
               <thead>
                 <tr>
                   <th>选择／计划日期</th>
