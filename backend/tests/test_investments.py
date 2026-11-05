@@ -100,6 +100,9 @@ def test_independent_hand_example_full_cash_and_restore(ledger):
         position["value_fen"],
         position["unrealized_fen"],
     ) == ("150", "165750", "9550", "195000", "29250")
+    assert position["holding_return_bps"] == "1765"
+    assert position["total_return_bps"] == "1756"
+    assert position["total_profit_fen"] == "38800"
     assert result["holding_return_bps"] == "1765"
     assert result["total_return_bps"] == "1756"
     assert result["total_profit_fen"] == "38800"
@@ -420,7 +423,7 @@ def test_v5_upgrade_failure_backup_then_success(tmp_path, monkeypatch):
         assert not connection.execute(
             "SELECT name FROM sqlite_master WHERE name='instruments'"
         ).fetchall()
-    backups = list((directory / "backups").glob("before-v10-*"))
+    backups = list((directory / "backups").glob("before-v11-*"))
     assert len(backups) == 1
     assert inspect_backup(backups[0].read_bytes())
     monkeypatch.setattr(command, "upgrade", original)

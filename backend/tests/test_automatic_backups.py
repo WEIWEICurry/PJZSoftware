@@ -61,7 +61,7 @@ def test_retention_does_not_delete_manual_safety_or_unknown_files(managed):
     manager.check()
     manual = store.directory / "backups" / "manual.pjzbackup"
     manual.write_bytes(store.backup())
-    upgrade = store.directory / "backups" / "before-v10-synthetic.pjzbackup"
+    upgrade = store.directory / "backups" / "before-v11-synthetic.pjzbackup"
     upgrade.write_bytes(store.backup())
     unknown = manager.directory / "daily-not-a-date.pjzbackup"
     unknown.write_bytes(b"preserve")

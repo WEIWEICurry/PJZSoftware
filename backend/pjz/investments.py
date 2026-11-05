@@ -49,6 +49,7 @@ class Investments:
             if version >= 7
             else ",NULL AS cash_account_id,NULL AS split_from_quantity"
         )
+        extra += ",i.nav_date,i.nav_date_source" if version >= 11 else ""
         accounts = {r["id"]: r for r in fetch_all(connection, "SELECT * FROM accounts")}
         rows = fetch_all(
             connection,
@@ -84,6 +85,18 @@ class Investments:
                 )
             ):
                 raise RuleError("INVESTMENT_INVALID_FACTS")
+            if version >= 11:
+                if row["action"] in ("buy", "sell"):
+                    if (
+                        not row["nav_date"]
+                        or date.fromisoformat(row["nav_date"])
+                        > date.fromisoformat(row["effective_date"])
+                        or row["nav_date_source"]
+                        not in ("manual", "recurring", "default_backfill", "default_date")
+                    ):
+                        raise RuleError("INVESTMENT_INVALID_FACTS")
+                elif row["nav_date"] is not None or row["nav_date_source"] is not None:
+                    raise RuleError("INVESTMENT_INVALID_FACTS")
             units = decimal_value(row["quantity"]) if row["quantity"] != "0" else Decimal(0)
             if row["action"] == "reinvest" and instruments[row["instrument_id"]]["kind"] != "fund":
                 raise RuleError("INVESTMENT_REINVEST_FUND_ONLY")
@@ -256,7 +269,7 @@ class Investments:
         connection.execute(
             text(
                 "INSERT INTO investment_events VALUES "
-                "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis,:cash_account,:split_from)"
+                "(:id,:instrument_id,:action,:quantity,:gross,:fee,:basis,:cash_account,:split_from,:nav_date,:nav_source)"
             ),
             {
                 **payload,
@@ -266,8 +279,19 @@ class Investments:
                 "basis": None if basis is None else int(basis),
                 "cash_account": payload.get("cash_account_id"),
                 "split_from": payload.get("split_from_quantity"),
+                "nav_date": (payload.get("nav_date") or payload["effective_date"])
+                if payload["action"] in ("buy", "sell")
+                else None,
+                "nav_source": ("manual" if payload.get("nav_date") else "default_date")
+                if payload["action"] in ("buy", "sell")
+                else None,
             },
         )
+        if identifier and payload["action"] == "buy":
+            connection.execute(
+                text("UPDATE investment_drafts SET nav_date=:nav WHERE event_id=:id"),
+                {"nav": payload.get("nav_date") or payload["effective_date"], "id": event_id},
+            )
         self.accounting.audit(
             connection,
             event_id,
@@ -457,6 +481,24 @@ class Investments:
                     "realized_fen": str(position.realized),
                     "value_fen": None if value is None else str(value),
                     "unrealized_fen": None if profit is None else str(profit),
+                    "holding_return_bps": return_bps(profit, position.cost),
+                    "total_profit_fen": None
+                    if profit is None
+                    else str(
+                        profit
+                        + position.realized
+                        + position.cash_dividends
+                        + position.reinvested_dividends
+                    ),
+                    "total_return_bps": return_bps(
+                        None
+                        if profit is None
+                        else profit
+                        + position.realized
+                        + position.cash_dividends
+                        + position.reinvested_dividends,
+                        position.invested_cost,
+                    ),
                     "price": price["price"] if price else None,
                     "price_date": price["price_date"] if price else None,
                     "cash_dividends_fen": str(position.cash_dividends),
@@ -476,7 +518,8 @@ class Investments:
             connection,
             "SELECT "
             "f.id,f.account_id,f.effective_date,f.note,f.status,f.revision,"
-            "f.sequence,i.* FROM financial_events f JOIN investment_events i "
+            "f.sequence,i.*,EXISTS(SELECT 1 FROM investment_drafts d WHERE d.event_id=f.id) "
+            "AS is_recurring FROM financial_events f JOIN investment_events i "
             "ON i.event_id=f.id ORDER BY f.effective_date DESC,f.sequence DESC",
         )
         for trade in trades:

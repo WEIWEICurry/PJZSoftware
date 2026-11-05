@@ -1727,3 +1727,41 @@ input.recurring-check[type="checkbox"] {
     border-style: dashed;
   }
 }
+
+/* Date navigation remains keyboard accessible inside forms and narrow tables. */
+.date-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 210px;
+}
+.date-stepper input {
+  min-width: 0;
+  width: 100%;
+}
+.date-stepper button {
+  flex: 0 0 30px;
+  padding: 8px 4px;
+  font-size: 20px;
+  line-height: 1;
+}
+.investment-table .trade-blue {
+  color: var(--accent);
+}
+.investment-table .trade-red {
+  color: var(--positive);
+}
+
+.holdings-table {
+  min-width: 1480px;
+}
+.holdings-table th:first-child {
+  min-width: 280px;
+}
+.investment-table button {
+  white-space: nowrap;
+}
+.holdings-table td:not(:first-child),
+.holdings-table th:not(:first-child) {
+  white-space: nowrap;
+}

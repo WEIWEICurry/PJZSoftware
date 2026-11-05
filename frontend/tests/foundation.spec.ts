@@ -708,9 +708,11 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .selectOption({ label: "Synthetic stock · 600001" });
   await investmentForm.getByLabel("数量（份／股）").fill("100");
   await investmentForm
+    .getByLabel("金额口径", { exact: true })
+    .selectOption("gross");
+  await investmentForm
     .getByLabel("成交金额（元）", { exact: true })
     .fill("1000");
-  await investmentForm.getByText("费用（选填）", { exact: true }).click();
   await investmentForm.getByLabel("费用合计（元）").fill("5");
   await expect(investmentForm).toContainText("本次扣款 ¥1,005.00");
   let loseInvestment = true;
@@ -758,7 +760,6 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
         exact: true,
       })
       .fill(value);
-    await investmentForm.getByText("费用（选填）", { exact: true }).click();
     await investmentForm.getByLabel("费用合计（元）").fill(fee);
     await investmentForm.getByRole("button", { name: "保存投资记录" }).click();
     await expect(page.getByRole("status")).toContainText("投资记录已保存");
@@ -871,7 +872,9 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
       String(day.getDate()).padStart(2, "0"),
     ].join("-");
   });
-  await page.getByLabel("价格／净值日期").fill(previousPriceDay);
+  await page
+    .getByLabel("价格／净值日期", { exact: true })
+    .fill(previousPriceDay);
   await fundPrice.getByLabel("Synthetic distribution fund价格").fill("2.1");
   await fundPrice
     .getByRole("button", { name: "保存价格", exact: true })
@@ -906,7 +909,7 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await expect(fundHolding).toContainText("待估值");
   async function updateFundPrice(value: string) {
     await page.getByRole("button", { name: "标的与估值", exact: true }).click();
-    await page.getByLabel("价格／净值日期").fill(today);
+    await page.getByLabel("价格／净值日期", { exact: true }).fill(today);
     await fundPrice.getByLabel("Synthetic distribution fund价格").fill(value);
     await fundPrice
       .getByRole("button", { name: "保存价格", exact: true })
@@ -930,7 +933,6 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await beginFundEvent("reinvest");
   await investmentForm.getByLabel("新增份额（份）").fill("50");
   await investmentForm.getByLabel("再投分红金额（元）").fill("100");
-  await investmentForm.getByText("费用（选填）", { exact: true }).click();
   await investmentForm.getByLabel("另付费用（元）").fill("2");
   await saveFundEvent();
   await page.getByRole("button", { name: "我的持仓", exact: true }).click();
@@ -1043,14 +1045,47 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
   await recurring.getByLabel("核对开始日期", { exact: true }).fill(today);
   await recurring.getByLabel("核对结束日期", { exact: true }).fill(today);
   await recurring
+    .getByRole("button", { name: "核对开始日期前一天", exact: true })
+    .click();
+  await recurring
+    .getByRole("button", { name: "核对开始日期后一天", exact: true })
+    .click();
+  await expect(
+    recurring.getByLabel("核对开始日期", { exact: true }),
+  ).toHaveValue(today);
+  await recurring
+    .getByRole("button", { name: "核对结束日期前一天", exact: true })
+    .click();
+  await recurring
+    .getByRole("button", { name: "核对结束日期后一天", exact: true })
+    .click();
+  await expect(
+    recurring.getByLabel("核对结束日期", { exact: true }),
+  ).toHaveValue(today);
+  await recurring
     .getByRole("button", { name: "生成待核对项", exact: true })
     .click();
   await expect(recurring).toContainText("新增 1 项");
   await recurring.getByLabel(`选择 ${today}`, { exact: true }).check();
   await recurring.getByLabel(`${today} 确认日期`, { exact: true }).fill(today);
+  await expect(
+    recurring.getByRole("button", { name: "实际确认日期前一天", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    recurring.getByRole("button", { name: "实际确认日期后一天", exact: true }),
+  ).toBeDisabled();
   await recurring
     .getByLabel(`${today} 净值所属日`, { exact: true })
     .fill(today);
+  await recurring
+    .getByRole("button", { name: "成交净值所属日前一天", exact: true })
+    .click();
+  await recurring
+    .getByRole("button", { name: "成交净值所属日后一天", exact: true })
+    .click();
+  await expect(
+    recurring.getByLabel(`${today} 净值所属日`, { exact: true }),
+  ).toHaveValue(today);
   await recurring.getByLabel(`${today} 份额`, { exact: true }).fill("10");
   await recurring
     .getByRole("button", { name: "预览所选确认／跳过", exact: true })

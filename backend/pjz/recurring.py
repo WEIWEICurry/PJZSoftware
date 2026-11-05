@@ -412,6 +412,7 @@ def recurring_router(accounting: Accounting) -> APIRouter:
                                 "instrument_id": item["instrument_id"],
                                 "action": "buy",
                                 "effective_date": row.confirmation_date,
+                                "nav_date": row.nav_date,
                                 "quantity": row.quantity,
                                 "amount_fen": row.amount_fen,
                                 "costs_fen": row.costs_fen,
@@ -448,6 +449,14 @@ def recurring_router(accounting: Accounting) -> APIRouter:
                     event_id = investments.save_trade(
                         connection, transaction.model_dump(mode="json")
                     )["id"]
+                if event_id:
+                    connection.execute(
+                        text(
+                            "UPDATE investment_events SET nav_date_source='recurring' "
+                            "WHERE event_id=:id"
+                        ),
+                        {"id": event_id},
+                    )
                 connection.execute(
                     text(
                         "UPDATE investment_drafts SET status=:status,event_id=:event,nav_date"

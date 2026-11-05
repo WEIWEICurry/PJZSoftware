@@ -41,6 +41,7 @@ class TradeInput(StrictInput):
     instrument_id: UUID
     action: InvestmentAction
     effective_date: date
+    nav_date: date | None = None
     quantity: str = Field(max_length=21)
     amount_fen: Fen = "0"
     costs_fen: Fen = "0"
@@ -76,6 +77,11 @@ class TradeInput(StrictInput):
             raise ValueError("Old units only apply to a unit conversion")
         if self.action not in ("buy", "sell") and self.amount_mode != "gross":
             raise ValueError("Net amount mode only applies to purchases and sales")
+        if self.action in ("buy", "sell"):
+            if self.nav_date and self.nav_date > self.effective_date:
+                raise ValueError("NAV date must not be after confirmation date")
+        elif self.nav_date is not None:
+            raise ValueError("NAV date only applies to purchases and sales")
         return self
 
     @field_validator("amount_fen", "costs_fen", "cost_basis_fen")
@@ -97,6 +103,9 @@ class TradeOutput(BaseModel):
     instrument_id: str
     action: InvestmentAction
     effective_date: str
+    nav_date: str | None
+    nav_date_source: str | None
+    is_recurring: bool
     sequence: int
     quantity: str
     gross_fen: str
@@ -144,6 +153,9 @@ class PositionOutput(BaseModel):
     value_fen: str | None
     unrealized_fen: str | None
     share_bps: str | None
+    holding_return_bps: str | None
+    total_profit_fen: str | None
+    total_return_bps: str | None
     price: str | None
     price_date: str | None
     cash_dividends_fen: str

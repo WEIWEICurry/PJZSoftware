@@ -354,7 +354,7 @@ def test_v4_upgrade_failure_rolls_back_budget_table(tmp_path, monkeypatch):
         assert not connection.execute(
             "SELECT name FROM sqlite_master WHERE name='category_budgets'"
         ).fetchall()
-    assert list((path / "backups").glob("before-v10-*"))
+    assert list((path / "backups").glob("before-v11-*"))
     monkeypatch.setattr(command, "upgrade", original)
     store = LedgerStore(path)
     try:

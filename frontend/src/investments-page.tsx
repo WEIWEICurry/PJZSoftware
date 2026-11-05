@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
+import { DateStepper } from "./date-stepper";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
@@ -38,11 +39,13 @@ const blank = () => ({
   instrument_id: "",
   action: "buy" as Trade["action"],
   effective_date: localDay(),
+  nav_date: localDay(),
+  nav_date_manual: false,
   quantity: "",
   amount: "",
-  costs: "0.00",
+  costs: "",
   basis: "",
-  amount_mode: "gross" as "gross" | "net",
+  amount_mode: "net" as "gross" | "net",
   note: "",
   cash_account_id: "",
   split_from_quantity: "",
@@ -134,6 +137,20 @@ export function InvestmentsPage({
         if (current) {
           setPage(value);
           setAccounts(rows);
+          setForm((previous) =>
+            previous.account_id
+              ? previous
+              : {
+                  ...previous,
+                  account_id:
+                    rows.find(
+                      (a) =>
+                        a.name === "支付宝" &&
+                        !a.archived &&
+                        !["liability", "receivable"].includes(a.kind),
+                    )?.id ?? "",
+                },
+          );
         }
       })
       .catch((e: Error) => {
@@ -215,6 +232,8 @@ export function InvestmentsPage({
       instrument_id: trade.instrument_id,
       action: trade.action,
       effective_date: trade.effective_date,
+      nav_date: trade.nav_date ?? trade.effective_date,
+      nav_date_manual: true,
       quantity: trade.quantity,
       amount: fenToYuan(trade.gross_fen),
       costs: fenToYuan(trade.costs_fen),
@@ -237,6 +256,9 @@ export function InvestmentsPage({
           instrument_id: form.instrument_id,
           action: form.action,
           effective_date: form.effective_date,
+          nav_date: ["buy", "sell"].includes(form.action)
+            ? form.nav_date
+            : null,
           quantity:
             form.action === "cash_dividend" ? "0" : form.quantity.trim(),
           amount_fen: ["opening", "split"].includes(form.action)
@@ -244,7 +266,7 @@ export function InvestmentsPage({
             : yuanToFen(form.amount),
           costs_fen: ["opening", "split", "cash_dividend"].includes(form.action)
             ? "0"
-            : yuanToFen(form.costs),
+            : yuanToFen(form.costs.trim() || "0"),
           cost_basis_fen:
             form.action === "opening" && form.basis.trim()
               ? yuanToFen(form.basis)
@@ -266,7 +288,10 @@ export function InvestmentsPage({
       );
       setShowForm(false);
       setEditing(null);
-      setForm(blank());
+      setForm({
+        ...blank(),
+        account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
+      });
       return (
         "投资记录已保存，现金、持仓和后续成本已重新核算。" +
         (["cash_dividend", "reinvest", "split"].includes(form.action)
@@ -288,9 +313,9 @@ export function InvestmentsPage({
       action,
       quantity: action === "cash_dividend" ? "0" : "",
       amount: "",
-      costs: "0.00",
+      costs: "",
       basis: "",
-      amount_mode: "gross",
+      amount_mode: "net",
       cash_account_id: "",
       split_from_quantity:
         action === "split"
@@ -305,7 +330,7 @@ export function InvestmentsPage({
       return `确认份额 ${form.split_from_quantity || "—"} → ${form.quantity || "—"}，总成本不变，现金不变；保存后需更新折算后价格。`;
     try {
       const input = BigInt(yuanToFen(form.amount));
-      const fee = BigInt(yuanToFen(form.costs));
+      const fee = BigInt(yuanToFen(form.costs.trim() || "0"));
       if (form.action === "cash_dividend")
         return `实际净到账 ${money(input.toString())}，份额与总成本不变，只计投资分红。`;
       if (form.action === "reinvest")
@@ -486,6 +511,7 @@ export function InvestmentsPage({
               <label>
                 投资标的
                 <select
+                  aria-label="投资标的"
                   required
                   disabled={!!editing}
                   value={form.instrument_id}
@@ -516,16 +542,46 @@ export function InvestmentsPage({
                     : ["reinvest", "split"].includes(form.action)
                       ? "确认日期"
                       : "成交／确认日期"}
-                <input
-                  type="date"
+                <DateStepper
+                  stepLabel={
+                    form.action === "opening"
+                      ? "期初日期"
+                      : form.action === "cash_dividend"
+                        ? "实际到账日期"
+                        : ["reinvest", "split"].includes(form.action)
+                          ? "确认日期"
+                          : "成交／确认日期"
+                  }
                   required
                   max={localDay()}
                   value={form.effective_date}
-                  onChange={(e) =>
-                    setForm({ ...form, effective_date: e.target.value })
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      effective_date: value,
+                      nav_date: form.nav_date_manual ? form.nav_date : value,
+                    })
                   }
                 />
               </label>
+              {["buy", "sell"].includes(form.action) && (
+                <label>
+                  成交净值所属日
+                  <DateStepper
+                    stepLabel="成交净值所属日"
+                    required
+                    max={form.effective_date || localDay()}
+                    value={form.nav_date}
+                    onValueChange={(value) =>
+                      setForm({
+                        ...form,
+                        nav_date: value,
+                        nav_date_manual: true,
+                      })
+                    }
+                  />
+                </label>
+              )}
               {form.action === "split" && (
                 <label>
                   折算前份额（份／股）
@@ -608,6 +664,7 @@ export function InvestmentsPage({
                 <label>
                   金额口径
                   <select
+                    aria-label="金额口径"
                     value={form.amount_mode}
                     onChange={(e) =>
                       setForm({
@@ -643,18 +700,14 @@ export function InvestmentsPage({
                 </label>
               )}
               {["buy", "sell", "reinvest"].includes(form.action) && (
-                <details
-                  className="investment-fees"
-                  open={!!editing && form.costs !== "0.00"}
-                >
-                  <summary>费用（选填）</summary>
+                <div className="investment-fees">
                   <label>
                     {form.action === "reinvest"
                       ? "另付费用（元）"
                       : "费用合计（元）"}
                     <input
-                      required
                       inputMode="decimal"
+                      placeholder="留空按 0 处理"
                       value={form.costs}
                       onChange={(e) =>
                         setForm({ ...form, costs: e.target.value })
@@ -668,7 +721,7 @@ export function InvestmentsPage({
                           : "手续费、税费等合计，计入投资成本／净到账。"}
                     </small>
                   </label>
-                </details>
+                </div>
               )}
               <label className="investment-note">
                 {form.action === "split" ? "折算依据（必填）" : "备注"}
@@ -699,7 +752,11 @@ export function InvestmentsPage({
               onClick={() => {
                 setShowForm(false);
                 setEditing(null);
-                setForm(blank());
+                setForm({
+                  ...blank(),
+                  account_id:
+                    cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
+                });
               }}
             >
               取消编辑
@@ -766,6 +823,7 @@ export function InvestmentsPage({
           <h2>我的持仓</h2>
           <p className="footnote">
             持仓占比按全部账户持仓市值计算，不含现金，筛选不改变分母；显示到小数点后两位。
+            收益率均非年化；持仓收益率按剩余成本，累计收益率按期初及后续累计投入计算。
             {!!page?.missing_price_count &&
               " 存在未估值持仓，总市值未知，占比暂不计算。"}
           </p>
@@ -776,7 +834,7 @@ export function InvestmentsPage({
           )}
           {!!positions.length && (
             <div className="table-scroll">
-              <table className="investment-table">
+              <table className="investment-table holdings-table">
                 <thead>
                   <tr>
                     <th>标的／账户</th>
@@ -786,6 +844,9 @@ export function InvestmentsPage({
                         ["cost_fen", "剩余成本"],
                         ["value_fen", "市值"],
                         ["unrealized_fen", "持仓盈亏"],
+                        ["holding_return_bps", "持仓收益率"],
+                        ["total_profit_fen", "累计盈亏"],
+                        ["total_return_bps", "累计收益率"],
                         ["share_bps", "持仓占比"],
                       ] as const
                     ).map(([key, label]) => (
@@ -842,6 +903,25 @@ export function InvestmentsPage({
                         className={`amount-column ${profitTone(p.unrealized_fen) ?? ""}`}
                       >
                         {amount(p.unrealized_fen)}
+                      </td>
+                      <td
+                        className={`amount-column ${profitTone(p.holding_return_bps) ?? ""}`}
+                      >
+                        {p.holding_return_bps == null
+                          ? "—"
+                          : fenToYuan(p.holding_return_bps) + "%"}
+                      </td>
+                      <td
+                        className={`amount-column ${profitTone(p.total_profit_fen) ?? ""}`}
+                      >
+                        {amount(p.total_profit_fen, "—")}
+                      </td>
+                      <td
+                        className={`amount-column ${profitTone(p.total_return_bps) ?? ""}`}
+                      >
+                        {p.total_return_bps == null
+                          ? "—"
+                          : fenToYuan(p.total_return_bps) + "%"}
                       </td>
                       <td className="amount-column">
                         {p.share_bps == null
@@ -943,6 +1023,7 @@ export function InvestmentsPage({
                 <thead>
                   <tr>
                     <th>日期／操作</th>
+                    <th>净值所属日</th>
                     <th>标的／账户</th>
                     <th>数量</th>
                     <th>金额／期初成本</th>
@@ -956,7 +1037,23 @@ export function InvestmentsPage({
                     <tr key={t.id}>
                       <td>
                         {t.effective_date}
-                        <small>{actions[t.action]}</small>
+                        <small
+                          className={
+                            t.is_recurring || t.action === "sell"
+                              ? "trade-red"
+                              : t.action === "buy"
+                                ? "trade-blue"
+                                : undefined
+                          }
+                        >
+                          {t.is_recurring ? "定投买入" : actions[t.action]}
+                        </small>
+                      </td>
+                      <td>
+                        {t.nav_date ?? "—"}
+                        {t.nav_date_source === "default_backfill" && (
+                          <small>按确认日补齐</small>
+                        )}
                       </td>
                       <td>
                         {instrumentName(t.instrument_id)}
@@ -1063,13 +1160,13 @@ export function InvestmentsPage({
             <h2>手动估值</h2>
             <label className="investment-price-date">
               价格／净值日期
-              <input
-                type="date"
+              <DateStepper
+                stepLabel="价格／净值日期"
                 max={localDay()}
                 required
                 value={priceDate}
-                onChange={(e) => {
-                  setPriceDate(e.target.value);
+                onValueChange={(value) => {
+                  setPriceDate(value);
                   setPrices({});
                 }}
               />
