@@ -7,6 +7,7 @@ import {
   type AccountDeletePreview,
 } from "./account-delete-dialog";
 import type { components } from "./api-schema";
+import { DateStepper } from "./date-stepper";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
 
 type Account = components["schemas"]["AccountOutput"];
@@ -811,12 +812,13 @@ export function DailyWorkspace({
                   {typeSelector}
                   <label>
                     发生日期
-                    <input
-                      type="date"
+                    <DateStepper
+                      inlineArrows
+                      stepLabel="发生日期"
                       value={draft.effective_date}
                       max={localDay()}
-                      onChange={(e) =>
-                        setDraft({ ...draft, effective_date: e.target.value })
+                      onValueChange={(value) =>
+                        setDraft({ ...draft, effective_date: value })
                       }
                       required
                     />

@@ -177,6 +177,25 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
       .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
   ).toBeGreaterThanOrEqual(16);
 
+  const entryDay = page.getByLabel("发生日期", { exact: true });
+  const originalEntryDay = await entryDay.inputValue();
+  const nextEntryDay = page.getByRole("button", {
+    name: "发生日期后一天",
+    exact: true,
+  });
+  const previousEntryDay = page.getByRole("button", {
+    name: "发生日期前一天",
+    exact: true,
+  });
+  await expect(nextEntryDay).toBeDisabled();
+  await entryDay.fill("2026-03-01");
+  await previousEntryDay.click();
+  await expect(entryDay).toHaveValue("2026-02-28");
+  await nextEntryDay.click();
+  await expect(entryDay).toHaveValue("2026-03-01");
+  await entryDay.fill(originalEntryDay);
+  await expect(nextEntryDay).toBeDisabled();
+
   await page.getByLabel("金额（元）", { exact: true }).fill("30.25");
   await page.getByLabel("备注", { exact: true }).fill("Synthetic expense");
   await page.getByRole("button", { name: "保存流水", exact: true }).click();
