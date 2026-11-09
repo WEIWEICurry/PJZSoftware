@@ -7,7 +7,7 @@ import threading
 import unicodedata
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, time, timedelta
 from decimal import Decimal
 from functools import lru_cache
 from io import BytesIO
@@ -44,8 +44,10 @@ class ReceiptPreview:
     quantity: str | None
     unit_nav: str | None
     purchase_date: str | None
+    purchase_time: str | None
     confirmation_date: str | None
     nav_date: str | None
+    nav_date_estimated: bool
     warnings: list[str]
 
 
@@ -104,6 +106,50 @@ def _day(value: str | None) -> str | None:
         return None
 
 
+# 2026 SSE holiday notice, with weekend closures handled separately.
+# https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml
+_CLOSED_2026 = (
+    ("01-01", "01-03"),
+    ("02-15", "02-23"),
+    ("04-04", "04-06"),
+    ("05-01", "05-05"),
+    ("06-19", "06-21"),
+    ("09-25", "09-27"),
+    ("10-01", "10-07"),
+)
+
+
+def _purchase(value: str | None) -> tuple[str | None, time | None]:
+    text = (value or "").strip()
+    match = re.fullmatch(
+        r"(\d{4}[-/.年]\d{1,2}[-/.月]\d{1,2}日?)\s*"
+        r"(\d{2})\s*:\s*(\d{2})(?:\s*:\s*(\d{2}))?",
+        text,
+    )
+    if not match:
+        return _day(text), None
+    day, hour, minute, second = match.groups()
+    try:
+        return _day(day), time(int(hour), int(minute), int(second or "0"))
+    except ValueError:
+        return _day(day), None
+
+
+def _estimated_nav_date(purchase: str, purchase_time: time, confirmation: str) -> str | None:
+    day = date.fromisoformat(purchase)
+    if day.year != 2026:
+        return None
+    latest = date.fromisoformat(confirmation)
+    if purchase_time >= time(15):
+        day += timedelta(days=1)
+    while day.year == 2026 and day <= latest:
+        month_day = day.isoformat()[5:]
+        if day.weekday() < 5 and not any(start <= month_day <= end for start, end in _CLOSED_2026):
+            return day.isoformat()
+        day += timedelta(days=1)
+    return None
+
+
 def parse_receipt(raw_lines: Sequence[TextLine]) -> ReceiptPreview:
     lines = [
         TextLine(_text(line.text), line.left, line.center, line.height, line.score)
@@ -119,9 +165,11 @@ def parse_receipt(raw_lines: Sequence[TextLine]) -> ReceiptPreview:
     fee = _number(_field(lines, "手续费", "申购费"), 2, "元")
     confirmed = _number(_field(lines, "确认金额"), 2, "元")
     quantity = _number(_field(lines, "确认份额"), 8, "份")
-    purchase = _day(_field(lines, "买入时间", "申购时间"))
+    purchase, purchase_time = _purchase(_field(lines, "买入时间", "申购时间"))
     confirmation = _day(_field(lines, "确认时间", "确认日期"))
-    nav_date = _day(_field(lines, "成交净值所属日", "净值所属日", "净值日期"))
+    nav_date_text = _field(lines, "成交净值所属日", "净值所属日", "净值日期")
+    nav_date = _day(nav_date_text)
+    nav_date_estimated = False
     product = _field(lines, "买入产品", "申购产品", "基金名称")
     code = _field(lines, "基金代码", "产品代码")
     payment = _field(lines, "付款方式", "支付方式")
@@ -134,13 +182,18 @@ def parse_receipt(raw_lines: Sequence[TextLine]) -> ReceiptPreview:
     if nav_date and confirmation and nav_date > confirmation:
         warnings.append("净值所属日晚于确认日期，请重新填写。")
         nav_date = None
-    if not nav_date:
+    if not nav_date_text and purchase and purchase_time is not None and confirmation:
+        nav_date = _estimated_nav_date(purchase, purchase_time, confirmation)
+        nav_date_estimated = nav_date is not None
+    if nav_date_estimated:
+        warnings.append("净值所属日按买入时间和沪深开市日推算，请以实际回执为准。")
+    elif not nav_date:
         warnings.append("请根据回执补填成交净值所属日。")
     if not any((product, code, amount, quantity, confirmation)):
         raise RuleError("OCR_UNSUPPORTED_RECEIPT")
 
     return ReceiptPreview(
-        product=product[:200] if product else None,
+        product=product.rstrip(" >›»❯→")[:200] or None if product else None,
         code=code if code and re.fullmatch(r"[0-9]{6}", code) else None,
         payment_hint=re.sub(r"[0-9]{5,}", "…", payment)[:80] if payment else None,
         amount=amount if amount and Decimal(amount) > 0 else None,
@@ -149,8 +202,10 @@ def parse_receipt(raw_lines: Sequence[TextLine]) -> ReceiptPreview:
         quantity=quantity if quantity and Decimal(quantity) > 0 else None,
         unit_nav=_number(_field(lines, "确认净值"), 8, "元"),
         purchase_date=purchase,
+        purchase_time=purchase_time.isoformat() if purchase_time is not None else None,
         confirmation_date=confirmation,
         nav_date=nav_date,
+        nav_date_estimated=nav_date_estimated,
         warnings=warnings,
     )
 

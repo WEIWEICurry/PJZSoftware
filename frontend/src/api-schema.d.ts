@@ -2229,12 +2229,16 @@ export interface components {
             fee: string | null;
             /** Nav Date */
             nav_date: string | null;
+            /** Nav Date Estimated */
+            nav_date_estimated: boolean;
             /** Payment Hint */
             payment_hint: string | null;
             /** Product */
             product: string | null;
             /** Purchase Date */
             purchase_date: string | null;
+            /** Purchase Time */
+            purchase_time: string | null;
             /** Quantity */
             quantity: string | null;
             /** Unit Nav */

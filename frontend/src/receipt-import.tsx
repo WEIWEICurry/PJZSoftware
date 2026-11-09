@@ -148,9 +148,20 @@ export function ReceiptImport({
                       ["确认金额（元）", result.confirmed_amount],
                       ["确认份额", result.quantity],
                       ["确认净值", result.unit_nav],
-                      ["买入日期", result.purchase_date],
+                      [
+                        "买入时间",
+                        result.purchase_date &&
+                          [result.purchase_date, result.purchase_time]
+                            .filter(Boolean)
+                            .join(" "),
+                      ],
                       ["确认日期", result.confirmation_date],
-                      ["净值所属日", result.nav_date],
+                      [
+                        "净值所属日",
+                        result.nav_date_estimated
+                          ? result.nav_date + "（推算）"
+                          : result.nav_date,
+                      ],
                     ].map(([label, value]) => (
                       <div key={label}>
                         <dt>{label}</dt>

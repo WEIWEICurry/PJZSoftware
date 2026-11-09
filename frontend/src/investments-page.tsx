@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
 import { DateStepper } from "./date-stepper";
 import { ReceiptImport, type ReceiptPreview } from "./receipt-import";
+import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
@@ -36,8 +37,6 @@ const profitTone = (value: string | null | undefined) =>
     : BigInt(value) < 0n
       ? "return-negative"
       : "return-positive";
-const receiptName = (value: string) =>
-  value.normalize("NFKC").replace(/\s+/g, "").toUpperCase();
 const canonicalQuantity = (value: string) =>
   value
     .trim()
@@ -115,6 +114,7 @@ export function InvestmentsPage({
   const [notice, setNotice] = useState("");
   const [form, setForm] = useState(blank);
   const [receiptDraft, setReceiptDraft] = useState(false);
+  const [estimatedReceiptNav, setEstimatedReceiptNav] = useState("");
   const [duplicateAcknowledged, setDuplicateAcknowledged] = useState("");
   const [editing, setEditing] = useState<Trade | null>(null);
   const [pendingVoid, setPendingVoid] = useState<Trade | null>(null);
@@ -376,25 +376,15 @@ export function InvestmentsPage({
     (a) => !a.archived && a.kind !== "liability" && a.kind !== "receivable",
   );
   function applyReceipt(receipt: ReceiptPreview) {
-    const matches =
-      page?.instruments.filter(
-        (item) =>
-          item.kind === "fund" &&
-          !!(receipt.code || receipt.product) &&
-          (!receipt.code || item.code === receipt.code) &&
-          (!receipt.product ||
-            receiptName(item.name) === receiptName(receipt.product)),
-      ) ?? [];
-    const payments = cashAccounts.filter(
-      (account) =>
-        receipt.payment_hint &&
-        receiptName(account.name) === receiptName(receipt.payment_hint),
-    );
     setForm({
       ...blank(),
       account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
-      instrument_id: matches.length === 1 ? matches[0].id : "",
-      cash_account_id: payments.length === 1 ? payments[0].id : "",
+      instrument_id: matchReceiptFund(
+        page?.instruments ?? [],
+        receipt.code,
+        receipt.product,
+      ),
+      cash_account_id: matchReceiptPayment(cashAccounts, receipt.payment_hint),
       effective_date: receipt.confirmation_date ?? "",
       nav_date: receipt.nav_date ?? "",
       nav_date_manual: true,
@@ -403,6 +393,9 @@ export function InvestmentsPage({
       costs: receipt.fee ?? "",
     });
     setError("");
+    setEstimatedReceiptNav(
+      receipt.nav_date_estimated ? (receipt.nav_date ?? "") : "",
+    );
     setReceiptDraft(true);
     setDuplicateAcknowledged("");
   }
@@ -786,6 +779,11 @@ export function InvestmentsPage({
                       })
                     }
                   />
+                  {receiptDraft &&
+                    estimatedReceiptNav &&
+                    form.nav_date === estimatedReceiptNav && (
+                      <small>按买入时间和沪深开市日推算，请以回执为准。</small>
+                    )}
                 </label>
               )}
               {form.action === "split" && (

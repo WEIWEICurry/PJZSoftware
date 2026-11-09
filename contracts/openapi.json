@@ -3494,6 +3494,10 @@
             ],
             "title": "Nav Date"
           },
+          "nav_date_estimated": {
+            "title": "Nav Date Estimated",
+            "type": "boolean"
+          },
           "payment_hint": {
             "anyOf": [
               {
@@ -3526,6 +3530,17 @@
               }
             ],
             "title": "Purchase Date"
+          },
+          "purchase_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Time"
           },
           "quantity": {
             "anyOf": [
@@ -3567,8 +3582,10 @@
           "quantity",
           "unit_nav",
           "purchase_date",
+          "purchase_time",
           "confirmation_date",
           "nav_date",
+          "nav_date_estimated",
           "warnings"
         ],
         "title": "ReceiptPreview",
@@ -4723,7 +4740,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.22.0"
+    "version": "0.22.1"
   },
   "openapi": "3.1.0",
   "paths": {

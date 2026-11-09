@@ -19,9 +19,9 @@ def test_receipt_reads_label_value_pairs_and_distinct_dates():
         lines(
             ("买入成功",),
             ("999.00元",),
-            ("买入产品", "合成测试基金A"),
+            ("买入产品", "合成测试基金Ａ＞"),
             ("买入金额", "100.00元"),
-            ("买入时间", "2026-11-03", "14:01:13"),
+            ("买入时间", "2026-11-0314:01:13"),
             ("确认金额", "99.88元"),
             ("确认份额", "93.08000001份"),
             ("确认净值", "1.0730"),
@@ -34,8 +34,10 @@ def test_receipt_reads_label_value_pairs_and_distinct_dates():
     assert result.quantity == "93.08000001"
     assert result.product == "合成测试基金A"
     assert result.purchase_date == "2026-11-03"
+    assert result.purchase_time == "14:01:13"
     assert result.confirmation_date == "2026-11-04"
-    assert result.unit_nav == "1.0730" and result.nav_date is None
+    assert result.unit_nav == "1.0730"
+    assert result.nav_date == "2026-11-03" and result.nav_date_estimated
     assert "111222333444555" not in str(asdict(result))
 
 
@@ -75,3 +77,42 @@ def test_authenticated_preview_does_not_save_a_trade(ledger, monkeypatch):
     assert response.json()["amount"] == "10.00"
     assert store.metadata() == before
     assert client.get("/api/v1/investments").json()["trades"] == []
+
+
+@pytest.mark.parametrize(
+    ("bought", "confirmation", "expected"),
+    [
+        ("2026-11-03 14:59:59", "2026-11-04", "2026-11-03"),
+        ("2026-11-03 15:00:00", "2026-11-04", "2026-11-04"),
+        ("2026-11-06 15:01", "2026-11-10", "2026-11-09"),
+        ("2026-11-07 13:15", "2026-11-10", "2026-11-09"),
+        ("2026-09-30 15:01", "2026-10-09", "2026-10-08"),
+        ("2026-10-10 12:00", "2026-10-13", "2026-10-12"),
+        ("2026-11-03 15:30", "2026-11-03", None),
+        ("2026-12-31 15:30", "2027-01-04", None),
+        ("2027-01-04 11:00", "2027-01-05", None),
+        ("2026-11-03", "2026-11-04", None),
+    ],
+)
+def test_ocr_nav_date_uses_cutoff_and_known_market_days(bought, confirmation, expected):
+    result = parse_receipt(
+        lines(
+            ("买入成功",), ("买入金额", "10.00元"), ("买入时间", bought), ("确认时间", confirmation)
+        )
+    )
+    assert result.nav_date == expected
+    assert result.nav_date_estimated == (expected is not None)
+
+
+def test_explicit_nav_date_takes_priority():
+    result = parse_receipt(
+        lines(
+            ("买入成功",),
+            ("买入金额", "10.00元"),
+            ("买入时间", "2026-11-03 15:15"),
+            ("确认时间", "2026-11-04"),
+            ("净值所属日", "2026-11-03"),
+        )
+    )
+    assert result.nav_date == "2026-11-03"
+    assert not result.nav_date_estimated
