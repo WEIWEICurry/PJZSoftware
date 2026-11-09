@@ -360,6 +360,20 @@
         "title": "Body_preview_api_v1_restores_preview_post",
         "type": "object"
       },
+      "Body_receipt_preview_api_v1_investments_receipt_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_receipt_preview_api_v1_investments_receipt_preview_post",
+        "type": "object"
+      },
       "BootstrapInput": {
         "additionalProperties": false,
         "properties": {
@@ -3412,6 +3426,171 @@
         "title": "RangeInput",
         "type": "object"
       },
+      "ReceiptPreview": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "confirmation_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Date"
+          },
+          "confirmed_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed Amount"
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "nav_date_estimated": {
+            "title": "Nav Date Estimated",
+            "type": "boolean"
+          },
+          "payment_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Hint"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "purchase_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Date"
+          },
+          "purchase_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Time"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_nav": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Nav"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product",
+          "code",
+          "payment_hint",
+          "amount",
+          "fee",
+          "confirmed_amount",
+          "quantity",
+          "unit_nav",
+          "purchase_date",
+          "purchase_time",
+          "confirmation_date",
+          "nav_date",
+          "nav_date_estimated",
+          "warnings"
+        ],
+        "title": "ReceiptPreview",
+        "type": "object"
+      },
       "RenameInput": {
         "additionalProperties": false,
         "properties": {
@@ -4561,7 +4740,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.21.4"
+    "version": "0.22.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6176,6 +6355,44 @@
           }
         },
         "summary": "Instrument"
+      }
+    },
+    "/api/v1/investments/receipt-preview": {
+      "post": {
+        "operationId": "receipt_preview_api_v1_investments_receipt_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_receipt_preview_api_v1_investments_receipt_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receipt Preview"
       }
     },
     "/api/v1/investments/sell-options": {

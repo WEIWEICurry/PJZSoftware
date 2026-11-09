@@ -3,6 +3,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
 import { DateStepper } from "./date-stepper";
+import { ReceiptImport, type ReceiptPreview } from "./receipt-import";
+import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
@@ -35,6 +37,11 @@ const profitTone = (value: string | null | undefined) =>
     : BigInt(value) < 0n
       ? "return-negative"
       : "return-positive";
+const canonicalQuantity = (value: string) =>
+  value
+    .trim()
+    .replace(/(\.\d*?)0+$/, "$1")
+    .replace(/\.$/, "");
 const blank = () => ({
   account_id: "",
   instrument_id: "",
@@ -106,6 +113,9 @@ export function InvestmentsPage({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [form, setForm] = useState(blank);
+  const [receiptDraft, setReceiptDraft] = useState(false);
+  const [estimatedReceiptNav, setEstimatedReceiptNav] = useState("");
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState("");
   const [editing, setEditing] = useState<Trade | null>(null);
   const [pendingVoid, setPendingVoid] = useState<Trade | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -273,6 +283,7 @@ export function InvestmentsPage({
         p.instrument_id === detail.instrument_id,
     );
   function edit(trade: Trade) {
+    setReceiptDraft(false);
     setEditing(trade);
     setShowForm(true);
     setError("");
@@ -297,6 +308,16 @@ export function InvestmentsPage({
   }
   async function saveTrade(event: FormEvent) {
     event.preventDefault();
+    if (
+      receiptDraft &&
+      (!form.nav_date ||
+        !form.cash_account_id ||
+        !form.costs.trim() ||
+        (receiptDuplicate && duplicateAcknowledged !== receiptDuplicate))
+    ) {
+      setError("请核对截图草稿中的净值日、扣款账户、费用及疑似重复记录。");
+      return;
+    }
     await act(async () => {
       await request(
         "/investments/trades" + (editing ? "/" + editing.id : ""),
@@ -338,6 +359,7 @@ export function InvestmentsPage({
       );
       setShowForm(false);
       setEditing(null);
+      setReceiptDraft(false);
       setForm({
         ...blank(),
         account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
@@ -353,6 +375,56 @@ export function InvestmentsPage({
   const cashAccounts = accounts.filter(
     (a) => !a.archived && a.kind !== "liability" && a.kind !== "receivable",
   );
+  function applyReceipt(receipt: ReceiptPreview) {
+    setForm({
+      ...blank(),
+      account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
+      instrument_id: matchReceiptFund(
+        page?.instruments ?? [],
+        receipt.code,
+        receipt.product,
+      ),
+      cash_account_id: matchReceiptPayment(cashAccounts, receipt.payment_hint),
+      effective_date: receipt.confirmation_date ?? "",
+      nav_date: receipt.nav_date ?? "",
+      nav_date_manual: true,
+      amount: receipt.amount ?? "",
+      quantity: receipt.quantity ?? "",
+      costs: receipt.fee ?? "",
+    });
+    setError("");
+    setEstimatedReceiptNav(
+      receipt.nav_date_estimated ? (receipt.nav_date ?? "") : "",
+    );
+    setReceiptDraft(true);
+    setDuplicateAcknowledged("");
+  }
+  function findReceiptDuplicate() {
+    if (!receiptDraft || !page || !form.account_id || !form.instrument_id)
+      return "";
+    try {
+      const fee = BigInt(yuanToFen(form.costs));
+      const entered = BigInt(yuanToFen(form.amount));
+      const gross = form.amount_mode === "net" ? entered - fee : entered;
+      return (
+        page.trades.find(
+          (trade) =>
+            trade.status === "active" &&
+            trade.action === "buy" &&
+            trade.account_id === form.account_id &&
+            trade.instrument_id === form.instrument_id &&
+            trade.effective_date === form.effective_date &&
+            canonicalQuantity(trade.quantity) ===
+              canonicalQuantity(form.quantity) &&
+            BigInt(trade.gross_fen) === gross &&
+            BigInt(trade.costs_fen) === fee,
+        )?.id ?? ""
+      );
+    } catch {
+      return "";
+    }
+  }
+  const receiptDuplicate = findReceiptDuplicate();
   const heldQuantity = (account: string, asset: string) =>
     page?.positions.find(
       (p) => p.account_id === account && p.instrument_id === asset,
@@ -389,6 +461,7 @@ export function InvestmentsPage({
       !!sellError ||
       !entryInstruments.length);
   function changeAction(action: Trade["action"]) {
+    setReceiptDraft(false);
     setForm({
       ...form,
       action,
@@ -530,11 +603,21 @@ export function InvestmentsPage({
       {showForm && (
         <section
           id="investment-entry-form"
-          className="card panel"
+          className={
+            receiptDraft ? "card panel receipt-applied-layout" : "card panel"
+          }
           aria-label="投资记录表单"
         >
           <h2>{editing ? "修改投资记录" : "记一笔投资"}</h2>
+          {!editing && (
+            <ReceiptImport disabled={!enabled} apply={applyReceipt} />
+          )}
           <form onSubmit={saveTrade}>
+            {receiptDraft && (
+              <p className="alert">
+                已填入截图草稿。请核对标的、日期、账户、金额及费用，再保存投资记录。
+              </p>
+            )}
             <fieldset disabled={!enabled} className="investment-fields">
               <label>
                 操作
@@ -696,6 +779,11 @@ export function InvestmentsPage({
                       })
                     }
                   />
+                  {receiptDraft &&
+                    estimatedReceiptNav &&
+                    form.nav_date === estimatedReceiptNav && (
+                      <small>按买入时间和沪深开市日推算，请以回执为准。</small>
+                    )}
                 </label>
               )}
               {form.action === "split" && (
@@ -761,12 +849,15 @@ export function InvestmentsPage({
                         ? "扣款账户"
                         : "到账账户"
                     }
+                    required={receiptDraft}
                     value={form.cash_account_id}
                     onChange={(e) =>
                       setForm({ ...form, cash_account_id: e.target.value })
                     }
                   >
-                    <option value="">同持仓账户（含现金）</option>
+                    <option value="">
+                      {receiptDraft ? "请选择扣款账户" : "同持仓账户（含现金）"}
+                    </option>
                     {cashAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -839,7 +930,10 @@ export function InvestmentsPage({
                       : "费用合计（元）"}
                     <input
                       inputMode="decimal"
-                      placeholder="留空按 0 处理"
+                      placeholder={
+                        receiptDraft ? "请核对，免手续费填 0" : "留空按 0 处理"
+                      }
+                      required={receiptDraft}
                       value={form.costs}
                       onChange={(e) =>
                         setForm({ ...form, costs: e.target.value })
@@ -876,7 +970,31 @@ export function InvestmentsPage({
             <p className="footnote">
               基金填写实际确认份额和确认日。期初为该账户标的第一笔记录；成本未知时先补齐成本再卖出。更换账户、标的或操作请作废后重新录入。
             </p>
-            <button disabled={!enabled || !!sellBlocked}>保存投资记录</button>{" "}
+            {!!receiptDuplicate && (
+              <label className="recurring-check-label">
+                <input
+                  className="recurring-check"
+                  type="checkbox"
+                  checked={duplicateAcknowledged === receiptDuplicate}
+                  onChange={(event) =>
+                    setDuplicateAcknowledged(
+                      event.target.checked ? receiptDuplicate : "",
+                    )
+                  }
+                />
+                已核对疑似重复记录，确认这是一笔独立交易
+              </label>
+            )}
+            <button
+              disabled={
+                !enabled ||
+                !!sellBlocked ||
+                (!!receiptDuplicate &&
+                  duplicateAcknowledged !== receiptDuplicate)
+              }
+            >
+              保存投资记录
+            </button>{" "}
             <button
               type="button"
               className="secondary"
@@ -884,6 +1002,7 @@ export function InvestmentsPage({
               onClick={() => {
                 setShowForm(false);
                 setEditing(null);
+                setReceiptDraft(false);
                 setForm({
                   ...blank(),
                   account_id:

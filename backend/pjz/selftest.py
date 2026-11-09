@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import socket
+import sys
 import tempfile
 import threading
 import time
 import urllib.request
 import uuid
 from datetime import date
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -457,3 +459,27 @@ def run() -> None:
             sock.close()
             store.close()
     print("PASS: loopback/session/SQLite/WAL backup/restore/Chinese path/lock/shutdown")
+    verify_ocr()
+
+
+def verify_ocr() -> None:
+    assert "rapidocr" not in sys.modules and "onnxruntime" not in sys.modules
+    from PIL import Image, ImageDraw, ImageFont
+
+    from pjz.receipt_ocr import recognize_lines
+
+    image = Image.new("RGB", (600, 180), "white")
+    ImageDraw.Draw(image).text(
+        (30, 52), "PJZ 100.00", font=ImageFont.load_default(size=48), fill="black"
+    )
+    payload = BytesIO()
+    image.save(payload, format="PNG")
+    started = time.monotonic()
+    first = recognize_lines(payload.getvalue())
+    first_seconds = time.monotonic() - started
+    started = time.monotonic()
+    second = recognize_lines(payload.getvalue())
+    assert all(any("100.00" in line.text for line in result) for result in (first, second))
+    print(
+        f"PASS: lazy local OCR; first {first_seconds:.2f}s, warm {time.monotonic() - started:.2f}s"
+    )

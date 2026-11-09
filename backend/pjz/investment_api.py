@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from pjz.daily_api import (
@@ -21,6 +21,7 @@ from pjz.daily_api import (
 from pjz.domain import RuleError
 from pjz.investment_domain import decimal_value
 from pjz.investments import Investments
+from pjz.receipt_ocr import MAX_IMAGE_BYTES, ReceiptPreview, parse_receipt, recognize_lines
 
 InvestmentAction = Literal["opening", "buy", "sell", "cash_dividend", "reinvest", "split"]
 
@@ -194,6 +195,14 @@ def investment_router(service: Investments) -> APIRouter:
     @router.get("", response_model=InvestmentPage)
     def page() -> object:
         return service.page()
+
+    @router.post("/receipt-preview", response_model=ReceiptPreview)
+    def receipt_preview(file: Annotated[UploadFile, File()]) -> ReceiptPreview:
+        try:
+            payload = file.file.read(MAX_IMAGE_BYTES + 1)
+        finally:
+            file.file.close()
+        return parse_receipt(recognize_lines(payload))
 
     @router.get("/sell-options", response_model=list[SellOption])
     def sell_options(account_id: UUID, effective_date: date) -> object:
