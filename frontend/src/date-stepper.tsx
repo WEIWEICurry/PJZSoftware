@@ -10,6 +10,7 @@ type Props = Omit<
   value: string;
   onValueChange: (value: string) => void;
   stepLabel: string;
+  inlineArrows?: boolean;
 };
 
 /** Calendar days, independent of timezone and daylight saving transitions. */
@@ -17,6 +18,7 @@ export function DateStepper({
   value,
   onValueChange,
   stepLabel,
+  inlineArrows = false,
   ...props
 }: Props) {
   const shifted = (direction: number) => {
@@ -28,20 +30,32 @@ export function DateStepper({
   const bounded = (day: string) =>
     (typeof props.min !== "string" || day >= props.min) &&
     (typeof props.max !== "string" || day <= props.max);
-  return (
-    <span className="date-stepper">
+  function stepButton(direction: -1 | 1, symbol: string) {
+    const day = shifted(direction);
+    const label = `${stepLabel}${direction === -1 ? "前一天" : "后一天"}`;
+    return (
       <button
         type="button"
         className="secondary"
-        aria-label={`${stepLabel}前一天`}
-        disabled={props.disabled || !bounded(shifted(-1))}
+        aria-label={label}
+        title={inlineArrows ? label : undefined}
+        disabled={props.disabled || !bounded(day)}
         onClick={(e) => {
           e.preventDefault();
-          onValueChange(shifted(-1));
+          onValueChange(day);
         }}
       >
-        ‹
+        {symbol}
       </button>
+    );
+  }
+  return (
+    <span
+      className={
+        inlineArrows ? "date-stepper date-stepper-inline" : "date-stepper"
+      }
+    >
+      {!inlineArrows && stepButton(-1, "‹")}
       <input
         aria-label={props["aria-label"] ?? stepLabel}
         {...props}
@@ -49,18 +63,14 @@ export function DateStepper({
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
       />
-      <button
-        type="button"
-        className="secondary"
-        aria-label={`${stepLabel}后一天`}
-        disabled={props.disabled || !bounded(shifted(1))}
-        onClick={(e) => {
-          e.preventDefault();
-          onValueChange(shifted(1));
-        }}
-      >
-        ›
-      </button>
+      {inlineArrows ? (
+        <span className="date-stepper-arrows">
+          {stepButton(1, "▴")}
+          {stepButton(-1, "▾")}
+        </span>
+      ) : (
+        stepButton(1, "›")
+      )}
     </span>
   );
 }

@@ -1790,3 +1790,32 @@ input.recurring-check[type="checkbox"] {
 .recurring-review-table .date-stepper {
   width: 100%;
 }
+
+.date-stepper-inline {
+  min-width: 0;
+  gap: 0;
+  margin-top: 6px;
+  border: 1px solid #d5dfec;
+  border-radius: 6px;
+  background: #fcfdff;
+}
+.date-stepper-inline input[type="date"] {
+  border: 0;
+  background: transparent;
+  margin: 0;
+}
+.date-stepper-arrows {
+  display: grid;
+  flex: 0 0 32px;
+  align-self: stretch;
+  padding: 2px;
+  border-left: 1px solid var(--line);
+}
+.date-stepper-inline .date-stepper-arrows button {
+  min-height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+}
