@@ -466,6 +466,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/receipt-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receipt Preview */
+        post: operations["receipt_preview_api_v1_investments_receipt_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/sell-options": {
         parameters: {
             query?: never;
@@ -1066,6 +1083,11 @@ export interface components {
         };
         /** Body_preview_api_v1_restores_preview_post */
         Body_preview_api_v1_restores_preview_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_receipt_preview_api_v1_investments_receipt_preview_post */
+        Body_receipt_preview_api_v1_investments_receipt_preview_post: {
             /** File */
             file: string;
         };
@@ -2192,6 +2214,33 @@ export interface components {
              * Format: date
              */
             start: string;
+        };
+        /** ReceiptPreview */
+        ReceiptPreview: {
+            /** Amount */
+            amount: string | null;
+            /** Code */
+            code: string | null;
+            /** Confirmation Date */
+            confirmation_date: string | null;
+            /** Confirmed Amount */
+            confirmed_amount: string | null;
+            /** Fee */
+            fee: string | null;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Payment Hint */
+            payment_hint: string | null;
+            /** Product */
+            product: string | null;
+            /** Purchase Date */
+            purchase_date: string | null;
+            /** Quantity */
+            quantity: string | null;
+            /** Unit Nav */
+            unit_nav: string | null;
+            /** Warnings */
+            warnings: string[];
         };
         /** RenameInput */
         RenameInput: {
@@ -3544,6 +3593,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    receipt_preview_api_v1_investments_receipt_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_receipt_preview_api_v1_investments_receipt_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptPreview"];
                 };
             };
             /** @description Validation Error */

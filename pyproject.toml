@@ -1,6 +1,6 @@
 [project]
 name = "pjzsoftware"
-version = "0.21.4"
+version = "0.22.0"
 description = "Local personal ledger foundation"
 requires-python = ">=3.13,<3.14"
 dependencies = [
@@ -10,6 +10,9 @@ dependencies = [
     "filelock",
     "python-multipart",
     "alembic>=1.20.1",
+    "rapidocr==3.10.0",
+    "onnxruntime==1.31.1",
+    "pillow>=11.3,<13",
 ]
 
 [dependency-groups]

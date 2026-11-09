@@ -58,6 +58,9 @@ const messages: Record<string, string> = {
   NAV_PREVIEW_CHANGED: "预览后价格记录已变化，请重新获取净值预览。",
   NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
 
+  OCR_INVALID_IMAGE: "无法读取截图，请选择不超过 5 MB 的 PNG 或 JPG。",
+  OCR_UNSUPPORTED_RECEIPT: "未识别到已确认的支付宝基金买入回执，请检查截图。",
+  OCR_UNAVAILABLE: "本地识别暂不可用，请重试或手工填入。",
   INVESTMENT_REPORT_INVALID_PERIOD:
     "请选择有效的投资报表期间，起始日期不能晚于结束日期。",
   INVESTMENT_REPORT_INVALID_FILTER:

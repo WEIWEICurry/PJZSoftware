@@ -1819,3 +1819,68 @@ input.recurring-check[type="checkbox"] {
   font-size: 14px;
   line-height: 1;
 }
+
+.receipt-import {
+  margin-bottom: 16px;
+}
+.receipt-review {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.receipt-review > button {
+  justify-self: start;
+}
+.receipt-paste {
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  padding: 12px;
+}
+.receipt-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px;
+}
+.receipt-comparison img {
+  max-width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+}
+.receipt-comparison dl {
+  margin-top: 0;
+}
+.receipt-comparison dl > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr;
+  gap: 8px;
+  padding: 5px 0;
+}
+.receipt-comparison dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .receipt-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1200px) {
+  .receipt-applied-layout:has(.receipt-comparison) {
+    display: grid;
+    grid-template-columns: minmax(250px, 1fr) minmax(0, 2fr);
+    align-items: start;
+    gap: 20px;
+  }
+  .receipt-applied-layout > h2 {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+  .receipt-applied-layout .receipt-comparison {
+    grid-template-columns: 1fr;
+  }
+  .receipt-applied-layout:has(.receipt-comparison) .investment-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
