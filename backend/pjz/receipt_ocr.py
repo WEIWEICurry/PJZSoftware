@@ -267,3 +267,108 @@ def recognize_lines(payload: bytes) -> list[TextLine]:
         raise
     except Exception:
         raise RuleError("OCR_UNAVAILABLE") from None
+
+
+@dataclass(frozen=True)
+class HoldingPreview:
+    product: str | None
+    code: str | None
+    quantity: str | None
+    amount: str | None
+    pending: str | None
+    unit_nav: str | None
+    nav_date: str | None
+    nav_month_day: str | None
+    cost_price: str | None
+    warnings: list[str]
+
+
+def parse_holding(raw_lines: Sequence[TextLine]) -> HoldingPreview:
+    lines = [
+        TextLine(_text(line.text), line.left, line.center, line.height, line.score)
+        for line in raw_lines
+        if line.score >= 0.85
+    ]
+    titles = [line for line in lines if line.text == "资产详情"]
+    if not titles:
+        raise RuleError("OCR_UNSUPPORTED_HOLDING")
+    codes = [line for line in lines if re.fullmatch(r"[0-9]{6}", line.text)]
+    code_line = codes[0] if len(codes) == 1 else None
+    product = None
+    if code_line:
+        heading = sorted(
+            (
+                line
+                for line in lines
+                if titles[0].center + titles[0].height
+                < line.center
+                < code_line.center - code_line.height * 0.5
+            ),
+            key=lambda line: (line.center, line.left),
+        )
+        product = "".join(line.text for line in heading)[:200] or None
+    labels = ("持有金额", "待确认金额", "持仓成本价", "持有份额", "基金净值", "日涨幅")
+
+    def field(label: str) -> str | None:
+        for line in lines:
+            if not line.text.startswith(label):
+                continue
+            value = line.text[len(label) :].lstrip(" :")
+            if value:
+                return value
+            right = sorted(
+                (
+                    other
+                    for other in lines
+                    if other.left > line.left
+                    and abs(other.center - line.center) <= 0.6 * line.height
+                ),
+                key=lambda other: other.left,
+            )
+            parts = []
+            for other in right:
+                if any(other.text.startswith(name) for name in labels):
+                    break
+                parts.append(other.text)
+            return " ".join(parts) or None
+        return None
+
+    nav_text = re.sub(r"\s+", "", field("基金净值") or "")
+    nav_match = re.fullmatch(
+        r"([0-9]+(?:\.[0-9]{1,8})?)(?:元)?(?:[（(]([0-9]{4}-)?([0-9]{1,2})-([0-9]{1,2})[)）])?",
+        nav_text,
+    )
+    nav = _number(nav_match[1], 8) if nav_match else None
+    nav_date = None
+    month_day = None
+    if nav_match and nav_match[3]:
+        year = int((nav_match[2] or "2000-")[:-1])
+        try:
+            parsed = date(year, int(nav_match[3]), int(nav_match[4]))
+            if nav_match[2]:
+                nav_date = parsed.isoformat()
+            else:
+                month_day = parsed.strftime("%m-%d")
+        except ValueError:
+            pass
+    quantity = _number(field("持有份额"), 8, "份")
+    amount = _number(field("持有金额"), 2, "元")
+    if quantity is None and amount is None:
+        raise RuleError("OCR_UNSUPPORTED_HOLDING")
+    warnings = []
+    if month_day:
+        warnings.append("净值日期仅含月日，请按截图持仓日期核对推定年份。")
+    if not nav_date and not month_day:
+        warnings.append("净值日期未识别，请人工填写。")
+    return HoldingPreview(
+        product,
+        code_line.text if code_line else None,
+        quantity,
+        amount,
+        _number(field("待确认金额"), 2, "元"),
+        nav,
+        nav_date,
+        month_day,
+        _number(field("持仓成本价"), 8, "元"),
+        warnings,
+    )

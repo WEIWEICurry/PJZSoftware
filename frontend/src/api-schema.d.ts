@@ -449,6 +449,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/holding-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Holding Preview */
+        post: operations["holding_preview_api_v1_investments_holding_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/investments/holdings/reconcile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Holdings Reconcile */
+        post: operations["holdings_reconcile_api_v1_investments_holdings_reconcile_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/instruments": {
         parameters: {
             query?: never;
@@ -1088,6 +1122,11 @@ export interface components {
              */
             status: "active" | "withdrawn";
         };
+        /** Body_holding_preview_api_v1_investments_holding_preview_post */
+        Body_holding_preview_api_v1_investments_holding_preview_post: {
+            /** File */
+            file: string;
+        };
         /** Body_preview_api_v1_history_preview_post */
         Body_preview_api_v1_history_preview_post: {
             /** File */
@@ -1501,6 +1540,117 @@ export interface components {
              * @enum {string}
              */
             status: "ready" | "unmapped" | "duplicate" | "conflict";
+        };
+        /** HoldingComparisonInput */
+        HoldingComparisonInput: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Rows */
+            rows: components["schemas"]["HoldingRowInput"][];
+        };
+        /** HoldingComparisonOutput */
+        HoldingComparisonOutput: {
+            /** Account Id */
+            account_id: string;
+            /** As Of */
+            as_of: string;
+            /** Revision */
+            revision: number;
+            /** Rows */
+            rows: components["schemas"]["HoldingComparisonRow"][];
+            /** Unprovided */
+            unprovided: components["schemas"]["UnprovidedHolding"][];
+        };
+        /** HoldingComparisonRow */
+        HoldingComparisonRow: {
+            /** Code */
+            code: string;
+            /** Instrument Id */
+            instrument_id: string;
+            /** Local Cost Fen */
+            local_cost_fen: string | null;
+            /** Local Price */
+            local_price: string | null;
+            /** Local Price Date */
+            local_price_date: string | null;
+            /** Local Quantity */
+            local_quantity: string;
+            /** Local Value Fen */
+            local_value_fen: string | null;
+            /** Name */
+            name: string;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Pending Fen */
+            pending_fen: string | null;
+            /** Platform Quantity */
+            platform_quantity: string;
+            /** Platform Value Fen */
+            platform_value_fen: string | null;
+            /** Quantity Delta */
+            quantity_delta: string;
+            /**
+             * Quantity Status
+             * @enum {string}
+             */
+            quantity_status: "exact" | "display" | "different";
+            /** Reference Value Fen */
+            reference_value_fen: string | null;
+            /** Same Price Date */
+            same_price_date: boolean;
+            /** Unit Nav */
+            unit_nav: string | null;
+            /** Value Delta Fen */
+            value_delta_fen: string | null;
+        };
+        /** HoldingPreview */
+        HoldingPreview: {
+            /** Amount */
+            amount: string | null;
+            /** Code */
+            code: string | null;
+            /** Cost Price */
+            cost_price: string | null;
+            /** Nav Date */
+            nav_date: string | null;
+            /** Nav Month Day */
+            nav_month_day: string | null;
+            /** Pending */
+            pending: string | null;
+            /** Product */
+            product: string | null;
+            /** Quantity */
+            quantity: string | null;
+            /** Unit Nav */
+            unit_nav: string | null;
+            /** Warnings */
+            warnings: string[];
+        };
+        /** HoldingRowInput */
+        HoldingRowInput: {
+            /** Amount Fen */
+            amount_fen?: string | null;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /** Nav Date */
+            nav_date?: string | null;
+            /** Pending Fen */
+            pending_fen?: string | null;
+            /** Quantity */
+            quantity: string;
+            /** Unit Nav */
+            unit_nav?: string | null;
         };
         /** ImportCommit */
         ImportCommit: {
@@ -2738,6 +2888,15 @@ export interface components {
             /** Surplus Fen */
             surplus_fen: string | null;
         };
+        /** UnprovidedHolding */
+        UnprovidedHolding: {
+            /** Instrument Id */
+            instrument_id: string;
+            /** Name */
+            name: string;
+            /** Quantity */
+            quantity: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -3661,6 +3820,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InvestmentPage"];
+                };
+            };
+        };
+    };
+    holding_preview_api_v1_investments_holding_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_holding_preview_api_v1_investments_holding_preview_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoldingPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    holdings_reconcile_api_v1_investments_holdings_reconcile_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HoldingComparisonInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HoldingComparisonOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

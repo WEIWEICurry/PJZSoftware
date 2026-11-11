@@ -327,6 +327,20 @@
         "title": "BatchOutput",
         "type": "object"
       },
+      "Body_holding_preview_api_v1_investments_holding_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_holding_preview_api_v1_investments_holding_preview_post",
+        "type": "object"
+      },
       "Body_preview_api_v1_history_preview_post": {
         "properties": {
           "file": {
@@ -1529,6 +1543,442 @@
           "report_delta_fen"
         ],
         "title": "HistoryRow",
+        "type": "object"
+      },
+      "HoldingComparisonInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HoldingRowInput"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account_id",
+          "as_of",
+          "rows"
+        ],
+        "title": "HoldingComparisonInput",
+        "type": "object"
+      },
+      "HoldingComparisonOutput": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HoldingComparisonRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "unprovided": {
+            "items": {
+              "$ref": "#/components/schemas/UnprovidedHolding"
+            },
+            "title": "Unprovided",
+            "type": "array"
+          }
+        },
+        "required": [
+          "revision",
+          "as_of",
+          "account_id",
+          "rows",
+          "unprovided"
+        ],
+        "title": "HoldingComparisonOutput",
+        "type": "object"
+      },
+      "HoldingComparisonRow": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "local_cost_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Cost Fen"
+          },
+          "local_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Price"
+          },
+          "local_price_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Price Date"
+          },
+          "local_quantity": {
+            "title": "Local Quantity",
+            "type": "string"
+          },
+          "local_value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Value Fen"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "pending_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Fen"
+          },
+          "platform_quantity": {
+            "title": "Platform Quantity",
+            "type": "string"
+          },
+          "platform_value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Value Fen"
+          },
+          "quantity_delta": {
+            "title": "Quantity Delta",
+            "type": "string"
+          },
+          "quantity_status": {
+            "enum": [
+              "exact",
+              "display",
+              "different"
+            ],
+            "title": "Quantity Status",
+            "type": "string"
+          },
+          "reference_value_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Value Fen"
+          },
+          "same_price_date": {
+            "title": "Same Price Date",
+            "type": "boolean"
+          },
+          "unit_nav": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Nav"
+          },
+          "value_delta_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Delta Fen"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "name",
+          "code",
+          "platform_quantity",
+          "local_quantity",
+          "quantity_status",
+          "quantity_delta",
+          "platform_value_fen",
+          "pending_fen",
+          "unit_nav",
+          "nav_date",
+          "reference_value_fen",
+          "value_delta_fen",
+          "local_value_fen",
+          "local_price",
+          "local_price_date",
+          "local_cost_fen",
+          "same_price_date"
+        ],
+        "title": "HoldingComparisonRow",
+        "type": "object"
+      },
+      "HoldingPreview": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "cost_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Price"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "nav_month_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Month Day"
+          },
+          "pending": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "unit_nav": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Nav"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "product",
+          "code",
+          "quantity",
+          "amount",
+          "pending",
+          "unit_nav",
+          "nav_date",
+          "nav_month_day",
+          "cost_price",
+          "warnings"
+        ],
+        "title": "HoldingPreview",
+        "type": "object"
+      },
+      "HoldingRowInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Fen"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "nav_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nav Date"
+          },
+          "pending_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Fen"
+          },
+          "quantity": {
+            "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,8})?$",
+            "title": "Quantity",
+            "type": "string"
+          },
+          "unit_nav": {
+            "anyOf": [
+              {
+                "maxLength": 21,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit Nav"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "quantity"
+        ],
+        "title": "HoldingRowInput",
         "type": "object"
       },
       "ImportCommit": {
@@ -4835,6 +5285,29 @@
         "title": "TrendPoint",
         "type": "object"
       },
+      "UnprovidedHolding": {
+        "properties": {
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "name",
+          "quantity"
+        ],
+        "title": "UnprovidedHolding",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -4879,7 +5352,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.23.0"
+    "version": "0.24.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6442,6 +6915,82 @@
           }
         },
         "summary": "Page"
+      }
+    },
+    "/api/v1/investments/holding-preview": {
+      "post": {
+        "operationId": "holding_preview_api_v1_investments_holding_preview_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_holding_preview_api_v1_investments_holding_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldingPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Holding Preview"
+      }
+    },
+    "/api/v1/investments/holdings/reconcile": {
+      "post": {
+        "operationId": "holdings_reconcile_api_v1_investments_holdings_reconcile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldingComparisonInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HoldingComparisonOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Holdings Reconcile"
       }
     },
     "/api/v1/investments/instruments": {

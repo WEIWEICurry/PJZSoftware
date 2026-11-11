@@ -5,6 +5,7 @@ import type { components } from "./api-schema";
 import { DateStepper } from "./date-stepper";
 import { ReceiptImport, type ReceiptPreview } from "./receipt-import";
 import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
+import { HoldingsReconciliation } from "./holdings-reconciliation";
 import { BatchReceiptImport } from "./batch-receipt-import";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
@@ -108,7 +109,7 @@ export function InvestmentsPage({
   const [page, setPage] = useState<Page | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [section, setSection] = useState<
-    "positions" | "trades" | "prices" | "recurring"
+    "positions" | "trades" | "prices" | "recurring" | "reconciliation"
   >("positions");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -593,6 +594,7 @@ export function InvestmentsPage({
               ["trades", "投资记录"],
               ["prices", "标的与估值"],
               ["recurring", "定投计划"],
+              ["reconciliation", "持仓对账"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -627,6 +629,20 @@ export function InvestmentsPage({
           </button>
         </div>
       </div>
+      {page && (
+        <div hidden={section !== "reconciliation"}>
+          <HoldingsReconciliation
+            page={page}
+            accounts={accounts}
+            disabled={!enabled}
+            trace={(account, asset) => {
+              setSection("trades");
+              setDetail({ account_id: account, instrument_id: asset });
+              setOffset(0);
+            }}
+          />
+        </div>
+      )}
       {showForm && !editing && page && (
         <section className="card panel" aria-label="批量截图录入面板">
           <BatchReceiptImport
