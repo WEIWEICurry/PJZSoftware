@@ -551,6 +551,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/todos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Todos */
+        get: operations["todos_api_v1_investments_todos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/trades": {
         parameters: {
             query?: never;
@@ -1965,6 +1982,43 @@ export interface components {
             /** Start */
             start: string;
             totals: components["schemas"]["InvestmentPeriodTotals"];
+        };
+        /** InvestmentTodo */
+        InvestmentTodo: {
+            /** Account Id */
+            account_id?: string | null;
+            /** Count */
+            count: number;
+            /** Detail */
+            detail: string;
+            /** End */
+            end?: string | null;
+            /** Id */
+            id: string;
+            /** Instrument Id */
+            instrument_id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "recurring" | "missing_price" | "stale_price" | "unknown_cost";
+            /** Plan Id */
+            plan_id?: string | null;
+            /** Required From */
+            required_from?: string | null;
+            /** Start */
+            start?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** InvestmentTodos */
+        InvestmentTodos: {
+            /** As Of */
+            as_of: string;
+            /** Items */
+            items: components["schemas"]["InvestmentTodo"][];
+            /** Revision */
+            revision: number;
         };
         /** JournalEventOutput */
         JournalEventOutput: {
@@ -4021,6 +4075,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    todos_api_v1_investments_todos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvestmentTodos"];
                 };
             };
         };
