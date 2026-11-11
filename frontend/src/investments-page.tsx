@@ -119,6 +119,7 @@ export function InvestmentsPage({
   const [editing, setEditing] = useState<Trade | null>(null);
   const [pendingVoid, setPendingVoid] = useState<Trade | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showNewInstruments, setShowNewInstruments] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
   const [positionSort, setPositionSort] = useState<PositionSort | null>(null);
   const [filterAccount, setFilterAccount] = useState("");
@@ -284,6 +285,7 @@ export function InvestmentsPage({
     );
   function edit(trade: Trade) {
     setReceiptDraft(false);
+    setShowNewInstruments(false);
     setEditing(trade);
     setShowForm(true);
     setError("");
@@ -360,6 +362,7 @@ export function InvestmentsPage({
       setShowForm(false);
       setEditing(null);
       setReceiptDraft(false);
+      setShowNewInstruments(false);
       setForm({
         ...blank(),
         account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
@@ -376,14 +379,22 @@ export function InvestmentsPage({
     (a) => !a.archived && a.kind !== "liability" && a.kind !== "receivable",
   );
   function applyReceipt(receipt: ReceiptPreview) {
+    const accountId = cashAccounts.find((a) => a.name === "支付宝")?.id ?? "";
+    const instrumentId = matchReceiptFund(
+      page?.instruments ?? [],
+      receipt.code,
+      receipt.product,
+    );
+    setShowNewInstruments(
+      !!instrumentId &&
+        !page?.positions.some(
+          (p) => p.account_id === accountId && p.instrument_id === instrumentId,
+        ),
+    );
     setForm({
       ...blank(),
-      account_id: cashAccounts.find((a) => a.name === "支付宝")?.id ?? "",
-      instrument_id: matchReceiptFund(
-        page?.instruments ?? [],
-        receipt.code,
-        receipt.product,
-      ),
+      account_id: accountId,
+      instrument_id: instrumentId,
       cash_account_id: matchReceiptPayment(cashAccounts, receipt.payment_hint),
       effective_date: receipt.confirmation_date ?? "",
       nav_date: receipt.nav_date ?? "",
@@ -448,9 +459,19 @@ export function InvestmentsPage({
       ? historicalSell.error
       : "";
   const sellRestricted = form.action === "sell" && !editing;
-  const entryInstruments = (page?.instruments ?? []).filter(
-    (i) => !sellRestricted || sellRows.some((p) => p.instrument_id === i.id),
+  const accountInstruments = (page?.positions ?? []).filter(
+    (p) => p.account_id === form.account_id,
   );
+  const canSelectNew = ["buy", "opening"].includes(form.action) && !editing;
+  const entryInstruments = (page?.instruments ?? []).filter((i) => {
+    if (editing) return i.id === form.instrument_id;
+    if (!form.account_id) return false;
+    if (sellRestricted) return sellRows.some((p) => p.instrument_id === i.id);
+    return (
+      (canSelectNew && showNewInstruments) ||
+      accountInstruments.some((p) => p.instrument_id === i.id)
+    );
+  });
   const saleQuantity = sellRows.find(
     (p) => p.instrument_id === form.instrument_id,
   )?.quantity;
@@ -462,10 +483,15 @@ export function InvestmentsPage({
       !entryInstruments.length);
   function changeAction(action: Trade["action"]) {
     setReceiptDraft(false);
+    setShowNewInstruments(false);
     setForm({
       ...form,
       action,
-      instrument_id: action === "sell" ? "" : form.instrument_id,
+      instrument_id:
+        action !== "sell" &&
+        accountInstruments.some((p) => p.instrument_id === form.instrument_id)
+          ? form.instrument_id
+          : "",
       quantity: action === "cash_dividend" ? "0" : "",
       amount: "",
       costs: "",
@@ -654,19 +680,16 @@ export function InvestmentsPage({
                   aria-label="持仓账户"
                   value={form.account_id}
                   disabled={!!editing}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setShowNewInstruments(false);
                     setForm({
                       ...form,
                       account_id: e.target.value,
-                      ...(form.action === "sell"
-                        ? { instrument_id: "", quantity: "" }
-                        : {}),
-                      split_from_quantity:
-                        form.action === "split"
-                          ? heldQuantity(e.target.value, form.instrument_id)
-                          : form.split_from_quantity,
-                    })
-                  }
+                      instrument_id: "",
+                      quantity: form.action === "cash_dividend" ? "0" : "",
+                      split_from_quantity: "",
+                    });
+                  }}
                 >
                   <option value="">请选择账户</option>
                   {cashAccounts.map((a) => (
@@ -676,12 +699,18 @@ export function InvestmentsPage({
                   ))}
                 </select>
               </label>
-              <label>
-                投资标的
+              <div className="investment-instrument-field">
+                <label htmlFor="investment-entry-instrument">投资标的</label>
                 <select
+                  id="investment-entry-instrument"
                   aria-label="投资标的"
                   required
-                  disabled={!!editing || !!sellBlocked}
+                  disabled={
+                    !!editing ||
+                    !form.account_id ||
+                    !!sellBlocked ||
+                    !entryInstruments.length
+                  }
                   value={form.instrument_id}
                   onChange={(e) =>
                     setForm({
@@ -702,6 +731,39 @@ export function InvestmentsPage({
                     </option>
                   ))}
                 </select>
+                {canSelectNew && (
+                  <label className="investment-new-instrument">
+                    <input
+                      type="checkbox"
+                      checked={showNewInstruments}
+                      disabled={!form.account_id}
+                      onChange={(e) => {
+                        setShowNewInstruments(e.target.checked);
+                        if (
+                          !e.target.checked &&
+                          !accountInstruments.some(
+                            (p) => p.instrument_id === form.instrument_id,
+                          )
+                        )
+                          setForm({ ...form, instrument_id: "", quantity: "" });
+                      }}
+                    />
+                    选择该账户的新标的
+                  </label>
+                )}
+                {!editing && !sellRestricted && (
+                  <small role="status">
+                    {!form.account_id
+                      ? "请先选择持仓账户。"
+                      : showNewInstruments && canSelectNew
+                        ? "已显示全部标的，请选择本次首次买入的标的。"
+                        : !entryInstruments.length
+                          ? canSelectNew
+                            ? "该账户暂无投资标的，可勾选上方新标的入口。"
+                            : "该账户暂无投资标的。"
+                          : "仅显示该持仓账户已有的标的（含已清仓）。"}
+                  </small>
+                )}
                 {sellRestricted && (
                   <small role="status">
                     {!form.account_id
@@ -729,7 +791,7 @@ export function InvestmentsPage({
                     重试持仓查询
                   </button>
                 )}
-              </label>
+              </div>
               <label>
                 {form.action === "opening"
                   ? "期初日期"
@@ -988,6 +1050,7 @@ export function InvestmentsPage({
             <button
               disabled={
                 !enabled ||
+                !form.instrument_id ||
                 !!sellBlocked ||
                 (!!receiptDuplicate &&
                   duplicateAcknowledged !== receiptDuplicate)
@@ -1003,6 +1066,7 @@ export function InvestmentsPage({
                 setShowForm(false);
                 setEditing(null);
                 setReceiptDraft(false);
+                setShowNewInstruments(false);
                 setForm({
                   ...blank(),
                   account_id:

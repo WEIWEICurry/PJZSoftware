@@ -1884,3 +1884,21 @@ input.recurring-check[type="checkbox"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.investment-instrument-field {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.investment-fields .investment-new-instrument {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.investment-new-instrument input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}

@@ -723,6 +723,9 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
     .getByLabel("持仓账户", { exact: true })
     .selectOption({ label: "Synthetic investment cash · ¥10,000.00" });
   await investmentForm
+    .getByRole("checkbox", { name: "选择该账户的新标的" })
+    .check();
+  await investmentForm
     .getByLabel("投资标的")
     .selectOption({ label: "Synthetic stock · 600001" });
   await investmentForm.getByLabel("数量（份／股）").fill("100");
@@ -867,6 +870,11 @@ test("本地连接、日常账务、幂等重试和备份恢复，页面无出�
           .filter({ hasText: "Synthetic investment cash" })
           .getAttribute("value")) as string,
       );
+    if (action === "opening") {
+      await investmentForm
+        .getByRole("checkbox", { name: "选择该账户的新标的" })
+        .check();
+    }
     await investmentForm
       .getByLabel("投资标的")
       .selectOption({ label: "Synthetic distribution fund · 000001" });

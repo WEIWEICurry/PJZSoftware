@@ -126,6 +126,9 @@ test("截图预填标的、净值日和扣款账户，经核对后显式保存",
   ).toBeVisible();
   expect(saved).toEqual([]);
   await expect(form.getByLabel("投资标的", { exact: true })).toHaveValue("a");
+  await expect(
+    form.getByRole("checkbox", { name: "选择该账户的新标的" }),
+  ).toBeChecked();
   await expect(form.getByLabel("实际扣款（元）", { exact: true })).toHaveValue(
     "100.00",
   );
