@@ -3426,6 +3426,41 @@
         "title": "RangeInput",
         "type": "object"
       },
+      "ReceiptBatchInput": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptTradeInput"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "ReceiptBatchInput",
+        "type": "object"
+      },
+      "ReceiptBatchOutput": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "ReceiptBatchOutput",
+        "type": "object"
+      },
       "ReceiptPreview": {
         "properties": {
           "amount": {
@@ -3589,6 +3624,110 @@
           "warnings"
         ],
         "title": "ReceiptPreview",
+        "type": "object"
+      },
+      "ReceiptTradeInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "action": {
+            "const": "buy",
+            "default": "buy",
+            "title": "Action",
+            "type": "string"
+          },
+          "allow_possible_duplicate": {
+            "default": false,
+            "title": "Allow Possible Duplicate",
+            "type": "boolean"
+          },
+          "amount_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "amount_mode": {
+            "const": "net",
+            "default": "net",
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "cash_account_id": {
+            "format": "uuid",
+            "title": "Cash Account Id",
+            "type": "string"
+          },
+          "cost_basis_fen": {
+            "anyOf": [
+              {
+                "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Basis Fen"
+          },
+          "costs_fen": {
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Costs Fen",
+            "type": "string"
+          },
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "nav_date": {
+            "format": "date",
+            "title": "Nav Date",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "quantity": {
+            "maxLength": 21,
+            "title": "Quantity",
+            "type": "string"
+          },
+          "split_from_quantity": {
+            "anyOf": [
+              {
+                "maxLength": 21,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split From Quantity"
+          }
+        },
+        "required": [
+          "account_id",
+          "instrument_id",
+          "effective_date",
+          "nav_date",
+          "quantity",
+          "costs_fen",
+          "cash_account_id"
+        ],
+        "title": "ReceiptTradeInput",
         "type": "object"
       },
       "RenameInput": {
@@ -4740,7 +4879,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.22.2"
+    "version": "0.23.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6355,6 +6494,58 @@
           }
         },
         "summary": "Instrument"
+      }
+    },
+    "/api/v1/investments/receipt-batches": {
+      "post": {
+        "operationId": "receipt_batch_api_v1_investments_receipt_batches_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 20,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptBatchInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptBatchOutput"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receipt Batch"
       }
     },
     "/api/v1/investments/receipt-preview": {

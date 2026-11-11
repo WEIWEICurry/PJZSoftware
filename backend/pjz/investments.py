@@ -311,6 +311,38 @@ class Investments:
             lambda connection: self.save_trade(connection, payload, identifier),
         )
 
+    def receipt_batch(self, payload: dict[str, Any], key: str) -> dict[str, Any]:
+        def action(connection: Connection) -> dict[str, Any]:
+            identifiers = []
+            for row in payload["rows"]:
+                asset = fetch_all(
+                    connection,
+                    "SELECT kind FROM instruments WHERE id=:id",
+                    {"id": row["instrument_id"]},
+                )
+                if not asset or asset[0]["kind"] != "fund":
+                    raise RuleError("RECEIPT_FUND_REQUIRED")
+                if not 0 <= int(row["costs_fen"]) < int(row["amount_fen"]):
+                    raise RuleError("FEE_EXCEEDS_AMOUNT")
+                existing = fetch_all(
+                    connection,
+                    "SELECT i.quantity,i.gross_fen,i.costs_fen FROM financial_events f "
+                    "JOIN investment_events i ON i.event_id=f.id WHERE f.status='active' "
+                    "AND f.account_id=:account_id AND i.instrument_id=:instrument_id "
+                    "AND i.action='buy' AND f.effective_date=:effective_date",
+                    row,
+                )
+                if not row["allow_possible_duplicate"] and any(
+                    decimal_value(t["quantity"]) == decimal_value(row["quantity"])
+                    and t["gross_fen"] + t["costs_fen"] == int(row["amount_fen"])
+                    for t in existing
+                ):
+                    raise RuleError("RECEIPT_POSSIBLE_DUPLICATE")
+                identifiers.append(self.save_trade(connection, row)["id"])
+            return {"ids": identifiers}
+
+        return self.accounting.command(key, "receipt_batch", payload, action)
+
     def void_trade(self, identifier: str, revision: int, key: str) -> dict[str, Any]:
         def action(connection: Connection) -> dict[str, Any]:
             rows = fetch_all(
