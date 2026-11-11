@@ -103,7 +103,33 @@ test("卖出按持仓筛选、历史查询失败重试与切换、清仓历史�
   const form = page.getByRole("region", { name: "投资记录表单" });
   const asset = form.getByLabel("投资标的", { exact: true });
   const account = form.getByLabel("持仓账户", { exact: true });
+  await expect(asset.locator("option")).toHaveCount(3);
+  await expect(asset.locator("option[value='b']")).toHaveCount(0);
+  await asset.selectOption("a");
+  await form.getByLabel("数量（份／股）", { exact: true }).fill("1");
+  await account.selectOption("b");
+  await expect(asset).toHaveValue("");
+  await expect(form.getByLabel("数量（份／股）", { exact: true })).toHaveValue(
+    "",
+  );
+  await expect(asset.locator("option[value='a']")).toHaveCount(0);
+  await expect(asset.locator("option[value='b']")).toHaveCount(1);
+  await account.selectOption("empty");
+  await expect(asset).toBeDisabled();
+  const newAsset = form.getByRole("checkbox", { name: "选择该账户的新标的" });
+  await newAsset.check();
+  await expect(asset).toBeEnabled();
   await expect(asset.locator("option")).toHaveCount(4);
+  await asset.selectOption("a");
+  await newAsset.uncheck();
+  await expect(asset).toHaveValue("");
+  await expect(asset).toBeDisabled();
+  await newAsset.check();
+  await account.selectOption("a");
+  await expect(newAsset).not.toBeChecked();
+  await form.screenshot({
+    path: "test-results/account-instrument-options.png",
+  });
   await form
     .getByRole("combobox", { name: "操作", exact: true })
     .selectOption("sell");
@@ -148,6 +174,8 @@ test("卖出按持仓筛选、历史查询失败重试与切换、清仓历史�
   await form
     .getByRole("combobox", { name: "操作", exact: true })
     .selectOption("buy");
+  await expect(asset).toBeDisabled();
+  await form.getByRole("checkbox", { name: "选择该账户的新标的" }).check();
   await expect(asset).toBeEnabled();
   await expect(asset.locator("option")).toHaveCount(4);
   await form.getByRole("button", { name: "取消编辑" }).click();
