@@ -7,6 +7,7 @@ import { DateStepper } from "./date-stepper";
 import { localDay, money, yuanToFen } from "./money";
 import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
 import type { ReceiptPreview } from "./receipt-import";
+import { appendScreenshots } from "./screenshot-files";
 
 type Page = components["schemas"]["InvestmentPage"];
 type Account = components["schemas"]["AccountOutput"];
@@ -151,56 +152,21 @@ export function BatchReceiptImport({
     setBusy("正在检查截图");
     setError("");
     setMessage("");
-    const added: Item[] = [];
-    const hashes = new Set(items.map((item) => item.hash));
-    let size = items.reduce((sum, item) => sum + item.file.size, 0);
-    const notices: string[] = [];
     try {
-      for (const file of files) {
-        if (
-          items.length + added.length >= 20 ||
-          size + file.size > 40 * 1024 * 1024
-        ) {
-          notices.push("最多 20 张、累计 40 MB，其余截图未加入。");
-          break;
-        }
-        if (
-          !["image/png", "image/jpeg"].includes(file.type) ||
-          !file.size ||
-          file.size > 5 * 1024 * 1024
-        ) {
-          notices.push(file.name + "：请选择不超过 5 MB 的 PNG/JPG。");
-          continue;
-        }
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          await file.arrayBuffer(),
-        );
-        const hash = Array.from(new Uint8Array(digest), (n) =>
-          n.toString(16).padStart(2, "0"),
-        ).join("");
-        if (hashes.has(hash)) {
-          notices.push(file.name + "：相同截图已在队列中。");
-          continue;
-        }
-        hashes.add(hash);
-        size += file.size;
-        added.push({
-          id: crypto.randomUUID(),
-          hash,
-          file,
-          result: null,
-          draft: null,
-          error: "",
-          included: true,
-          reviewed: false,
-          allowDuplicate: false,
-          saved: false,
-        });
-      }
+      const result = await appendScreenshots(items, files);
+      const added: Item[] = result.added.map((file) => ({
+        ...file,
+        result: null,
+        draft: null,
+        error: "",
+        included: true,
+        reviewed: false,
+        allowDuplicate: false,
+        saved: false,
+      }));
       setItems((previous) => [...previous, ...added]);
       if (!active && added.length) setActive(added[0].id);
-      setMessage(notices.join(" "));
+      setMessage(result.message);
     } catch {
       setError("无法读取图片，请重新选择。");
     } finally {

@@ -58,6 +58,9 @@ const messages: Record<string, string> = {
   NAV_PREVIEW_CHANGED: "预览后价格记录已变化，请重新获取净值预览。",
   NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
 
+  OCR_UNSUPPORTED_HOLDING:
+    "未识别到支付宝资产详情，请选择展开了持有份额的基金持仓截图。",
+  HOLDING_DUPLICATE_FUND: "同一基金出现多张截图，请核对后只保留一张参与对账。",
   RECEIPT_FUND_REQUIRED: "批量截图录入请选择公募基金。",
   RECEIPT_POSSIBLE_DUPLICATE:
     "存在疑似重复买入，请核对本批次和已有记录，确为不同交易再允许重复。",

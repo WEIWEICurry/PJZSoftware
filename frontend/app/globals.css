@@ -1961,3 +1961,16 @@ input.recurring-check[type="checkbox"] {
   overflow-y: auto;
   padding-right: 3px;
 }
+
+.holding-reconcile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.holding-reconcile-detail {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}

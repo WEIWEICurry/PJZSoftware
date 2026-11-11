@@ -19,9 +19,17 @@ from pjz.daily_api import (
     StrictInput,
 )
 from pjz.domain import RuleError
+from pjz.holdings_reconciliation import reconcile
 from pjz.investment_domain import decimal_value
 from pjz.investments import Investments
-from pjz.receipt_ocr import MAX_IMAGE_BYTES, ReceiptPreview, parse_receipt, recognize_lines
+from pjz.receipt_ocr import (
+    MAX_IMAGE_BYTES,
+    HoldingPreview,
+    ReceiptPreview,
+    parse_holding,
+    parse_receipt,
+    recognize_lines,
+)
 
 InvestmentAction = Literal["opening", "buy", "sell", "cash_dividend", "reinvest", "split"]
 
@@ -206,6 +214,79 @@ class InvestmentPage(BaseModel):
     reinvested_dividends_fen: str
 
 
+class HoldingRowInput(StrictInput):
+    instrument_id: UUID
+    quantity: str = Field(pattern=r"^(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,8})?$")
+    amount_fen: Fen | None = None
+    pending_fen: Fen | None = None
+    unit_nav: str | None = Field(default=None, max_length=21)
+    nav_date: date | None = None
+
+    @field_validator("unit_nav")
+    @classmethod
+    def price(cls, value: str | None) -> str | None:
+        if value is not None:
+            decimal_value(value)
+        return value
+
+    @field_validator("amount_fen", "pending_fen")
+    @classmethod
+    def nonnegative(cls, value: str | None) -> str | None:
+        return TradeInput.amount(value)
+
+
+class HoldingComparisonInput(StrictInput):
+    account_id: UUID
+    as_of: date
+    rows: list[HoldingRowInput] = Field(min_length=1, max_length=20)
+
+    @field_validator("as_of")
+    @classmethod
+    def past(cls, value: date) -> date:
+        return EventInput.past_date(value)
+
+    @model_validator(mode="after")
+    def dates(self) -> HoldingComparisonInput:
+        if any(row.nav_date and row.nav_date > self.as_of for row in self.rows):
+            raise ValueError("NAV date cannot exceed holdings observation date")
+        return self
+
+
+class HoldingComparisonRow(BaseModel):
+    instrument_id: str
+    name: str
+    code: str
+    platform_quantity: str
+    local_quantity: str
+    quantity_status: Literal["exact", "display", "different"]
+    quantity_delta: str
+    platform_value_fen: str | None
+    pending_fen: str | None
+    unit_nav: str | None
+    nav_date: str | None
+    reference_value_fen: str | None
+    value_delta_fen: str | None
+    local_value_fen: str | None
+    local_price: str | None
+    local_price_date: str | None
+    local_cost_fen: str | None
+    same_price_date: bool
+
+
+class UnprovidedHolding(BaseModel):
+    instrument_id: str
+    name: str
+    quantity: str
+
+
+class HoldingComparisonOutput(BaseModel):
+    revision: int
+    as_of: str
+    account_id: str
+    rows: list[HoldingComparisonRow]
+    unprovided: list[UnprovidedHolding]
+
+
 def investment_router(service: Investments) -> APIRouter:
     router = APIRouter(prefix="/api/v1/investments")
 
@@ -220,6 +301,18 @@ def investment_router(service: Investments) -> APIRouter:
         finally:
             file.file.close()
         return parse_receipt(recognize_lines(payload))
+
+    @router.post("/holding-preview", response_model=HoldingPreview)
+    def holding_preview(file: Annotated[UploadFile, File()]) -> HoldingPreview:
+        try:
+            payload = file.file.read(MAX_IMAGE_BYTES + 1)
+        finally:
+            file.file.close()
+        return parse_holding(recognize_lines(payload))
+
+    @router.post("/holdings/reconcile", response_model=HoldingComparisonOutput)
+    def holdings_reconcile(payload: HoldingComparisonInput) -> object:
+        return reconcile(service, payload.model_dump(mode="json"))
 
     @router.post("/receipt-batches", response_model=ReceiptBatchOutput)
     def receipt_batch(payload: ReceiptBatchInput, key: Key) -> object:
