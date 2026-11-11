@@ -5,6 +5,7 @@ import type { components } from "./api-schema";
 import { DateStepper } from "./date-stepper";
 import { ReceiptImport, type ReceiptPreview } from "./receipt-import";
 import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
+import { BatchReceiptImport } from "./batch-receipt-import";
 import { RecurringPanel } from "./recurring-panel";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
@@ -626,6 +627,16 @@ export function InvestmentsPage({
           </button>
         </div>
       </div>
+      {showForm && !editing && page && (
+        <section className="card panel" aria-label="批量截图录入面板">
+          <BatchReceiptImport
+            disabled={!enabled}
+            page={page}
+            accounts={accounts}
+            refresh={(notice) => act(async () => notice)}
+          />
+        </section>
+      )}
       {showForm && (
         <section
           id="investment-entry-form"

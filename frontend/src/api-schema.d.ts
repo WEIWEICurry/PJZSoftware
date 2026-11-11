@@ -466,6 +466,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/receipt-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receipt Batch */
+        post: operations["receipt_batch_api_v1_investments_receipt_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/receipt-preview": {
         parameters: {
             query?: never;
@@ -2215,6 +2232,16 @@ export interface components {
              */
             start: string;
         };
+        /** ReceiptBatchInput */
+        ReceiptBatchInput: {
+            /** Rows */
+            rows: components["schemas"]["ReceiptTradeInput"][];
+        };
+        /** ReceiptBatchOutput */
+        ReceiptBatchOutput: {
+            /** Ids */
+            ids: string[];
+        };
         /** ReceiptPreview */
         ReceiptPreview: {
             /** Amount */
@@ -2245,6 +2272,69 @@ export interface components {
             unit_nav: string | null;
             /** Warnings */
             warnings: string[];
+        };
+        /** ReceiptTradeInput */
+        ReceiptTradeInput: {
+            /**
+             * Account Id
+             * Format: uuid
+             */
+            account_id: string;
+            /**
+             * Action
+             * @default buy
+             * @constant
+             */
+            action: "buy";
+            /**
+             * Allow Possible Duplicate
+             * @default false
+             */
+            allow_possible_duplicate: boolean;
+            /**
+             * Amount Fen
+             * @default 0
+             */
+            amount_fen: string;
+            /**
+             * Amount Mode
+             * @default net
+             * @constant
+             */
+            amount_mode: "net";
+            /**
+             * Cash Account Id
+             * Format: uuid
+             */
+            cash_account_id: string;
+            /** Cost Basis Fen */
+            cost_basis_fen?: string | null;
+            /** Costs Fen */
+            costs_fen: string;
+            /**
+             * Effective Date
+             * Format: date
+             */
+            effective_date: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /**
+             * Nav Date
+             * Format: date
+             */
+            nav_date: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Quantity */
+            quantity: string;
+            /** Split From Quantity */
+            split_from_quantity?: string | null;
         };
         /** RenameInput */
         RenameInput: {
@@ -3597,6 +3687,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    receipt_batch_api_v1_investments_receipt_batches_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptBatchInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptBatchOutput"];
                 };
             };
             /** @description Validation Error */

@@ -1902,3 +1902,62 @@ input.recurring-check[type="checkbox"] {
   height: 16px;
   margin: 0;
 }
+
+.batch-receipt-import {
+  margin-bottom: 16px;
+}
+.batch-receipt-layout {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.batch-receipt-queue {
+  display: grid;
+  gap: 10px;
+}
+.batch-receipt-queue > div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+}
+.batch-receipt-active {
+  background: #edf5ff;
+  border-color: var(--accent) !important;
+}
+.batch-receipt-filename {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.batch-receipt-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.batch-receipt-fields > label:not(.recurring-check-label) {
+  display: grid;
+  gap: 6px;
+}
+@media (max-width: 900px) {
+  .batch-receipt-layout {
+    grid-template-columns: 1fr;
+  }
+  .batch-receipt-queue {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  .batch-receipt-layout .receipt-comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+.batch-receipt-queue {
+  max-height: 720px;
+  overflow-y: auto;
+  padding-right: 3px;
+}

@@ -95,6 +95,23 @@ class TradeInput(StrictInput):
         return value
 
 
+class ReceiptTradeInput(TradeInput):
+    action: Literal["buy"] = "buy"
+    amount_mode: Literal["net"] = "net"
+    nav_date: date
+    cash_account_id: UUID
+    costs_fen: Fen
+    allow_possible_duplicate: bool = Field(default=False, strict=True)
+
+
+class ReceiptBatchInput(StrictInput):
+    rows: list[ReceiptTradeInput] = Field(min_length=1, max_length=20)
+
+
+class ReceiptBatchOutput(BaseModel):
+    ids: list[str]
+
+
 class TradeChange(TradeInput):
     revision: int = Field(ge=1, strict=True)
 
@@ -203,6 +220,10 @@ def investment_router(service: Investments) -> APIRouter:
         finally:
             file.file.close()
         return parse_receipt(recognize_lines(payload))
+
+    @router.post("/receipt-batches", response_model=ReceiptBatchOutput)
+    def receipt_batch(payload: ReceiptBatchInput, key: Key) -> object:
+        return service.receipt_batch(payload.model_dump(mode="json"), key)
 
     @router.get("/sell-options", response_model=list[SellOption])
     def sell_options(account_id: UUID, effective_date: date) -> object:

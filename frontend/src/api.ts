@@ -58,6 +58,9 @@ const messages: Record<string, string> = {
   NAV_PREVIEW_CHANGED: "预览后价格记录已变化，请重新获取净值预览。",
   NAV_PREVIEW_EXPIRED: "净值预览已过期，请重新获取。",
 
+  RECEIPT_FUND_REQUIRED: "批量截图录入请选择公募基金。",
+  RECEIPT_POSSIBLE_DUPLICATE:
+    "存在疑似重复买入，请核对本批次和已有记录，确为不同交易再允许重复。",
   OCR_INVALID_IMAGE: "无法读取截图，请选择不超过 5 MB 的 PNG 或 JPG。",
   OCR_UNSUPPORTED_RECEIPT: "未识别到已确认的支付宝基金买入回执，请检查截图。",
   OCR_UNAVAILABLE: "本地识别暂不可用，请重试或手工填入。",
@@ -158,6 +161,14 @@ const messages: Record<string, string> = {
 export function errorMessage(code: string): string {
   return messages[code] ?? `操作失败（${code}），请重试或检查数据。`;
 }
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
 async function checked(response: Response): Promise<Response> {
   if (!response.ok) {
     const result = await response.json().catch(() => ({}));
@@ -165,7 +176,7 @@ async function checked(response: Response): Promise<Response> {
     const context = result.error?.effective_date
       ? `（冲突记录：${result.error.effective_date}，流水序号 ${result.error.sequence}）`
       : "";
-    throw new Error(errorMessage(code) + context);
+    throw new ApiError(errorMessage(code) + context, response.status);
   }
   return response;
 }
