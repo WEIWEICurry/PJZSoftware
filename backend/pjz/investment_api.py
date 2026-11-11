@@ -21,6 +21,7 @@ from pjz.daily_api import (
 from pjz.domain import RuleError
 from pjz.holdings_reconciliation import reconcile
 from pjz.investment_domain import decimal_value
+from pjz.investment_todos import InvestmentTodos, investment_todos
 from pjz.investments import Investments
 from pjz.receipt_ocr import (
     MAX_IMAGE_BYTES,
@@ -293,6 +294,10 @@ def investment_router(service: Investments) -> APIRouter:
     @router.get("", response_model=InvestmentPage)
     def page() -> object:
         return service.page()
+
+    @router.get("/todos", response_model=InvestmentTodos)
+    def todos() -> InvestmentTodos:
+        return investment_todos(service)
 
     @router.post("/receipt-preview", response_model=ReceiptPreview)
     def receipt_preview(file: Annotated[UploadFile, File()]) -> ReceiptPreview:
