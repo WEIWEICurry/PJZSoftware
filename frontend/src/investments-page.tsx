@@ -8,6 +8,7 @@ import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
 import { HoldingsReconciliation } from "./holdings-reconciliation";
 import { BatchReceiptImport } from "./batch-receipt-import";
 import { RecurringPanel } from "./recurring-panel";
+import { InvestmentTodos, type InvestmentTodo } from "./investment-todos";
 import { FundNavPanel } from "./fund-nav-panel";
 import { request } from "./api";
 import { fenToYuan, localDay, money, yuanToFen } from "./money";
@@ -137,6 +138,12 @@ export function InvestmentsPage({
     code: "",
     name: "",
   });
+  const [priceTarget, setPriceTarget] = useState<string | null>(null);
+  const [recurringTarget, setRecurringTarget] = useState<{
+    plan_id: string;
+    start: string;
+    end: string;
+  } | null>(null);
   const [priceDate, setPriceDate] = useState(localDay());
   const [prices, setPrices] = useState<Record<string, string>>({});
 
@@ -223,6 +230,36 @@ export function InvestmentsPage({
       current = false;
     };
   }, [available]);
+  function openTodo(todo: InvestmentTodo) {
+    setShowForm(false);
+    setDetail(null);
+    setOffset(0);
+    setFilterAccount("");
+    setFilterKind("");
+    if (todo.kind === "recurring" && todo.plan_id && todo.start && todo.end) {
+      setRecurringTarget({
+        plan_id: todo.plan_id,
+        start: todo.start,
+        end: todo.end,
+      });
+      setSection("recurring");
+    } else if (
+      todo.kind === "unknown_cost" &&
+      todo.account_id &&
+      todo.instrument_id
+    ) {
+      setDetail({
+        account_id: todo.account_id,
+        instrument_id: todo.instrument_id,
+      });
+      setSection("trades");
+    } else if (todo.instrument_id) {
+      setPriceTarget(todo.instrument_id);
+      setPriceDate(localDay());
+      setPrices({});
+      setSection("prices");
+    }
+  }
   async function act(operation: () => Promise<string>) {
     setBusy(true);
     setError("");
@@ -603,6 +640,8 @@ export function InvestmentsPage({
               key={id}
               onClick={() => {
                 setSection(id);
+                if (id === "prices") setPriceTarget(null);
+                if (id === "recurring") setRecurringTarget(null);
                 setDetail(null);
                 setOffset(0);
               }}
@@ -629,6 +668,9 @@ export function InvestmentsPage({
           </button>
         </div>
       </div>
+      {section === "positions" && page && (
+        <InvestmentTodos page={page} disabled={!enabled} open={openTodo} />
+      )}
       {page && (
         <div hidden={section !== "reconciliation"}>
           <HoldingsReconciliation
@@ -1482,6 +1524,7 @@ export function InvestmentsPage({
       )}
       {section === "recurring" && (
         <RecurringPanel
+          initialReview={recurringTarget ?? undefined}
           accounts={accounts}
           instruments={page?.instruments ?? []}
           valuations={page?.valuations ?? []}
@@ -1493,7 +1536,26 @@ export function InvestmentsPage({
       )}
       {section === "prices" && (
         <>
+          {priceTarget && (
+            <p className="alert">
+              已定位 {instrumentName(priceTarget)} 的估值。
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setPriceTarget(null)}
+              >
+                显示全部标的
+              </button>
+            </p>
+          )}
           <FundNavPanel
+            key={priceTarget ?? "all"}
+            initialInstrumentId={
+              page?.instruments.find((i) => i.id === priceTarget)?.kind ===
+              "fund"
+                ? (priceTarget ?? undefined)
+                : undefined
+            }
             instruments={page?.instruments ?? []}
             saved={async () => {
               setPage(await request<Page>("/investments"));
@@ -1519,77 +1581,79 @@ export function InvestmentsPage({
               价格为元／股或元／份，最多八位小数。每个标的单独保存；所选日期已有价格时修改原记录并保留修订。同一标的各账户共用价格。
             </p>
             {!page?.instruments.length && <p>先添加投资标的。</p>}
-            {page?.instruments.map((i) => {
-              const existing = page.valuations.find(
-                (v) => v.instrument_id === i.id && v.price_date === priceDate,
-              );
-              const latest = page.valuations.find(
-                (v) => v.instrument_id === i.id && v.status === "active",
-              );
-              return (
-                <form
-                  className="investment-price-row"
-                  key={i.id}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void act(async () => {
-                      await request("/investments/valuations", "PUT", {
-                        instrument_id: i.id,
-                        price_date: priceDate,
-                        price: prices[i.id] ?? existing?.price ?? "",
-                        revision: existing?.revision ?? 0,
-                        status: "active",
+            {page?.instruments
+              .filter((i) => !priceTarget || i.id === priceTarget)
+              .map((i) => {
+                const existing = page.valuations.find(
+                  (v) => v.instrument_id === i.id && v.price_date === priceDate,
+                );
+                const latest = page.valuations.find(
+                  (v) => v.instrument_id === i.id && v.status === "active",
+                );
+                return (
+                  <form
+                    className="investment-price-row"
+                    key={i.id}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void act(async () => {
+                        await request("/investments/valuations", "PUT", {
+                          instrument_id: i.id,
+                          price_date: priceDate,
+                          price: prices[i.id] ?? existing?.price ?? "",
+                          revision: existing?.revision ?? 0,
+                          status: "active",
+                        });
+                        return `${i.name} 的手动价格已保存。`;
                       });
-                      return `${i.name} 的手动价格已保存。`;
-                    });
-                  }}
-                >
-                  <div>
-                    <strong>
-                      {i.name} · {i.code}
-                    </strong>
-                    <small>
-                      {kinds[i.kind]} · 最新有效{" "}
-                      {latest
-                        ? `${latest.price} 元 · ${latest.price_date}`
-                        : "待估值"}
-                    </small>
-                  </div>
-                  <input
-                    aria-label={`${i.name}价格`}
-                    required
-                    inputMode="decimal"
-                    placeholder="价格／净值"
-                    value={prices[i.id] ?? existing?.price ?? ""}
-                    onChange={(e) =>
-                      setPrices({ ...prices, [i.id]: e.target.value })
-                    }
-                  />
-                  <button disabled={!enabled || !priceDate}>保存价格</button>
-                  {existing?.status === "active" && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={!enabled}
-                      onClick={() =>
-                        void act(async () => {
-                          await request("/investments/valuations", "PUT", {
-                            instrument_id: i.id,
-                            price_date: priceDate,
-                            price: existing.price,
-                            revision: existing.revision,
-                            status: "void",
-                          });
-                          return "该日价格已作废，估值回退到最近有效价格。";
-                        })
+                    }}
+                  >
+                    <div>
+                      <strong>
+                        {i.name} · {i.code}
+                      </strong>
+                      <small>
+                        {kinds[i.kind]} · 最新有效{" "}
+                        {latest
+                          ? `${latest.price} 元 · ${latest.price_date}`
+                          : "待估值"}
+                      </small>
+                    </div>
+                    <input
+                      aria-label={`${i.name}价格`}
+                      required
+                      inputMode="decimal"
+                      placeholder="价格／净值"
+                      value={prices[i.id] ?? existing?.price ?? ""}
+                      onChange={(e) =>
+                        setPrices({ ...prices, [i.id]: e.target.value })
                       }
-                    >
-                      作废该日价格
-                    </button>
-                  )}
-                </form>
-              );
-            })}
+                    />
+                    <button disabled={!enabled || !priceDate}>保存价格</button>
+                    {existing?.status === "active" && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={!enabled}
+                        onClick={() =>
+                          void act(async () => {
+                            await request("/investments/valuations", "PUT", {
+                              instrument_id: i.id,
+                              price_date: priceDate,
+                              price: existing.price,
+                              revision: existing.revision,
+                              status: "void",
+                            });
+                            return "该日价格已作废，估值回退到最近有效价格。";
+                          })
+                        }
+                      >
+                        作废该日价格
+                      </button>
+                    )}
+                  </form>
+                );
+              })}
             <details>
               <summary>查看估值记录（含作废）</summary>
               <ul>

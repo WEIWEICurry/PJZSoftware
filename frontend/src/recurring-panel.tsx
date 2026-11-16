@@ -21,22 +21,26 @@ export function RecurringPanel({
   instruments,
   valuations,
   changed,
+  initialReview,
 }: {
   accounts: components["schemas"]["AccountOutput"][];
   instruments: components["schemas"]["InstrumentOutput"][];
   valuations: components["schemas"]["PriceOutput"][];
   changed: () => Promise<void>;
+  initialReview?: { plan_id: string; start: string; end: string };
 }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Plan | null>(null);
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialReview?.plan_id ?? "");
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
-  const [start, setStart] = useState(localDay().slice(0, 7) + "-01");
-  const [end, setEnd] = useState(localDay());
+  const [start, setStart] = useState(
+    initialReview?.start ?? localDay().slice(0, 7) + "-01",
+  );
+  const [end, setEnd] = useState(initialReview?.end ?? localDay());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [review, setReview] = useState<
@@ -54,11 +58,27 @@ export function RecurringPanel({
     amount: "10.00",
     costs: "0.00",
   });
+  const [loaded, setLoaded] = useState("");
   useEffect(() => {
     let current = true;
     request<Plan[]>("/recurring?include_deleted=true")
-      .then((p) => {
-        if (current) setPlans(p);
+      .then(async (p) => {
+        if (!current) return;
+        setPlans(p);
+        if (initialReview) {
+          const rows = await request<Draft[]>(
+            `/recurring/${initialReview.plan_id}/drafts?start=${initialReview.start}&end=${initialReview.end}`,
+          );
+          if (!current) return;
+          setDrafts(rows);
+          setLoaded(
+            [
+              initialReview.plan_id,
+              initialReview.start,
+              initialReview.end,
+            ].join(":"),
+          );
+        }
       })
       .catch((e: Error) => {
         if (current) setMessage(e.message);
@@ -66,10 +86,9 @@ export function RecurringPanel({
     return () => {
       current = false;
     };
-  }, []);
+  }, [initialReview]);
   const valid = !!start && !!end && start <= end && end <= localDay();
   const key = [selected, start, end].join(":");
-  const [loaded, setLoaded] = useState("");
   async function load(id = selected) {
     if (!id || !valid) return;
     const rows = await request<Draft[]>(

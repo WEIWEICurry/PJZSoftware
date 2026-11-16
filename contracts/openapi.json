@@ -2935,6 +2935,137 @@
         "title": "InvestmentReportOutput",
         "type": "object"
       },
+      "InvestmentTodo": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Id"
+          },
+          "kind": {
+            "enum": [
+              "recurring",
+              "missing_price",
+              "stale_price",
+              "unknown_cost"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "plan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Id"
+          },
+          "required_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required From"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "detail",
+          "count"
+        ],
+        "title": "InvestmentTodo",
+        "type": "object"
+      },
+      "InvestmentTodos": {
+        "properties": {
+          "as_of": {
+            "title": "As Of",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/InvestmentTodo"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "as_of",
+          "revision",
+          "items"
+        ],
+        "title": "InvestmentTodos",
+        "type": "object"
+      },
       "JournalEventOutput": {
         "properties": {
           "account_id": {
@@ -5352,7 +5483,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.24.0"
+    "version": "0.25.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7187,6 +7318,24 @@
           }
         },
         "summary": "Sell Options"
+      }
+    },
+    "/api/v1/investments/todos": {
+      "get": {
+        "operationId": "todos_api_v1_investments_todos_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentTodos"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Todos"
       }
     },
     "/api/v1/investments/trades": {

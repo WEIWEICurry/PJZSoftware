@@ -1974,3 +1974,64 @@ input.recurring-check[type="checkbox"] {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+
+.investment-todos-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.investment-todos-heading h2 {
+  margin: 0;
+}
+.investment-todo-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.investment-todo-counts button {
+  display: grid;
+  text-align: left;
+  gap: 6px;
+  padding: 16px;
+}
+.investment-todo-counts strong {
+  font-size: 27px;
+  font-variant-numeric: tabular-nums;
+}
+.investment-todo-counts button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #eaf3ff;
+}
+.investment-todo-list {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.investment-todo-list > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.investment-todo-row small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.investment-todo-row button {
+  flex-shrink: 0;
+}
+@media (max-width: 800px) {
+  .investment-todo-counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 500px) {
+  .investment-todo-list > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

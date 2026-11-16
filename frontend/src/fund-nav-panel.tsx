@@ -14,12 +14,16 @@ type Result = {
 export function FundNavPanel({
   instruments,
   saved,
+  initialInstrumentId,
 }: {
   instruments: components["schemas"]["InstrumentOutput"][];
   saved: () => Promise<void>;
+  initialInstrumentId?: string;
 }) {
   const [enabled, setEnabled] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(
+    initialInstrumentId ? [initialInstrumentId] : [],
+  );
   const [start, setStart] = useState(localDay().slice(0, 7) + "-01");
   const [end, setEnd] = useState(localDay());
   const [results, setResults] = useState<Result[]>([]);
