@@ -1,6 +1,6 @@
 {
   "name": "pjz-frontend",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,7 @@
     "contract": "openapi-typescript ../contracts/openapi.json -o src/api-schema.d.ts"
   },
   "dependencies": {
-    "next": "16.4.3",
+    "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
@@ -23,7 +23,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "prettier": "3.9.10",
     "@playwright/test": "1.64.1",
     "openapi-typescript": "7.13.0"

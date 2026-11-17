@@ -3986,6 +3986,123 @@
         "title": "PriceOutput",
         "type": "object"
       },
+      "QuantityEstimateInput": {
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/QuantityEstimateRow"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "QuantityEstimateInput",
+        "type": "object"
+      },
+      "QuantityEstimateOutput": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "required": [
+          "id",
+          "quantity",
+          "price",
+          "code"
+        ],
+        "title": "QuantityEstimateOutput",
+        "type": "object"
+      },
+      "QuantityEstimateRow": {
+        "additionalProperties": false,
+        "properties": {
+          "amount_fen": {
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Amount Fen",
+            "type": "string"
+          },
+          "amount_mode": {
+            "default": "net",
+            "enum": [
+              "net",
+              "gross"
+            ],
+            "title": "Amount Mode",
+            "type": "string"
+          },
+          "costs_fen": {
+            "default": "0",
+            "pattern": "^-?(0|[1-9][0-9]{0,12})$",
+            "title": "Costs Fen",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "instrument_id": {
+            "format": "uuid",
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "nav_date": {
+            "format": "date",
+            "title": "Nav Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "instrument_id",
+          "nav_date",
+          "amount_fen"
+        ],
+        "title": "QuantityEstimateRow",
+        "type": "object"
+      },
       "RangeInput": {
         "additionalProperties": false,
         "properties": {
@@ -5483,7 +5600,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.25.0"
+    "version": "0.26.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7174,6 +7291,48 @@
           }
         },
         "summary": "Instrument"
+      }
+    },
+    "/api/v1/investments/quantity-estimates": {
+      "post": {
+        "operationId": "quantity_estimates_api_v1_investments_quantity_estimates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuantityEstimateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuantityEstimateOutput"
+                  },
+                  "title": "Response Quantity Estimates Api V1 Investments Quantity Estimates Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Quantity Estimates"
       }
     },
     "/api/v1/investments/receipt-batches": {

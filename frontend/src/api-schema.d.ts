@@ -500,6 +500,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/investments/quantity-estimates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quantity Estimates */
+        post: operations["quantity_estimates_api_v1_investments_quantity_estimates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/investments/receipt-batches": {
         parameters: {
             query?: never;
@@ -2423,6 +2440,50 @@ export interface components {
              */
             status: "active" | "void";
         };
+        /** QuantityEstimateInput */
+        QuantityEstimateInput: {
+            /** Rows */
+            rows: components["schemas"]["QuantityEstimateRow"][];
+        };
+        /** QuantityEstimateOutput */
+        QuantityEstimateOutput: {
+            /** Code */
+            code: string | null;
+            /** Id */
+            id: string;
+            /** Price */
+            price: string | null;
+            /** Quantity */
+            quantity: string | null;
+        };
+        /** QuantityEstimateRow */
+        QuantityEstimateRow: {
+            /** Amount Fen */
+            amount_fen: string;
+            /**
+             * Amount Mode
+             * @default net
+             * @enum {string}
+             */
+            amount_mode: "net" | "gross";
+            /**
+             * Costs Fen
+             * @default 0
+             */
+            costs_fen: string;
+            /** Id */
+            id: string;
+            /**
+             * Instrument Id
+             * Format: uuid
+             */
+            instrument_id: string;
+            /**
+             * Nav Date
+             * Format: date
+             */
+            nav_date: string;
+        };
         /** RangeInput */
         RangeInput: {
             /**
@@ -3966,6 +4027,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreatedOutput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quantity_estimates_api_v1_investments_quantity_estimates_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuantityEstimateInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuantityEstimateOutput"][];
                 };
             };
             /** @description Validation Error */

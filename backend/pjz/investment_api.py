@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from pjz.accounting import fetch_all
 from pjz.daily_api import (
     CreatedOutput,
     EventInput,
@@ -20,7 +21,7 @@ from pjz.daily_api import (
 )
 from pjz.domain import RuleError
 from pjz.holdings_reconciliation import reconcile
-from pjz.investment_domain import decimal_value
+from pjz.investment_domain import decimal_value, estimate_fund_quantity
 from pjz.investment_todos import InvestmentTodos, investment_todos
 from pjz.investments import Investments
 from pjz.receipt_ocr import (
@@ -288,6 +289,37 @@ class HoldingComparisonOutput(BaseModel):
     unprovided: list[UnprovidedHolding]
 
 
+class QuantityEstimateRow(StrictInput):
+    id: str = Field(min_length=1, max_length=80)
+    instrument_id: UUID
+    nav_date: date
+    amount_fen: Fen
+    costs_fen: Fen = "0"
+    amount_mode: Literal["net", "gross"] = "net"
+
+    @field_validator("nav_date")
+    @classmethod
+    def past(cls, value: date) -> date:
+        return EventInput.past_date(value)
+
+    @field_validator("amount_fen", "costs_fen")
+    @classmethod
+    def bounds(cls, value: str) -> str:
+        TradeInput.amount(value)
+        return value
+
+
+class QuantityEstimateInput(StrictInput):
+    rows: list[QuantityEstimateRow] = Field(min_length=1, max_length=100)
+
+
+class QuantityEstimateOutput(BaseModel):
+    id: str
+    quantity: str | None
+    price: str | None
+    code: str | None
+
+
 def investment_router(service: Investments) -> APIRouter:
     router = APIRouter(prefix="/api/v1/investments")
 
@@ -298,6 +330,32 @@ def investment_router(service: Investments) -> APIRouter:
     @router.get("/todos", response_model=InvestmentTodos)
     def todos() -> InvestmentTodos:
         return investment_todos(service)
+
+    @router.post("/quantity-estimates", response_model=list[QuantityEstimateOutput])
+    def quantity_estimates(payload: QuantityEstimateInput) -> object:
+        with service.accounting.engine.connect() as connection:
+            connection.exec_driver_sql("BEGIN")
+            output = []
+            for row in payload.rows:
+                prices = fetch_all(
+                    connection,
+                    "SELECT v.price FROM valuations v JOIN instruments i ON i.id=v.instrument_id "
+                    "WHERE i.id=:id AND i.kind='fund' AND v.price_date=:day AND v.status='active'",
+                    {"id": str(row.instrument_id), "day": row.nav_date.isoformat()},
+                )
+                price = prices[0]["price"] if prices else None
+                quantity, code = None, None
+                if price:
+                    try:
+                        quantity = estimate_fund_quantity(
+                            int(row.amount_fen), int(row.costs_fen), row.amount_mode, price
+                        )
+                    except RuleError as error:
+                        code = str(error)
+                else:
+                    code = "ESTIMATE_NAV_MISSING"
+                output.append({"id": row.id, "price": price, "quantity": quantity, "code": code})
+            return output
 
     @router.post("/receipt-preview", response_model=ReceiptPreview)
     def receipt_preview(file: Annotated[UploadFile, File()]) -> ReceiptPreview:

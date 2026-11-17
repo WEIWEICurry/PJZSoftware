@@ -178,3 +178,21 @@ class Position:
                 and (self.valuation_required_at is None or updated_at >= self.valuation_required_at)
             )
         )
+
+
+def estimate_fund_quantity(amount_fen: int, costs_fen: int, mode: str, nav: str) -> str:
+    if amount_fen <= 0 or costs_fen < 0 or amount_fen > MAX_FEN or costs_fen > MAX_FEN:
+        raise RuleError("INVALID_AMOUNT")
+    invested = amount_fen - costs_fen if mode == "net" else amount_fen
+    if invested <= 0:
+        raise RuleError("FEE_EXCEEDS_AMOUNT")
+    with localcontext() as context:
+        context.prec = 64
+        units = (Decimal(invested) / 100 / decimal_value(nav)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        if units <= 0:
+            raise RuleError("ESTIMATE_TOO_SMALL")
+        result = format(units, "f")
+        decimal_value(result)
+        return result
