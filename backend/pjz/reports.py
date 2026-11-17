@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import date
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import Connection
 
@@ -14,6 +14,9 @@ from pjz.accounting import Accounting, fetch_all
 from pjz.domain import RuleError
 from pjz.history_domain import covered, event_amount, event_direction
 from pjz.report_domain import aggregate, changes, report_range, trend_ranges
+
+EntrySortKey = Literal["date", "amount_fen", "counted_fen"]
+EntrySortOrder = Literal["asc", "desc"]
 
 
 class Reports:
@@ -113,6 +116,8 @@ class Reports:
         accounts: dict[str, Any],
         category_id: str | None,
         direction: str | None,
+        sort_by: EntrySortKey = "date",
+        sort_order: EntrySortOrder = "desc",
     ) -> list[dict[str, Any]]:
         left, right = start.isoformat(), end.isoformat()
         result = []
@@ -165,7 +170,15 @@ class Reports:
                     "status": "included" if included else "unallocated",
                 }
             )
-        return sorted(result, key=lambda row: (row["start"], row["id"]), reverse=True)
+        rows = sorted(result, key=lambda row: (row["start"], row["id"]), reverse=True)
+        if sort_by == "date":
+            return rows if sort_order == "desc" else list(reversed(rows))
+        # Preserve the default date/ID order for equal amounts, and keep unknowns last.
+        known = [row for row in rows if row[sort_by] is not None]
+        unknown = [row for row in rows if row[sort_by] is None]
+        return (
+            sorted(known, key=lambda row: int(row[sort_by]), reverse=sort_order == "desc") + unknown
+        )
 
     def entries(
         self,
@@ -175,6 +188,8 @@ class Reports:
         direction: str | None = None,
         offset: int = 0,
         limit: int = 20,
+        sort_by: EntrySortKey = "date",
+        sort_order: EntrySortOrder = "desc",
     ) -> dict[str, Any]:
         bounds = report_range(period, anchor, date.today())
         with self.accounting.engine.connect() as connection:
@@ -189,17 +204,31 @@ class Reports:
                 accounts,
                 category_id,
                 direction,
+                sort_by,
+                sort_order,
             )
         return {"items": rows[offset : offset + limit], "total": len(rows)}
 
     def export(
-        self, period: str, anchor: date, category_id: str | None, direction: str | None
+        self,
+        period: str,
+        anchor: date,
+        category_id: str | None,
+        direction: str | None,
+        sort_by: EntrySortKey = "date",
+        sort_order: EntrySortOrder = "desc",
     ) -> bytes:
         bounds = report_range(period, anchor, date.today())
         with self.accounting.engine.connect() as connection:
             connection.exec_driver_sql("BEGIN")
             rows = self.records(
-                bounds["start"], bounds["end"], *self.load(connection), category_id, direction
+                bounds["start"],
+                bounds["end"],
+                *self.load(connection),
+                category_id,
+                direction,
+                sort_by,
+                sort_order,
             )
         if len(rows) > 50000:
             raise RuleError("REPORT_EXPORT_TOO_LARGE")

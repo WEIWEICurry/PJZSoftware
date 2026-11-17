@@ -5600,7 +5600,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.26.0"
+    "version": "0.26.1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -8434,6 +8434,35 @@
               "title": "Limit",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": "date",
+              "enum": [
+                "date",
+                "amount_fen",
+                "counted_fen"
+              ],
+              "title": "Sort By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_order",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Sort Order",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -8525,6 +8554,35 @@
                 }
               ],
               "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "required": false,
+            "schema": {
+              "default": "date",
+              "enum": [
+                "date",
+                "amount_fen",
+                "counted_fen"
+              ],
+              "title": "Sort By",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort_order",
+            "required": false,
+            "schema": {
+              "default": "desc",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "title": "Sort Order",
+              "type": "string"
             }
           }
         ],
