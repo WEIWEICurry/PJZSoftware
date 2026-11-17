@@ -2,6 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { components } from "./api-schema";
+import {
+  quantityEstimateInput,
+  useFundQuantityEstimates,
+  estimateNote,
+} from "./fund-quantity-estimates";
 import { DateStepper } from "./date-stepper";
 import { ReceiptImport, type ReceiptPreview } from "./receipt-import";
 import { matchReceiptFund, matchReceiptPayment } from "./receipt-matching";
@@ -280,6 +285,29 @@ export function InvestmentsPage({
       setBusy(false);
     }
   }
+  const estimateEnabled =
+    showForm &&
+    form.action === "buy" &&
+    !editing &&
+    !receiptDraft &&
+    page?.instruments.find((i) => i.id === form.instrument_id)?.kind === "fund";
+  const estimateInput = estimateEnabled
+    ? quantityEstimateInput(
+        "manual",
+        form.instrument_id,
+        form.nav_date,
+        form.amount,
+        form.costs,
+        form.amount_mode,
+      )
+    : null;
+  const estimates = useFundQuantityEstimates(
+    estimateInput ? [estimateInput] : [],
+    page?.valuations,
+  );
+  const effectiveQuantity =
+    form.quantity ||
+    (estimateEnabled ? (estimates.results.manual?.quantity ?? "") : "");
   const enabled = available && !busy && page !== null;
   const instrumentName = (id: string) => {
     const item = page?.instruments.find((i) => i.id === id);
@@ -372,7 +400,7 @@ export function InvestmentsPage({
             ? form.nav_date
             : null,
           quantity:
-            form.action === "cash_dividend" ? "0" : form.quantity.trim(),
+            form.action === "cash_dividend" ? "0" : effectiveQuantity.trim(),
           amount_fen: ["opening", "split"].includes(form.action)
             ? "0"
             : yuanToFen(form.amount),
@@ -465,7 +493,7 @@ export function InvestmentsPage({
             trade.instrument_id === form.instrument_id &&
             trade.effective_date === form.effective_date &&
             canonicalQuantity(trade.quantity) ===
-              canonicalQuantity(form.quantity) &&
+              canonicalQuantity(effectiveQuantity) &&
             BigInt(trade.gross_fen) === gross &&
             BigInt(trade.costs_fen) === fee,
         )?.id ?? ""
@@ -547,19 +575,19 @@ export function InvestmentsPage({
     if (form.action === "opening")
       return "期初只建立持仓，不扣现金，不计收入。";
     if (form.action === "split")
-      return `确认份额 ${form.split_from_quantity || "—"} → ${form.quantity || "—"}，总成本不变，现金不变；保存后需更新折算后价格。`;
+      return `确认份额 ${form.split_from_quantity || "—"} → ${effectiveQuantity || "—"}，总成本不变，现金不变；保存后需更新折算后价格。`;
     try {
       const input = BigInt(yuanToFen(form.amount));
       const fee = BigInt(yuanToFen(form.costs.trim() || "0"));
       if (form.action === "cash_dividend")
         return `实际净到账 ${money(input.toString())}，份额与总成本不变，只计投资分红。`;
       if (form.action === "reinvest")
-        return `净分红 ${money(input.toString())} 再投，新增 ${form.quantity || "—"} 份；另扣现金费用 ${money(fee.toString())}，分红收益与成本同步记录。`;
+        return `净分红 ${money(input.toString())} 再投，新增 ${effectiveQuantity || "—"} 份；另扣现金费用 ${money(fee.toString())}，分红收益与成本同步记录。`;
       const net =
         form.amount_mode === "net"
           ? input
           : input + (form.action === "buy" ? fee : -fee);
-      return `本次${form.action === "buy" ? "扣款" : "到账"} ${money(net.toString())}，持仓${form.action === "buy" ? "增加" : "减少"} ${form.quantity || "—"} 份／股。`;
+      return `本次${form.action === "buy" ? "扣款" : "到账"} ${money(net.toString())}，持仓${form.action === "buy" ? "增加" : "减少"} ${effectiveQuantity || "—"} 份／股。`;
     } catch {
       return "填写金额和份额后可查看本次资金变化。";
     }
@@ -951,11 +979,33 @@ export function InvestmentsPage({
                           ? "新增份额（份）"
                           : "数量（份／股）"
                     }
-                    value={form.quantity}
+                    value={effectiveQuantity}
                     onChange={(e) =>
                       setForm({ ...form, quantity: e.target.value })
                     }
                   />
+                  {estimateEnabled && (
+                    <>
+                      <small>
+                        {form.quantity
+                          ? "已手工填写份额。"
+                          : estimateNote(
+                              estimates.results.manual,
+                              estimates.message,
+                            )}
+                      </small>
+                      {!!form.quantity && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={!enabled}
+                          onClick={() => setForm({ ...form, quantity: "" })}
+                        >
+                          按净值重算份额
+                        </button>
+                      )}
+                    </>
+                  )}
                   {form.action === "sell" && form.instrument_id && (
                     <small>
                       {editing

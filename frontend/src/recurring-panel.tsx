@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  quantityEstimateInput,
+  useFundQuantityEstimates,
+  estimateNote,
+} from "./fund-quantity-estimates";
 import { DateStepper } from "./date-stepper";
 import { useEffect, useState } from "react";
 import type { components } from "./api-schema";
@@ -112,21 +117,47 @@ export function RecurringPanel({
       setBusy(false);
     }
   }
-  function edit(d: Draft): Edit {
+  function baseEdit(d: Draft): Edit {
     return (
       edits[d.id] ?? {
         selected: false,
         decision: "confirm",
         confirmation_date: "",
-        nav_date: "",
+        nav_date: d.scheduled_date,
         quantity: "",
         amount: fenToYuan(d.amount_fen),
         costs: fenToYuan(d.costs_fen),
       }
     );
   }
+  const estimateRows = drafts.flatMap((d) => {
+    const e = baseEdit(d);
+    if (
+      d.status !== "pending" ||
+      e.decision === "skip" ||
+      plans.find((p) => p.id === selected)?.deleted
+    )
+      return [];
+    const row = quantityEstimateInput(
+      d.id,
+      plans.find((p) => p.id === selected)?.instrument_id ?? "",
+      e.nav_date,
+      e.amount,
+      e.costs,
+      "net",
+    );
+    return row ? [row] : [];
+  });
+  const estimates = useFundQuantityEstimates(estimateRows, valuations);
+  function edit(d: Draft): Edit {
+    const e = baseEdit(d);
+    return {
+      ...e,
+      quantity: e.quantity || estimates.results[d.id]?.quantity || "",
+    };
+  }
   function update(d: Draft, fields: Partial<Edit>) {
-    setEdits({ ...edits, [d.id]: { ...edit(d), ...fields } });
+    setEdits({ ...edits, [d.id]: { ...baseEdit(d), ...fields } });
     setReview(null);
   }
   function prepare() {
@@ -160,7 +191,7 @@ export function RecurringPanel({
         )
       )
         throw new Error(
-          "请按回执填写实际确认日期、成交净值所属日和份额，不能用计划日期或最新净值代替。",
+          "请核对实际确认日期、成交净值所属日和份额，缺少净值时可补价或手填份额。",
         );
       setReview({ rows, allow_possible_duplicate: allowDuplicate });
       setMessage("");
@@ -677,7 +708,7 @@ export function RecurringPanel({
       <p className="footnote">
         QDII
         的申请日、成交净值所属日、公布日和确认日可能不同。请按平台回执填写日期，不统一推算
-        T+2；仅匹配所填净值日，不用确认日或最新净值代替。价格仅供核对，实际份额和费用以回执为准，缺价可通过联网净值补齐。
+        T+2；仅匹配所填净值日，不用确认日或最新净值代替。净值日默认计划日，可按回执修改；按该日净值和扣款扣除费用预填两位小数份额，请核对，缺价可补齐或手填。
       </p>
       {loaded === key && (
         <>
@@ -700,7 +731,7 @@ export function RecurringPanel({
                   Object.fromEntries(
                     drafts.map((d) => [
                       d.id,
-                      { ...edit(d), selected: ids.has(d.id) },
+                      { ...baseEdit(d), selected: ids.has(d.id) },
                     ]),
                   ),
                 );
@@ -714,7 +745,10 @@ export function RecurringPanel({
               onClick={() =>
                 setEdits(
                   Object.fromEntries(
-                    drafts.map((d) => [d.id, { ...edit(d), selected: false }]),
+                    drafts.map((d) => [
+                      d.id,
+                      { ...baseEdit(d), selected: false },
+                    ]),
                   ),
                 )
               }
@@ -820,6 +854,26 @@ export function RecurringPanel({
                                 update(d, { quantity: v.target.value })
                               }
                             />
+                            <small>
+                              {baseEdit(d).quantity
+                                ? "已手工填写份额。"
+                                : estimateNote(
+                                    estimates.results[d.id],
+                                    estimates.message,
+                                  )}
+                            </small>
+                            {!!baseEdit(d).quantity && (
+                              <button
+                                type="button"
+                                className="secondary"
+                                disabled={
+                                  busy || !!review || e.decision === "skip"
+                                }
+                                onClick={() => update(d, { quantity: "" })}
+                              >
+                                按净值重算
+                              </button>
+                            )}
                           </td>
                           <td>
                             <input
