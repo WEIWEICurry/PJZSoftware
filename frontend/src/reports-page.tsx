@@ -11,6 +11,8 @@ import { fenToYuan, localDay, money } from "./money";
 type Report = components["schemas"]["ReportOutput"];
 type Entries = components["schemas"]["ReportEntryPage"];
 type Period = Report["period"];
+type EntryAmountKey = "amount_fen" | "counted_fen";
+type EntrySort = { key: EntryAmountKey; order: "asc" | "desc" };
 const labels: Record<Period, string> = {
   day: "日",
   week: "周",
@@ -46,6 +48,7 @@ export function ReportsPage({
   const [entryCategory, setEntryCategory] = useState("");
   const [entryDirection, setEntryDirection] = useState("");
   const [offset, setOffset] = useState(0);
+  const [entrySort, setEntrySort] = useState<EntrySort | null>(null);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -55,6 +58,7 @@ export function ReportsPage({
     anchor,
     entryCategory,
     entryDirection,
+    entrySort,
     offset,
     refresh,
   ]);
@@ -88,6 +92,10 @@ export function ReportsPage({
     });
     if (entryCategory) params.set("category_id", entryCategory);
     if (entryDirection) params.set("direction", entryDirection);
+    if (entrySort) {
+      params.set("sort_by", entrySort.key);
+      params.set("sort_order", entrySort.order);
+    }
     request<Entries>("/reports/entries?" + params)
       .then((result) => {
         if (!cancelled) setLoadedEntries({ key: entriesKey, data: result });
@@ -104,10 +112,19 @@ export function ReportsPage({
     anchor,
     entryCategory,
     entryDirection,
+    entrySort,
     offset,
     refresh,
     entriesKey,
   ]);
+  function toggleEntrySort(key: EntryAmountKey) {
+    setError("");
+    setEntrySort((current) => ({
+      key,
+      order: current?.key === key && current.order === "desc" ? "asc" : "desc",
+    }));
+    setOffset(0);
+  }
   function choosePeriod(next: Period) {
     setError("");
     setPeriod(next);
@@ -137,6 +154,10 @@ export function ReportsPage({
       const params = new URLSearchParams({ period, anchor });
       if (entryCategory) params.set("category_id", entryCategory);
       if (entryDirection) params.set("direction", entryDirection);
+      if (entrySort) {
+        params.set("sort_by", entrySort.key);
+        params.set("sort_order", entrySort.order);
+      }
       const blob = await (await raw("/reports/export?" + params)).blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -482,8 +503,42 @@ export function ReportsPage({
                     <th>原记录期间</th>
                     <th>分类／账户</th>
                     <th>来源／备注</th>
-                    <th className="amount-column">原金额</th>
-                    <th className="amount-column">计入金额</th>
+                    {(
+                      [
+                        ["amount_fen", "原金额"],
+                        ["counted_fen", "计入金额"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <th
+                        className="amount-column"
+                        key={key}
+                        scope="col"
+                        aria-sort={
+                          entrySort?.key === key
+                            ? entrySort.order === "desc"
+                              ? "descending"
+                              : "ascending"
+                            : "none"
+                        }
+                      >
+                        <button
+                          type="button"
+                          className="report-entry-sort"
+                          aria-label={label}
+                          title={`按${label}${entrySort?.key === key && entrySort.order === "desc" ? "从小到大" : "从大到小"}排序`}
+                          onClick={() => toggleEntrySort(key)}
+                        >
+                          {label}
+                          <span aria-hidden="true">
+                            {entrySort?.key === key
+                              ? entrySort.order === "desc"
+                                ? "↓"
+                                : "↑"
+                              : "↕"}
+                          </span>
+                        </button>
+                      </th>
+                    ))}
                     <th>状态</th>
                   </tr>
                 </thead>

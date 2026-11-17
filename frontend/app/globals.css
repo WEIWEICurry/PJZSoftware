@@ -1551,7 +1551,8 @@ summary:focus-visible {
     flex-shrink: 0;
   }
 }
-.investment-table .investment-sort {
+.investment-table .investment-sort,
+#report-records .report-entry-sort {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1562,6 +1563,9 @@ summary:focus-visible {
   white-space: nowrap;
 }
 .investment-table .investment-sort:hover,
+#report-records .report-entry-sort:hover,
+#report-records th[aria-sort="ascending"],
+#report-records th[aria-sort="descending"],
 .investment-table th[aria-sort="ascending"],
 .investment-table th[aria-sort="descending"] {
   color: var(--accent);

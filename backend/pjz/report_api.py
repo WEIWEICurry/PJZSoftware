@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from pjz.budgets import Budgets
 from pjz.daily_api import CreatedOutput, Fen, Key, StrictInput
 from pjz.domain import MAX_FEN
-from pjz.reports import Reports
+from pjz.reports import EntrySortKey, EntrySortOrder, Reports
 
 Period = Literal["day", "week", "month", "year"]
 Month = str
@@ -159,9 +159,18 @@ def report_router(reports: Reports, budgets: Budgets) -> APIRouter:
         direction: Literal["income", "expense"] | None = None,
         offset: int = Query(default=0, ge=0),
         limit: int = Query(default=20, ge=1, le=100),
+        sort_by: EntrySortKey = "date",
+        sort_order: EntrySortOrder = "desc",
     ) -> dict[str, Any]:
         return reports.entries(
-            period, anchor, str(category_id) if category_id else None, direction, offset, limit
+            period,
+            anchor,
+            str(category_id) if category_id else None,
+            direction,
+            offset,
+            limit,
+            sort_by,
+            sort_order,
         )
 
     @router.get("/reports/export")
@@ -170,9 +179,16 @@ def report_router(reports: Reports, budgets: Budgets) -> APIRouter:
         anchor: date,
         category_id: UUID | None = None,
         direction: Literal["income", "expense"] | None = None,
+        sort_by: EntrySortKey = "date",
+        sort_order: EntrySortOrder = "desc",
     ) -> Response:
         payload = reports.export(
-            period, anchor, str(category_id) if category_id else None, direction
+            period,
+            anchor,
+            str(category_id) if category_id else None,
+            direction,
+            sort_by,
+            sort_order,
         )
         return Response(
             payload,

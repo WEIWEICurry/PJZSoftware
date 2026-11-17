@@ -4751,6 +4751,8 @@ export interface operations {
                 direction?: ("income" | "expense") | null;
                 offset?: number;
                 limit?: number;
+                sort_by?: "date" | "amount_fen" | "counted_fen";
+                sort_order?: "asc" | "desc";
             };
             header?: never;
             path?: never;
@@ -4785,6 +4787,8 @@ export interface operations {
                 anchor: string;
                 category_id?: string | null;
                 direction?: ("income" | "expense") | null;
+                sort_by?: "date" | "amount_fen" | "counted_fen";
+                sort_order?: "asc" | "desc";
             };
             header?: never;
             path?: never;

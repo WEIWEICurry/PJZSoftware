@@ -362,3 +362,78 @@ def test_v4_upgrade_failure_rolls_back_budget_table(tmp_path, monkeypatch):
         assert Budgets(Accounting(store.engine)).get("2026-01")["items"] == []
     finally:
         store.close()
+
+
+@pytest.mark.parametrize("sort_by", ["amount_fen", "counted_fen"])
+def test_entry_amount_sort_before_pagination_filter_and_export(ledger, sort_by):
+    bank = account(ledger, "Synthetic sort account")
+    original = None
+    for value in range(100, 2400, 100):
+        original = event(ledger, bank, str(value), effective_date="2026-01-02")
+    event(ledger, bank, "700", effective_date="2026-01-03")
+    event(ledger, bank, "200", "refund", original_event_id=original["id"])
+    event(ledger, bank, "90000", "income")
+    event(ledger, bank, "88888", category_id=category(ledger, "其他支出"))
+    before = ledger[0].metadata()
+    params = {
+        "period": "month",
+        "anchor": "2026-01-10",
+        "direction": "expense",
+        "category_id": category(ledger, "餐饮"),
+        "sort_by": sort_by,
+        "sort_order": "asc",
+    }
+
+    def entries(**extra):
+        response = ledger[1].get("/api/v1/reports/entries", params={**params, **extra})
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    first = entries()
+    second = entries(offset=20)
+    rows = first["items"] + second["items"]
+    assert first["total"] == second["total"] == 25
+    assert len(first["items"]) == 20 and len(second["items"]) == 5
+    expected = [-200, *range(100, 800, 100), 700, *range(800, 2400, 100)]
+    assert [int(row[sort_by]) for row in rows] == expected
+    assert rows[7]["start"] == "2026-01-03"  # Same amount keeps default date order.
+    descending = entries(sort_order="desc", limit=100)["items"]
+    assert [int(row[sort_by]) for row in descending] == list(reversed(expected))
+    assert [r["id"] for r in rows if r[sort_by] == "700"] == [
+        r["id"] for r in descending if r[sort_by] == "700"
+    ]
+    for order, expected_rows in [("asc", rows), ("desc", descending)]:
+        response = ledger[1].get("/api/v1/reports/export", params={**params, "sort_order": order})
+        assert response.status_code == 200
+        exported = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+        assert [row["记录ID"] for row in exported] == [row["id"] for row in expected_rows]
+    assert ledger[0].metadata() == before
+
+
+def test_counted_sort_keeps_unknown_last_and_validates_parameters(ledger):
+    seeded_details(ledger)
+    assert commit(ledger, preview(ledger, source()).json()).status_code == 200
+    params = {"period": "day", "anchor": "2026-01-10", "sort_by": "counted_fen"}
+    for order, expected in [
+        ("asc", ["0", "700", "50000", None]),
+        ("desc", ["50000", "700", "0", None]),
+    ]:
+        response = ledger[1].get("/api/v1/reports/entries", params={**params, "sort_order": order})
+        assert response.status_code == 200
+        assert [row["counted_fen"] for row in response.json()["items"]] == expected
+        exported = ledger[1].get("/api/v1/reports/export", params={**params, "sort_order": order})
+        rows = list(csv.DictReader(io.StringIO(exported.content.decode("utf-8-sig"))))
+        assert rows[-1]["计入金额（元）"] == ""
+    original = ledger[1].get("/api/v1/reports/entries", params={**params, "sort_by": "amount_fen"})
+    assert [row["amount_fen"] for row in original.json()["items"]] == [
+        "50000",
+        "15000",
+        "10000",
+        "700",
+    ]
+    for route in ["entries", "export"]:
+        for invalid in [{"sort_by": "note"}, {"sort_order": "sideways"}]:
+            assert (
+                ledger[1].get(f"/api/v1/reports/{route}", params={**params, **invalid}).status_code
+                == 422
+            )
