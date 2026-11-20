@@ -3076,6 +3076,17 @@
             "title": "Amount Fen",
             "type": "string"
           },
+          "cash_delta_fen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Delta Fen"
+          },
           "category_id": {
             "anyOf": [
               {
@@ -3103,6 +3114,50 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "instrument_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Code"
+          },
+          "instrument_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Name"
+          },
+          "investment_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Action"
+          },
+          "investment_cash_account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Investment Cash Account Id"
           },
           "kind": {
             "title": "Kind",
@@ -5600,7 +5655,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.26.2"
+    "version": "0.26.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6270,7 +6325,8 @@
                     "expense",
                     "refund",
                     "transfer",
-                    "adjustment"
+                    "adjustment",
+                    "investment"
                   ],
                   "type": "string"
                 },
@@ -6319,6 +6375,16 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_investments",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Investments",
+              "type": "boolean"
             }
           }
         ],

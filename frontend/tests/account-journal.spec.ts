@@ -134,3 +134,98 @@ test("账户流水链接支持全部日期、刷新、分页、筛选和归档�
     .selectOption("");
   await expect.poll(() => latest.has("account_id")).toBe(false);
 });
+
+test("账户流水包含投资真实扣款到账，投资行只读且可关闭", async ({ page }) => {
+  await page.route("**/api/v1/session", (r) =>
+    r.fulfill({ json: { csrf_token: "synthetic" } }),
+  );
+  await page.route("**/api/v1/ledger", (r) =>
+    r.fulfill({ json: { name: "Synthetic", revision: 1 } }),
+  );
+  await page.route("**/api/v1/accounts", (r) =>
+    r.fulfill({
+      json: [
+        {
+          id: "bank",
+          name: "合成扣款卡",
+          kind: "bank",
+          balance_fen: "10000",
+          opening_date: "2026-01-01",
+          archived: false,
+          revision: 1,
+        },
+        {
+          id: "platform",
+          name: "合成持仓平台",
+          kind: "payment",
+          balance_fen: "0",
+          opening_date: "2026-01-01",
+          archived: false,
+          revision: 1,
+        },
+      ],
+    }),
+  );
+  await page.route("**/api/v1/categories", (r) => r.fulfill({ json: [] }));
+  let latest = new URLSearchParams();
+  await page.route("**/api/v1/events?*", (r) => {
+    latest = new URL(r.request().url()).searchParams;
+    const items =
+      latest.get("include_investments") === "true"
+        ? ["buy", "sell", "void"].map((action, i) => ({
+            id: `investment${i}`,
+            kind: "investment",
+            account_id: "platform",
+            target_account_id: null,
+            investment_cash_account_id: "bank",
+            instrument_name: "合成基金",
+            instrument_code: "000001",
+            investment_action: action === "void" ? "buy" : action,
+            cash_delta_fen: ["-10100", "4950", null][i],
+            effective_date: "2026-01-10",
+            category_id: null,
+            original_event_id: null,
+            amount_fen: "0",
+            fee_fen: "0",
+            note: "",
+            status: action === "void" ? "void" : "active",
+            revision: 1,
+            covered_by_history: false,
+          }))
+        : [];
+    return r.fulfill({ json: { items, total: items.length } });
+  });
+  await page.goto("/journal/?account_id=bank");
+  const toggle = page.getByRole("checkbox", {
+    name: "包含投资资金流水",
+    exact: true,
+  });
+  await expect(toggle).toBeChecked();
+  const rows = page.locator(".journal-panel tbody tr");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText("投资买入扣款");
+  await expect(rows.nth(0)).toContainText("¥-101.00");
+  await expect(rows.nth(0)).toContainText("合成扣款卡");
+  await expect(rows.nth(0)).toContainText("持仓账户：合成持仓平台");
+  await expect(rows.nth(0)).toContainText("合成基金");
+  await expect(rows.nth(1)).toContainText("+¥49.50");
+  await expect(rows.nth(2)).toContainText("已作废，未影响余额");
+  await expect(rows.getByRole("button")).toHaveCount(0);
+  await expect(rows.getByRole("link", { name: "投资管理" })).toHaveCount(3);
+  await expect(
+    page
+      .getByRole("combobox", { name: "类型", exact: true })
+      .locator('option[value="investment"]'),
+  ).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "类型筛选", exact: true })
+    .selectOption("investment");
+  await expect.poll(() => latest.get("kind")).toBe("investment");
+  await toggle.uncheck();
+  await expect(rows).toHaveCount(0);
+  expect(latest.has("include_investments")).toBe(false);
+  expect(latest.has("kind")).toBe(false);
+  await expect(
+    page.getByRole("combobox", { name: "类型筛选", exact: true }),
+  ).toHaveValue("");
+});
