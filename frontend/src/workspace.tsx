@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { StartupScreen } from "./startup-screen";
 import { AppIcon } from "./app-icon";
 import { LaunchPanel, type RuntimeInfo } from "./launch-panel";
@@ -48,6 +48,7 @@ export default function Workspace() {
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
   const [backupUnavailable, setBackupUnavailable] = useState(false);
   const pathname = usePathname();
+  const accountId = useSearchParams().get("account_id") ?? "";
   const router = useRouter();
   const tab =
     (Object.keys(routes) as Tab[]).find((key) => routes[key] === pathname) ??
@@ -351,7 +352,8 @@ export default function Workspace() {
           )}
           {(tab === "accounts" || tab === "journal") && (
             <DailyWorkspace
-              key={tab}
+              key={`${tab}:${accountId}`}
+              initialAccountId={tab === "journal" ? accountId : ""}
               mode={tab}
               available={available}
               changed={() => {
