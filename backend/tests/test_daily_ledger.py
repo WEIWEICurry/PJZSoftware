@@ -368,3 +368,27 @@ def test_future_before_opening_and_negative_fee_rejected(ledger):
         ).status_code
         == 422
     )
+
+
+def test_account_journal_all_dates_includes_both_transfer_sides(ledger):
+    bank = account(ledger, "Synthetic source")
+    cash = account(ledger, "Synthetic target", "0", "cash")
+    other = account(ledger, "Synthetic unrelated")
+    outgoing = event(ledger, bank, "1000", "transfer", target_account_id=cash)
+    incoming = event(
+        ledger, cash, "100", "transfer", target_account_id=bank, effective_date="2026-02-01"
+    )
+    unrelated = event(ledger, other, "200")
+    for selected in [bank, cash]:
+        response = ledger[1].get(
+            "/api/v1/events",
+            params={
+                "start": "0001-01-01",
+                "end": "2026-02-28",
+                "account_id": selected,
+            },
+        )
+        assert response.status_code == 200
+        ids = {row["id"] for row in response.json()["items"]}
+        assert outgoing["id"] in ids and incoming["id"] in ids
+        assert unrelated["id"] not in ids

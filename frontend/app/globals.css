@@ -2039,3 +2039,34 @@ input.recurring-check[type="checkbox"] {
     flex-direction: column;
   }
 }
+
+.account-journal-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 6px;
+}
+.account-journal-link:hover h2,
+.account-journal-link:focus-visible h2 {
+  color: var(--accent);
+}
+.account-journal-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.account-journal-hint {
+  display: block;
+  color: var(--accent);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.journal-date-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+.journal-date-toggle input {
+  width: auto;
+}

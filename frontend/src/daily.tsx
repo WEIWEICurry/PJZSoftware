@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
 import { LoanForm, isLoanAccount, type LoanAction } from "./loan-form";
@@ -123,10 +124,12 @@ export function DailyOverview({
 }
 
 export function DailyWorkspace({
+  initialAccountId = "",
   mode,
   available,
   changed,
 }: {
+  initialAccountId?: string;
   mode: "accounts" | "journal";
   available: boolean;
   changed: () => void;
@@ -150,7 +153,8 @@ export function DailyWorkspace({
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState<EventPage>({ items: [], total: 0 });
   const [month, setMonth] = useState(localDay().slice(0, 7));
-  const [filterAccount, setFilterAccount] = useState("");
+  const [filterAccount, setFilterAccount] = useState(initialAccountId);
+  const [allDates, setAllDates] = useState(!!initialAccountId);
   const [filterKind, setFilterKind] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [offset, setOffset] = useState(0);
@@ -183,11 +187,11 @@ export function DailyWorkspace({
   }
   async function refreshEvents() {
     const [year, number] = month.split("-").map(Number);
-    if (!year || !number) return;
+    if (!allDates && (!year || !number)) return;
     const last = new Date(year, number, 0).getDate();
     const query = new URLSearchParams({
-      start: month + "-01",
-      end: month + "-" + last,
+      start: allDates ? "0001-01-01" : month + "-01",
+      end: allDates ? localDay() : month + "-" + last,
       limit: "20",
       offset: String(offset),
     });
@@ -211,20 +215,38 @@ export function DailyWorkspace({
   useEffect(() => {
     if (!available) return;
     const [year, number] = month.split("-").map(Number);
-    if (!year || !number) return;
+    if (!allDates && (!year || !number)) return;
     const query = new URLSearchParams({
-      start: month + "-01",
-      end: month + "-" + new Date(year, number, 0).getDate(),
+      start: allDates ? "0001-01-01" : month + "-01",
+      end: allDates
+        ? localDay()
+        : month + "-" + new Date(year, number, 0).getDate(),
       limit: "20",
       offset: String(offset),
     });
     if (filterAccount) query.set("account_id", filterAccount);
     if (filterKind) query.set("kind", filterKind);
     if (filterCategory) query.set("category_id", filterCategory);
+    let cancelled = false;
     request<EventPage>("/events?" + query)
-      .then(setPage)
-      .catch((e: Error) => setError(e.message));
-  }, [available, month, filterAccount, filterKind, filterCategory, offset]);
+      .then((result) => {
+        if (!cancelled) setPage(result);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    available,
+    month,
+    allDates,
+    filterAccount,
+    filterKind,
+    filterCategory,
+    offset,
+  ]);
   async function act(operation: () => Promise<void>) {
     setBusy(true);
     setError("");
@@ -488,8 +510,15 @@ export function DailyWorkspace({
         <span className="section-label">
           {accountKinds[item.kind]} {item.archived ? "· 已归档" : ""}
         </span>
-        <h2>{item.name}</h2>
-        <strong>{money(item.balance_fen)}</strong>
+        <Link
+          className="account-journal-link"
+          href={`/journal/?${new URLSearchParams({ account_id: item.id })}`}
+          aria-label={`查看${item.name}的流水`}
+        >
+          <h2>{item.name}</h2>
+          <strong>{money(item.balance_fen)}</strong>
+          <span className="account-journal-hint">查看流水 →</span>
+        </Link>
         <p>
           {item.kind === "liability"
             ? "当前欠款"
@@ -1006,11 +1035,26 @@ export function DailyWorkspace({
                 </div>
                 <span className="muted-label">共 {page.total} 条</span>
               </div>
+              <p className="footnote">
+                显示账户转入、转出等日常流水；投资交易请到投资记录查看。
+              </p>
+              <label className="journal-date-toggle">
+                <input
+                  type="checkbox"
+                  checked={allDates}
+                  onChange={(e) => {
+                    setAllDates(e.target.checked);
+                    setOffset(0);
+                  }}
+                />
+                全部日期
+              </label>
               <div className="filters">
                 <label>
                   月份
                   <input
                     type="month"
+                    disabled={allDates}
                     value={month}
                     onChange={(e) => {
                       setMonth(e.target.value);
