@@ -573,34 +573,55 @@ class Accounting:
         category_id: str | None = None,
         limit: int = 20,
         offset: int = 0,
+        include_investments: bool = False,
     ) -> dict[str, Any]:
-        where = "kind<>'investment' AND effective_date>=:start AND effective_date<=:end"
+        investment_filter = (
+            "(f.kind<>'investment' OR i.action IN ('buy','sell','cash_dividend') "
+            "OR (i.action='reinvest' AND i.costs_fen>0))"
+            if include_investments
+            else "f.kind<>'investment'"
+        )
+        where = investment_filter + " AND f.effective_date>=:start AND f.effective_date<=:end"
         params: dict[str, Any] = {"start": start, "end": end, "limit": limit, "offset": offset}
         if account_id:
-            where += " AND (account_id=:account OR target_account_id=:account)"
+            where += (
+                " AND ((f.kind<>'investment' AND "
+                "(f.account_id=:account OR f.target_account_id=:account)) OR "
+                "(f.kind='investment' AND COALESCE(i.cash_account_id,f.account_id)=:account))"
+            )
             params["account"] = account_id
         if kind:
-            where += " AND kind=:kind"
+            where += " AND f.kind=:kind"
             params["kind"] = kind
         if category_id:
-            where += " AND category_id=:category"
+            where += " AND f.category_id=:category"
             params["category"] = category_id
+        joins = (
+            " FROM financial_events f LEFT JOIN investment_events i ON i.event_id=f.id "
+            "LEFT JOIN instruments n ON n.id=i.instrument_id WHERE "
+        )
         with self.engine.connect() as connection:
             connection.exec_driver_sql("BEGIN")
-            total = connection.execute(
-                text("SELECT COUNT(*) FROM financial_events WHERE " + where), params
-            ).scalar_one()
+            total = connection.execute(text("SELECT COUNT(*)" + joins + where), params).scalar_one()
             rows = fetch_all(
                 connection,
-                "SELECT * FROM financial_events WHERE "
+                "SELECT f.*,i.action AS investment_action,"
+                "COALESCE(i.cash_account_id,f.account_id) AS investment_cash_account_id,"
+                "n.name AS instrument_name,n.code AS instrument_code,"
+                "(SELECT SUM(c.delta_fen) FROM cash_entries c "
+                "WHERE c.event_id=f.id) AS cash_delta_fen"
+                + joins
                 + where
-                + " ORDER BY effective_date DESC,sequence DESC LIMIT :limit OFFSET :offset",
+                + " ORDER BY f.effective_date DESC,f.sequence DESC LIMIT :limit OFFSET :offset",
                 params,
             )
             history = self.history_rows(connection)
             items = [
                 {
                     **self.serialize_event(row),
+                    "cash_delta_fen": str(row["cash_delta_fen"])
+                    if row["kind"] == "investment" and row["cash_delta_fen"] is not None
+                    else None,
                     "covered_by_history": row["status"] == "active" and covered(row, history),
                 }
                 for row in rows

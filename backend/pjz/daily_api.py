@@ -163,6 +163,11 @@ class EventOutput(BaseModel):
 
 class JournalEventOutput(EventOutput):
     covered_by_history: bool = False
+    investment_action: str | None = None
+    investment_cash_account_id: str | None = None
+    instrument_name: str | None = None
+    instrument_code: str | None = None
+    cash_delta_fen: str | None = None
 
 
 class EventPage(BaseModel):
@@ -281,11 +286,14 @@ def router(service: Accounting, deletion: AccountDeletion) -> APIRouter:
         start: date,
         end: date,
         account_id: UUID | None = None,
-        kind: Literal["opening", "income", "expense", "refund", "transfer", "adjustment"]
+        kind: Literal[
+            "opening", "income", "expense", "refund", "transfer", "adjustment", "investment"
+        ]
         | None = None,
         category_id: UUID | None = None,
         limit: int = Query(default=20, ge=1, le=100),
         offset: int = Query(default=0, ge=0),
+        include_investments: bool = False,
     ) -> dict[str, Any]:
         if start > end:
             raise RuleError("INVALID_PERIOD")
@@ -297,6 +305,7 @@ def router(service: Accounting, deletion: AccountDeletion) -> APIRouter:
             str(category_id) if category_id else None,
             limit,
             offset,
+            include_investments,
         )
 
     @result.get("/summary", response_model=SummaryOutput)

@@ -2043,6 +2043,8 @@ export interface components {
             account_id: string;
             /** Amount Fen */
             amount_fen: string;
+            /** Cash Delta Fen */
+            cash_delta_fen?: string | null;
             /** Category Id */
             category_id: string | null;
             /**
@@ -2056,6 +2058,14 @@ export interface components {
             fee_fen: string;
             /** Id */
             id: string;
+            /** Instrument Code */
+            instrument_code?: string | null;
+            /** Instrument Name */
+            instrument_name?: string | null;
+            /** Investment Action */
+            investment_action?: string | null;
+            /** Investment Cash Account Id */
+            investment_cash_account_id?: string | null;
             /** Kind */
             kind: string;
             /** Note */
@@ -3483,10 +3493,11 @@ export interface operations {
                 start: string;
                 end: string;
                 account_id?: string | null;
-                kind?: ("opening" | "income" | "expense" | "refund" | "transfer" | "adjustment") | null;
+                kind?: ("opening" | "income" | "expense" | "refund" | "transfer" | "adjustment" | "investment") | null;
                 category_id?: string | null;
                 limit?: number;
                 offset?: number;
+                include_investments?: boolean;
             };
             header?: never;
             path?: never;

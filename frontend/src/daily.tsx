@@ -33,6 +33,13 @@ const eventKinds: Record<string, string> = {
   transfer: "转账",
   refund: "退款",
   adjustment: "余额校正",
+  investment: "投资资金",
+};
+const investmentActions: Record<string, string> = {
+  buy: "投资买入扣款",
+  sell: "投资卖出到账",
+  cash_dividend: "现金分红到账",
+  reinvest: "再投费用扣款",
 };
 const blankEvent = (): EventInput => ({
   kind: "expense",
@@ -155,6 +162,8 @@ export function DailyWorkspace({
   const [month, setMonth] = useState(localDay().slice(0, 7));
   const [filterAccount, setFilterAccount] = useState(initialAccountId);
   const [allDates, setAllDates] = useState(!!initialAccountId);
+  const [includeInvestments, setIncludeInvestments] =
+    useState(!!initialAccountId);
   const [filterKind, setFilterKind] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [offset, setOffset] = useState(0);
@@ -195,6 +204,7 @@ export function DailyWorkspace({
       limit: "20",
       offset: String(offset),
     });
+    if (includeInvestments) query.set("include_investments", "true");
     if (filterAccount) query.set("account_id", filterAccount);
     if (filterKind) query.set("kind", filterKind);
     if (filterCategory) query.set("category_id", filterCategory);
@@ -224,6 +234,7 @@ export function DailyWorkspace({
       limit: "20",
       offset: String(offset),
     });
+    if (includeInvestments) query.set("include_investments", "true");
     if (filterAccount) query.set("account_id", filterAccount);
     if (filterKind) query.set("kind", filterKind);
     if (filterCategory) query.set("category_id", filterCategory);
@@ -242,6 +253,7 @@ export function DailyWorkspace({
     available,
     month,
     allDates,
+    includeInvestments,
     filterAccount,
     filterKind,
     filterCategory,
@@ -456,7 +468,7 @@ export function DailyWorkspace({
       >
         <option value="loan">借还款</option>
         {Object.entries(eventKinds)
-          .filter(([id]) => id !== "opening")
+          .filter(([id]) => id !== "opening" && id !== "investment")
           .map(([id, name]) => (
             <option key={id} value={id}>
               {name}
@@ -1036,7 +1048,7 @@ export function DailyWorkspace({
                 <span className="muted-label">共 {page.total} 条</span>
               </div>
               <p className="footnote">
-                显示账户转入、转出等日常流水；投资交易请到投资记录查看。
+                显示账户资金往来；投资资金不计入日常收支。投资记录请到投资管理修改。
               </p>
               <label className="journal-date-toggle">
                 <input
@@ -1048,6 +1060,19 @@ export function DailyWorkspace({
                   }}
                 />
                 全部日期
+              </label>
+              <label className="journal-date-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeInvestments}
+                  onChange={(e) => {
+                    setIncludeInvestments(e.target.checked);
+                    if (!e.target.checked && filterKind === "investment")
+                      setFilterKind("");
+                    setOffset(0);
+                  }}
+                />
+                包含投资资金流水
               </label>
               <div className="filters">
                 <label>
@@ -1089,11 +1114,15 @@ export function DailyWorkspace({
                     }}
                   >
                     <option value="">全部类型</option>
-                    {Object.entries(eventKinds).map(([id, label]) => (
-                      <option value={id} key={id}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(eventKinds)
+                      .filter(
+                        ([id]) => id !== "investment" || includeInvestments,
+                      )
+                      .map(([id, label]) => (
+                        <option value={id} key={id}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
                 </label>
                 <label>
@@ -1184,7 +1213,11 @@ export function DailyWorkspace({
                                           ? "我借出"
                                           : "转账";
                                 })()
-                              : eventKinds[row.kind]}{" "}
+                              : row.kind === "investment"
+                                ? (investmentActions[
+                                    row.investment_action ?? ""
+                                  ] ?? "投资资金")
+                                : eventKinds[row.kind]}{" "}
                             {row.status === "void" ? "· 已作废" : ""}
                             {row.covered_by_history
                               ? " · 历史汇总已覆盖统计"
@@ -1192,21 +1225,56 @@ export function DailyWorkspace({
                           </small>
                         </td>
                         <td>
-                          {accountLabel(row.account_id)}
+                          {row.kind === "investment" ? (
+                            <>
+                              {accountLabel(
+                                row.investment_cash_account_id ??
+                                  row.account_id,
+                              )}
+                              <small>
+                                {row.instrument_name} · {row.instrument_code}
+                              </small>
+                              <small>
+                                持仓账户：{accountLabel(row.account_id)}
+                              </small>
+                            </>
+                          ) : (
+                            accountLabel(row.account_id)
+                          )}
                           {row.target_account_id
                             ? " → " + accountLabel(row.target_account_id)
                             : ""}
-                          <small>{categoryLabel(row.category_id)}</small>
+                          {row.kind !== "investment" && (
+                            <small>{categoryLabel(row.category_id)}</small>
+                          )}
                         </td>
                         <td className="note-cell">{row.note || "—"}</td>
                         <td className="amount-column">
-                          {money(row.amount_fen)}
+                          {row.kind === "investment" ? (
+                            <>
+                              {row.cash_delta_fen == null
+                                ? "—"
+                                : (BigInt(row.cash_delta_fen) > 0n ? "+" : "") +
+                                  money(row.cash_delta_fen)}
+                              <small>
+                                {row.status === "void"
+                                  ? "已作废，未影响余额"
+                                  : "实际资金变化（已含费用）"}
+                              </small>
+                            </>
+                          ) : (
+                            money(row.amount_fen)
+                          )}
                           {row.fee_fen !== "0" && (
                             <small>手续费 {money(row.fee_fen)}</small>
                           )}
                         </td>
                         <td>
+                          {row.kind === "investment" && (
+                            <Link href="/investments/">投资管理</Link>
+                          )}
                           {row.kind !== "opening" &&
+                            row.kind !== "investment" &&
                             row.status === "active" && (
                               <div className="row-actions">
                                 <button
