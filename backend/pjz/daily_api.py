@@ -161,7 +161,16 @@ class EventOutput(BaseModel):
     revision: int
 
 
+class JournalCashEffect(BaseModel):
+    account_id: str
+    account_name: str
+    account_kind: AccountKind
+    delta_fen: str
+    balance_fen: str
+
+
 class JournalEventOutput(EventOutput):
+    cash_effects: list[JournalCashEffect] = Field(default_factory=list)
     covered_by_history: bool = False
     investment_action: str | None = None
     investment_cash_account_id: str | None = None

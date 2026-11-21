@@ -2037,6 +2037,22 @@ export interface components {
             /** Revision */
             revision: number;
         };
+        /** JournalCashEffect */
+        JournalCashEffect: {
+            /** Account Id */
+            account_id: string;
+            /**
+             * Account Kind
+             * @enum {string}
+             */
+            account_kind: "cash" | "bank" | "payment" | "securities" | "liability" | "receivable";
+            /** Account Name */
+            account_name: string;
+            /** Balance Fen */
+            balance_fen: string;
+            /** Delta Fen */
+            delta_fen: string;
+        };
         /** JournalEventOutput */
         JournalEventOutput: {
             /** Account Id */
@@ -2045,6 +2061,8 @@ export interface components {
             amount_fen: string;
             /** Cash Delta Fen */
             cash_delta_fen?: string | null;
+            /** Cash Effects */
+            cash_effects?: components["schemas"]["JournalCashEffect"][];
             /** Category Id */
             category_id: string | null;
             /**

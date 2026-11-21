@@ -3066,6 +3066,47 @@
         "title": "InvestmentTodos",
         "type": "object"
       },
+      "JournalCashEffect": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "account_kind": {
+            "enum": [
+              "cash",
+              "bank",
+              "payment",
+              "securities",
+              "liability",
+              "receivable"
+            ],
+            "title": "Account Kind",
+            "type": "string"
+          },
+          "account_name": {
+            "title": "Account Name",
+            "type": "string"
+          },
+          "balance_fen": {
+            "title": "Balance Fen",
+            "type": "string"
+          },
+          "delta_fen": {
+            "title": "Delta Fen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "account_name",
+          "account_kind",
+          "delta_fen",
+          "balance_fen"
+        ],
+        "title": "JournalCashEffect",
+        "type": "object"
+      },
       "JournalEventOutput": {
         "properties": {
           "account_id": {
@@ -3086,6 +3127,13 @@
               }
             ],
             "title": "Cash Delta Fen"
+          },
+          "cash_effects": {
+            "items": {
+              "$ref": "#/components/schemas/JournalCashEffect"
+            },
+            "title": "Cash Effects",
+            "type": "array"
           },
           "category_id": {
             "anyOf": [
@@ -5655,7 +5703,7 @@
   },
   "info": {
     "title": "PJZSoftware",
-    "version": "0.26.3"
+    "version": "0.26.4"
   },
   "openapi": "3.1.0",
   "paths": {

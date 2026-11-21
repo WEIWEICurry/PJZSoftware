@@ -204,7 +204,7 @@ test("账户流水包含投资真实扣款到账，投资行只读且可关闭",
   const rows = page.locator(".journal-panel tbody tr");
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(0)).toContainText("投资买入扣款");
-  await expect(rows.nth(0)).toContainText("¥-101.00");
+  await expect(rows.nth(0)).toContainText("-¥101.00");
   await expect(rows.nth(0)).toContainText("合成扣款卡");
   await expect(rows.nth(0)).toContainText("持仓账户：合成持仓平台");
   await expect(rows.nth(0)).toContainText("合成基金");
