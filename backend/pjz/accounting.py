@@ -615,10 +615,43 @@ class Accounting:
                 + " ORDER BY f.effective_date DESC,f.sequence DESC LIMIT :limit OFFSET :offset",
                 params,
             )
+            effects: dict[str, list[dict[str, str]]] = {}
+            if rows:
+                # Filter after the window so hidden months, types and pages still affect balances.
+                effect_params = {f"event_{index}": row["id"] for index, row in enumerate(rows)}
+                placeholders = ",".join(":" + key for key in effect_params)
+                effect_where = "event_id IN (" + placeholders + ")"
+                if account_id:
+                    effect_where += " AND account_id=:selected_account"
+                    effect_params["selected_account"] = account_id
+                for effect in fetch_all(
+                    connection,
+                    "WITH timeline AS (SELECT c.event_id,c.account_id,c.delta_fen,"
+                    "a.name AS account_name,a.kind AS account_kind,"
+                    "SUM(c.delta_fen) OVER (PARTITION BY c.account_id "
+                    "ORDER BY f.effective_date,f.sequence ROWS UNBOUNDED PRECEDING) AS balance_fen "
+                    "FROM cash_entries c JOIN financial_events f ON f.id=c.event_id "
+                    "JOIN accounts a ON a.id=c.account_id WHERE f.status='active') "
+                    "SELECT * FROM timeline WHERE " + effect_where + " ORDER BY account_id",
+                    effect_params,
+                ):
+                    effects.setdefault(effect["event_id"], []).append(
+                        {
+                            key: str(effect[key])
+                            for key in (
+                                "account_id",
+                                "account_name",
+                                "account_kind",
+                                "delta_fen",
+                                "balance_fen",
+                            )
+                        }
+                    )
             history = self.history_rows(connection)
             items = [
                 {
                     **self.serialize_event(row),
+                    "cash_effects": effects.get(row["id"], []),
                     "cash_delta_fen": str(row["cash_delta_fen"])
                     if row["kind"] == "investment" and row["cash_delta_fen"] is not None
                     else None,

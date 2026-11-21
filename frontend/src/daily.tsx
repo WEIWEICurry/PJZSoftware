@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { JournalAmount } from "./journal-amount";
 import { useEffect, useState, type FormEvent } from "react";
 import { request } from "./api";
 import { LoanForm, isLoanAccount, type LoanAction } from "./loan-form";
@@ -1250,24 +1251,7 @@ export function DailyWorkspace({
                         </td>
                         <td className="note-cell">{row.note || "—"}</td>
                         <td className="amount-column">
-                          {row.kind === "investment" ? (
-                            <>
-                              {row.cash_delta_fen == null
-                                ? "—"
-                                : (BigInt(row.cash_delta_fen) > 0n ? "+" : "") +
-                                  money(row.cash_delta_fen)}
-                              <small>
-                                {row.status === "void"
-                                  ? "已作废，未影响余额"
-                                  : "实际资金变化（已含费用）"}
-                              </small>
-                            </>
-                          ) : (
-                            money(row.amount_fen)
-                          )}
-                          {row.fee_fen !== "0" && (
-                            <small>手续费 {money(row.fee_fen)}</small>
-                          )}
+                          <JournalAmount row={row} />
                         </td>
                         <td>
                           {row.kind === "investment" && (

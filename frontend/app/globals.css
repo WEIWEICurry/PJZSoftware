@@ -2070,3 +2070,21 @@ input.recurring-check[type="checkbox"] {
 .journal-date-toggle input {
   width: auto;
 }
+
+.journal-cash-effect + .journal-cash-effect {
+  margin-top: 10px;
+}
+.journal-cash-value {
+  display: block;
+  font-weight: 600;
+}
+.journal-cash-in {
+  color: #c53030;
+}
+.journal-cash-out {
+  color: #087f6b;
+}
+.journal-running-balance {
+  color: var(--muted);
+  font-weight: 400;
+}
